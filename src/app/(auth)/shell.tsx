@@ -7,7 +7,7 @@ export function AuthShell({ word, children }: { word: string; children: React.Re
       <Glow />
       <section className="relative flex flex-col justify-between overflow-hidden border-line p-6 md:border-r md:p-12">
         <Link href="/" className="font-display text-lg font-extrabold">
-          YAO<span className="text-lime">.</span>
+          GABAO<span className="text-lime">.</span>
         </Link>
         <h1 className="mt-16 font-display text-[18vw] font-extrabold leading-[0.85] tracking-tighter md:mt-0 md:text-[9vw]">
           <Kinetic text={word} />

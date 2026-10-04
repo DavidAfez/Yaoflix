@@ -124,8 +124,8 @@ export async function getInsights(days: number) {
     group by t.id, t.name order by count(*) desc limit 10
   `);
 
-  const voices = await q<{ id: string; file: string; title: string | null; handle: string | null; duration: number | null; source: string; at: string; age: string | null }>(sql`
-    select f.id, f.audio_file as file, t.name as title, u.handle, f.duration_sec as duration, f.source,
+  const voices = await q<{ id: string; file: string; title: string | null; handle: string | null; duration: number | null; source: string; at: string; age: string | null; transcript: string | null }>(sql`
+    select f.id, f.audio_file as file, t.name as title, u.handle, f.duration_sec as duration, f.source, f.transcript,
       to_char(f.created_at, 'DD/MM HH24:MI') as at, u.age_bracket as age
     from feedback f left join titles t on t.id = f.title_id left join users u on u.id = f.user_id
     order by f.created_at desc limit 30

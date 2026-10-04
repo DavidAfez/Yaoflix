@@ -366,6 +366,7 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
                     </span>
                   </p>
                   <audio src={`/api/voice/${v.file}`} controls preload="none" className="mt-1 h-9 w-full" />
+                  {v.transcript && <p className="mt-2 text-sm leading-relaxed text-bone/85">« {v.transcript} »</p>}
                 </li>
               ))}
             </ul>

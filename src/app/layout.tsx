@@ -11,7 +11,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: { default: "Yaoflix", template: "%s · Yaoflix" },
+  title: { default: "GabaoFlix", template: "%s · GabaoFlix" },
   description: "Tu demandes. On met en ligne. Tu regardes.",
   robots: { index: false, follow: false },
 };

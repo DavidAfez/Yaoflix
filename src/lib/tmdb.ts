@@ -180,3 +180,22 @@ export async function similar(kind: "movie" | "tv", tmdbId: number): Promise<Tit
     return [];
   }
 }
+
+/** Best rated titles (TMDB top rated), cached locally. Offline: best vote average in the local cache. */
+export async function topRated(kind: "movie" | "tv"): Promise<TitleRow[]> {
+  if (hasTmdb()) {
+    try {
+      const pages = await Promise.all(["1", "2"].map((page) => tmdb<{ results: TmdbItem[] }>(`/${kind}/top_rated`, { page })));
+      return upsert(pages.flatMap((p) => p.results).slice(0, 30).map((it) => toRow(it, kind)));
+    } catch (e) {
+      const { logError } = await import("./errors");
+      await logError("server", e, { where: "tmdb.topRated", kind });
+    }
+  }
+  return db
+    .select()
+    .from(schema.titles)
+    .where(eq(schema.titles.kind, kind))
+    .orderBy(desc(schema.titles.voteAverage), desc(schema.titles.popularity))
+    .limit(30);
+}

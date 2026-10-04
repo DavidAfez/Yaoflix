@@ -251,6 +251,7 @@ export const feedback = pgTable("feedback", {
   mime: text("mime").notNull(),
   durationSec: integer("duration_sec"),
   source: text("source").notNull(), // web | whatsapp
+  transcript: text("transcript"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

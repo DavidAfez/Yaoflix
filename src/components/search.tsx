@@ -17,21 +17,22 @@ export function SearchHero({ children }: { children: React.ReactNode }) {
       setResults(null);
       return;
     }
-    const ctl = new AbortController();
+    // A stale flag instead of AbortController: aborting an in-flight fetch surfaces as a runtime error in dev
+    let stale = false;
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`, { signal: ctl.signal });
+        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
         const data = (await res.json()) as { results: PosterData[] };
-        setResults(data.results ?? []);
+        if (!stale) setResults(data.results ?? []);
       } catch {
       } finally {
-        setLoading(false);
+        if (!stale) setLoading(false);
       }
     }, 280);
     return () => {
+      stale = true;
       clearTimeout(t);
-      ctl.abort();
     };
   }, [q]);
 

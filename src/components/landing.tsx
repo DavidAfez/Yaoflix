@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import { Kinetic, Glow } from "./kinetic";
+import { VoiceStrip } from "./voice-strip";
 
 function Magnetic({ children, href }: { children: React.ReactNode; href: string }) {
   const x = useMotionValue(0);
@@ -109,7 +110,7 @@ export function Landing({ posters }: { posters: string[] }) {
       <Glow />
       <header className="relative z-10 flex items-center justify-between p-5 md:p-10">
         <span className="font-display text-xl font-extrabold">
-          YAO<span className="text-lime">.</span>
+          GABAO<span className="text-lime">.</span>
         </span>
         <Link href="/login" className="text-sm tracking-wide text-bone/70 underline-offset-8 hover:text-bone hover:underline">
           Connexion
@@ -136,6 +137,10 @@ export function Landing({ posters }: { posters: string[] }) {
           <Line className="text-[17vw] text-lime md:text-[8vw]">Mail chiffré.</Line>
         </div>
       </section>
+
+      <div className="relative z-10 mt-32">
+        <VoiceStrip big />
+      </div>
 
       <section className="relative z-10 mt-40 flex flex-col items-center gap-12 px-5 pb-32 text-center md:flex-row md:justify-between md:px-10 md:text-left">
         <Countdown />

@@ -17,7 +17,8 @@ export function proxy(request: NextRequest) {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    dev ? "" : "upgrade-insecure-requests",
+    // Only when served over HTTPS, otherwise a local production run would break its own assets
+    process.env.APP_URL?.startsWith("https://") ? "upgrade-insecure-requests" : "",
   ]
     .filter(Boolean)
     .join("; ");

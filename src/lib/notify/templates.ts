@@ -14,7 +14,7 @@ function frame(heading: string, body: string, cta?: { label: string; href: strin
   return `<!doctype html><html><body style="margin:0;background:#0a0a0c;color:#f4f1ea;font-family:Helvetica,Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:48px 20px">
 <table width="100%" style="max-width:520px" cellpadding="0" cellspacing="0">
-<tr><td style="font-size:13px;letter-spacing:.3em;color:#c6ff3d;font-weight:700;padding-bottom:36px">YAOFLIX</td></tr>
+<tr><td style="font-size:13px;letter-spacing:.3em;color:#c6ff3d;font-weight:700;padding-bottom:36px">GABAOFLIX</td></tr>
 <tr><td style="font-size:30px;line-height:1.1;font-weight:800;padding-bottom:20px">${heading}</td></tr>
 <tr><td style="font-size:16px;line-height:1.6;color:#d8d4cb;padding-bottom:32px">${body}</td></tr>
 <tr><td>${button}</td></tr>

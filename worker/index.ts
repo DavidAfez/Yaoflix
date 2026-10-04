@@ -6,6 +6,7 @@ import { logError } from "@/lib/errors";
 import { renderMail, renderWhatsApp } from "@/lib/notify/templates";
 import { sendWhatsApp, whatsappEnabled } from "@/lib/notify/whatsapp";
 import { transcode } from "./transcode";
+import { transcribe } from "./transcribe";
 
 type Job = typeof schema.jobs.$inferSelect;
 
@@ -52,6 +53,8 @@ async function handle(job: Job) {
   switch (job.type) {
     case "transcode":
       return transcode(String(p.mediaId));
+    case "transcribe":
+      return transcribe(String(p.feedbackId));
     case "mail": {
       const u = await contact(String(p.userId));
       if (!u || u.banned) return;
@@ -141,13 +144,13 @@ async function lane(name: string, types: string[]) {
 }
 
 async function main() {
-  console.log("Yaoflix worker up");
+  console.log("GabaoFlix worker up");
   await recoverStale();
   setInterval(() => void recoverStale().catch(() => {}), 5 * 60_000);
   const heavy = Number(process.env.TRANSCODE_CONCURRENCY ?? 1);
   await Promise.all([
     ...Array.from({ length: heavy }, (_, i) => lane(`transcode-${i}`, ["transcode"])),
-    lane("notify", ["mail", "whatsapp"]),
+    lane("notify", ["mail", "whatsapp", "transcribe"]),
   ]);
 }
 

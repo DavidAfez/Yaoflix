@@ -24,7 +24,7 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
     <>
       <header className="fixed inset-x-0 top-0 z-50 hidden h-16 items-center border-b border-line bg-ink/80 px-8 backdrop-blur-xl md:flex">
         <Link href="/" className="font-display text-lg font-extrabold tracking-tight">
-          YAO<span className="text-lime">.</span>
+          GABAO<span className="text-lime">.</span>
         </Link>
         <nav className="ml-14 flex gap-9">
           {items.map((it) => (

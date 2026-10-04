@@ -3,7 +3,9 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getUser } from "@/lib/auth";
 import { recommend } from "@/lib/recos";
-import { trending, img } from "@/lib/tmdb";
+import { trending, topRated, img } from "@/lib/tmdb";
+import { readyTitleIds } from "@/lib/recos";
+import { VoiceStrip } from "@/components/voice-strip";
 import { toPoster, daysLeft } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
 import { SearchHero } from "@/components/search";
@@ -20,7 +22,7 @@ export default async function Page() {
     return <Landing posters={posters} />;
   }
 
-  const [grants, myRequests, fresh, recos] = await Promise.all([
+  const [grants, myRequests, fresh, recos, topMovies, topShows] = await Promise.all([
     db
       .select({ grant: schema.accessGrants, title: schema.titles })
       .from(schema.accessGrants)
@@ -51,7 +53,10 @@ export default async function Page() {
       .orderBy(schema.media.titleId, desc(schema.media.readyAt))
       .limit(30),
     recommend(user),
+    topRated("movie").catch(() => []),
+    topRated("tv").catch(() => []),
   ]);
+  const topReady = await readyTitleIds([...topMovies, ...topShows].map((t) => t.id));
   const latest = fresh.sort((a, b) => (b.readyAt?.getTime() ?? 0) - (a.readyAt?.getTime() ?? 0)).slice(0, 16);
 
   return (
@@ -123,11 +128,24 @@ export default async function Page() {
           </section>
         )}
 
-        {!grants.length && !recos.length && !latest.length && !myRequests.length && (
-          <div className="grid min-h-[50vh] place-items-center px-6 text-center">
-            <p className="font-display text-5xl font-extrabold leading-none text-bone/15 md:text-8xl">Cherche.<br />Demande.<br />Regarde.</p>
-          </div>
+        <VoiceStrip />
+
+        {topMovies.length > 0 && (
+          <Row title="Top films">
+            {topMovies.map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} />
+            ))}
+          </Row>
         )}
+
+        {topShows.length > 0 && (
+          <Row title="Top séries">
+            {topShows.map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} />
+            ))}
+          </Row>
+        )}
+
         <div className="h-16" />
       </SearchHero>
     </main>

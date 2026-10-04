@@ -5,6 +5,7 @@ import { apiUser } from "@/lib/auth";
 import { db, schema } from "@/db";
 import { paths } from "@/lib/storage";
 import { rateLimit } from "@/lib/ratelimit";
+import { enqueue } from "@/lib/jobs";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const EXT: Record<string, string> = { "audio/webm": "webm", "audio/mp4": "m4a", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/aac": "aac" };
@@ -25,13 +26,14 @@ export async function POST(req: Request) {
   await mkdir(paths.voiceDir, { recursive: true });
   const file = `${randomUUID()}.${ext}`;
   await writeFile(paths.voice(file), Buffer.from(await audio.arrayBuffer()));
-  await db.insert(schema.feedback).values({
+  const [fb] = await db.insert(schema.feedback).values({
     userId: user.id,
     titleId: Number.isFinite(titleId) && titleId > 0 ? titleId : null,
     audioFile: file,
     mime,
     durationSec: duration || null,
     source: "web",
-  });
+  }).returning({ id: schema.feedback.id });
+  await enqueue("transcribe", { feedbackId: fb.id });
   return NextResponse.json({ ok: true });
 }

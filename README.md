@@ -1,4 +1,4 @@
-# Yaoflix
+# GabaoFlix
 
 Streaming à la demande. Un membre cherche un titre, le demande avec ses préférences, le staff l'uploade (ou refuse avec une raison), et le membre reçoit un lien privé valable 7 jours.
 

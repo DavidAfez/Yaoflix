@@ -8,6 +8,7 @@ import { blindIndex, safeEqual } from "@/lib/crypto";
 import { downloadWhatsAppMedia } from "@/lib/notify/whatsapp";
 import { logError } from "@/lib/errors";
 import { paths } from "@/lib/storage";
+import { enqueue } from "@/lib/jobs";
 
 /** Meta webhook verification handshake. */
 export async function GET(req: Request) {
@@ -56,13 +57,14 @@ export async function POST(req: Request) {
       const file = `${randomUUID()}.${EXT[base] ?? "ogg"}`;
       await mkdir(paths.voiceDir, { recursive: true });
       await writeFile(paths.voice(file), data);
-      await db.insert(schema.feedback).values({
+      const [fb] = await db.insert(schema.feedback).values({
         userId: user.id,
         titleId: last?.titleId ?? null,
         audioFile: file,
         mime: base,
         source: "whatsapp",
-      });
+      }).returning({ id: schema.feedback.id });
+      await enqueue("transcribe", { feedbackId: fb.id });
     }
   } catch (e) {
     await logError("whatsapp", e, { where: "webhook" });

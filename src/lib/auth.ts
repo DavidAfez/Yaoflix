@@ -26,7 +26,8 @@ export async function createSession(userId: string) {
   const jar = await cookies();
   jar.set(COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Secure cookies need HTTPS: on a plain http local test they would never be sent back
+    secure: process.env.APP_URL?.startsWith("https://") ?? false,
     sameSite: "lax",
     path: "/",
     expires: expiresAt,

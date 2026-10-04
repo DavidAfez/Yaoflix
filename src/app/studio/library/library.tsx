@@ -72,16 +72,18 @@ function TitlePicker({ onPick }: { onPick: (p: Picked) => void }) {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (q.trim().length < 2) return setRes([]);
-    const ctl = new AbortController();
+    let stale = false;
     const t = setTimeout(async () => {
       setLoading(true);
-      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&ids=1`, { signal: ctl.signal }).catch(() => null);
-      if (r?.ok) setRes(((await r.json()) as { results: PosterData[] }).results);
+      const r = await fetch(`/api/search?q=${encodeURIComponent(q)}`).catch(() => null);
+      const data = r?.ok ? ((await r.json().catch(() => null)) as { results: PosterData[] } | null) : null;
+      if (stale) return;
+      if (data) setRes(data.results);
       setLoading(false);
     }, 280);
     return () => {
+      stale = true;
       clearTimeout(t);
-      ctl.abort();
     };
   }, [q]);
   return (

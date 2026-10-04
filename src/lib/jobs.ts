@@ -1,6 +1,6 @@
 import { db, schema } from "@/db";
 
-export type JobType = "transcode" | "mail" | "whatsapp" | "watchlist-ready";
+export type JobType = "transcode" | "mail" | "whatsapp" | "watchlist-ready" | "transcribe";
 
 export async function enqueue(type: JobType, payload: Record<string, unknown>, delaySec = 0) {
   await db.insert(schema.jobs).values({ type, payload, runAt: new Date(Date.now() + delaySec * 1000) });
