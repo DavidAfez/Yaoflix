@@ -13,10 +13,21 @@ export type MeState = { ok?: boolean; error?: string } | undefined;
 export async function saveProfile(_: MeState, form: FormData): Promise<MeState> {
   const user = await requireUser();
   const parsed = z
-    .object({ age: z.enum(ageBrackets), sex: z.enum(["F", "M", "X", ""]) })
-    .safeParse({ age: form.get("age"), sex: form.get("sex") ?? "" });
-  if (!parsed.success) return { error: "Invalide" };
-  await db.update(schema.users).set({ ageBracket: parsed.data.age, sex: parsed.data.sex || null }).where(eq(schema.users.id, user.id));
+    .object({
+      handle: z.string().trim().toLowerCase().regex(/^[a-z0-9_.]{3,20}$/, "Pseudo : 3 à 20 caractères, lettres, chiffres, _ ou ."),
+      age: z.enum(ageBrackets, "Choisis ta tranche d'âge"),
+      sex: z.enum(["F", "M", "X", ""]),
+    })
+    .safeParse({ handle: form.get("handle") ?? user.handle, age: form.get("age"), sex: form.get("sex") ?? "" });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalide" };
+  if (parsed.data.handle !== user.handle) {
+    const [taken] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.handle, parsed.data.handle));
+    if (taken) return { error: "Pseudo déjà pris" };
+  }
+  await db
+    .update(schema.users)
+    .set({ handle: parsed.data.handle, ageBracket: parsed.data.age, sex: parsed.data.sex || null })
+    .where(eq(schema.users.id, user.id));
   revalidatePath("/me");
   return { ok: true };
 }

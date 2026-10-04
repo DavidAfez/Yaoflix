@@ -129,29 +129,12 @@ export function Landing({ posters }: { posters: string[] }) {
 
       <Wall posters={posters} />
 
-      <section className="relative z-10 grid gap-16 px-5 md:grid-cols-[1.4fr_1fr] md:items-center md:px-10">
+      <section className="relative z-10 px-5 md:px-10">
         <div className="space-y-2">
           <Line className="text-[17vw] md:text-[8vw]">0 nom.</Line>
           <Line className="text-[17vw] text-bone/25 md:text-[8vw]">0 IP.</Line>
           <Line className="text-[17vw] text-lime md:text-[8vw]">Mail chiffré.</Line>
         </div>
-        <motion.ul
-          initial="hide"
-          whileInView="show"
-          viewport={{ once: true }}
-          variants={{ show: { transition: { staggerChildren: 0.12 } } }}
-          className="grid grid-cols-2 gap-px bg-line font-mono text-xs uppercase tracking-widest"
-        >
-          {["AES-256-GCM", "Argon2id", "HMAC-SHA256", "Pseudo seul", "Pays seul", "Liens 7J"].map((t) => (
-            <motion.li
-              key={t}
-              variants={{ hide: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
-              className="bg-ink p-5 text-bone/80"
-            >
-              {t}
-            </motion.li>
-          ))}
-        </motion.ul>
       </section>
 
       <section className="relative z-10 mt-40 flex flex-col items-center gap-12 px-5 pb-32 text-center md:flex-row md:justify-between md:px-10 md:text-left">

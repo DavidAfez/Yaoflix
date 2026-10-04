@@ -7,6 +7,7 @@ import { toPoster } from "@/lib/view";
 import { roleLabel } from "@/lib/rbac";
 import { MeTabs } from "./tabs";
 import { logout } from "../(auth)/actions";
+import { LogOut } from "lucide-react";
 
 export const metadata = { title: "Moi" };
 
@@ -38,11 +39,16 @@ export default async function Page() {
 
   return (
     <main className="px-4 py-10 md:px-10">
-      <header className="flex flex-wrap items-end justify-between gap-6 border-b border-line pb-8">
+      <header className="relative flex flex-wrap items-end justify-between gap-6 border-b border-line pb-8">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-lime">{roleLabel[user.role]}</p>
           <h1 className="mt-2 break-all font-display text-5xl font-extrabold tracking-tighter md:text-8xl">@{user.handle}</h1>
         </div>
+        <form action={logout} className="absolute right-0 top-0 md:static">
+          <button className="flex h-10 items-center gap-2 border border-line px-3 text-sm transition-colors hover:border-coral hover:text-coral md:px-4">
+            <LogOut size={15} /> Déconnexion
+          </button>
+        </form>
         <dl className="flex gap-8 md:gap-12">
           {[
             ["Vus", watched],
@@ -68,12 +74,9 @@ export default async function Page() {
           at: req.createdAt.toISOString(),
           poster: toPoster(title),
         }))}
-        profile={{ age: user.ageBracket ?? "", sex: user.sex ?? "", hasPhone: user.hasPhone, optIn: user.whatsappOptIn }}
+        profile={{ handle: user.handle, age: user.ageBracket ?? "", sex: user.sex ?? "", hasPhone: user.hasPhone, optIn: user.whatsappOptIn }}
       />
 
-      <form action={logout} className="mt-20 border-t border-line pt-6">
-        <button className="text-sm text-dim hover:text-coral">Déconnexion</button>
-      </form>
     </main>
   );
 }

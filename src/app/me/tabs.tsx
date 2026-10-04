@@ -18,7 +18,7 @@ export function MeTabs(props: {
   toAsk: PosterData[];
   liked: PosterData[];
   requests: Req[];
-  profile: { age: string; sex: string; hasPhone: boolean; optIn: boolean };
+  profile: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean };
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Pour toi");
   return (
@@ -87,7 +87,7 @@ function Requests({ items }: { items: Req[] }) {
   );
 }
 
-function Settings({ age, sex, hasPhone, optIn }: { age: string; sex: string; hasPhone: boolean; optIn: boolean }) {
+function Settings({ handle, age, sex, hasPhone, optIn }: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean }) {
   const [p, saveP] = useActionState(saveProfile, undefined);
   const [w, saveW] = useActionState(saveWhatsApp, undefined);
   const [d, del] = useActionState(deleteAccount, undefined);
@@ -99,6 +99,7 @@ function Settings({ age, sex, hasPhone, optIn }: { age: string; sex: string; has
     <div className="grid max-w-5xl gap-16 md:grid-cols-2">
       <form action={saveP} className="space-y-7">
         <h3 className="font-display text-lg font-semibold">Profil</h3>
+        <Field label="Pseudo" name="handle" defaultValue={handle} required minLength={3} maxLength={20} autoComplete="username" />
         <input type="hidden" name="age" value={a} />
         <input type="hidden" name="sex" value={s} />
         <Choice name="age-ui" label="Âge" value={a} onChange={setA} options={ageBrackets.map((x) => ({ value: x, label: x }))} />

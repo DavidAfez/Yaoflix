@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
-import { Home, Bookmark, User, Clapperboard } from "lucide-react";
+import { Home, Bookmark, User, Clapperboard, LogOut } from "lucide-react";
+import { logout } from "@/app/(auth)/actions";
 import type { Role } from "@/db/schema";
 
 const isStaff = (r: Role) => r !== "USER";
@@ -36,6 +37,11 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
           ))}
         </nav>
         <span className="ml-auto font-mono text-xs text-dim">@{handle}</span>
+        <form action={logout} className="ml-5">
+          <button aria-label="Déconnexion" title="Déconnexion" className="grid size-9 place-items-center text-dim transition-colors hover:text-coral">
+            <LogOut size={17} />
+          </button>
+        </form>
       </header>
 
       <nav
