@@ -42,10 +42,12 @@ async function tmdb<T>(path: string, params: Record<string, string> = {}): Promi
   const url = new URL(API + path);
   url.searchParams.set("language", "fr-FR");
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${process.env.TMDB_TOKEN}`, accept: "application/json" },
-    next: { revalidate: 3600 },
-  });
+  // Accept both TMDB credentials: the long "Read Access Token" (Bearer) or the short v3 "API key" (query param)
+  const token = (process.env.TMDB_TOKEN ?? "").trim();
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (token.startsWith("eyJ")) headers.Authorization = `Bearer ${token}`;
+  else url.searchParams.set("api_key", token);
+  const res = await fetch(url, { headers, next: { revalidate: 3600 } });
   if (!res.ok) throw new Error(`TMDB ${res.status} on ${path}`);
   return res.json() as Promise<T>;
 }
