@@ -48,7 +48,7 @@ const pick = <T,>(xs: readonly T[], w?: number[]) => {
 const rand = (a: number, b: number) => Math.floor(a + Math.random() * (b - a));
 const daysAgo = (d: number) => new Date(Date.now() - d * 86400_000 - rand(0, 86400_000));
 
-const DEMO_TITLES: [string, number, string[]][] = [
+const DEMO_TITLES: [string, number, string[], string?][] = [
   ["Dune : Deuxième partie", 2024, ["Science-fiction", "Aventure"]],
   ["Oppenheimer", 2023, ["Drame", "Histoire"]],
   ["Spider-Man : Across the Spider-Verse", 2023, ["Animation", "Action"]],
@@ -69,13 +69,17 @@ const DEMO_TITLES: [string, number, string[]][] = [
   ["Le Fabuleux Destin d'Amélie Poulain", 2001, ["Comédie", "Romance"]],
   ["Alien : Romulus", 2024, ["Horreur", "Science-fiction"]],
   ["Coco", 2017, ["Animation", "Famille"]],
+  ["Arcane", 2021, ["Animation", "Science-fiction"], "tv"],
+  ["Lupin", 2021, ["Crime", "Mystère"], "tv"],
+  ["The Bear", 2022, ["Comédie", "Drame"], "tv"],
+  ["Breaking Bad", 2008, ["Drame", "Crime"], "tv"],
 ];
 
 async function demo() {
   console.log("Seeding demo data...");
   const titles = await db
     .insert(schema.titles)
-    .values(DEMO_TITLES.map(([name, year, genres], i) => ({ tmdbId: 900000 + i, kind: "movie", name, year, genres, popularity: 100 - i * 3, releaseDate: `${year}-06-01` })))
+    .values(DEMO_TITLES.map(([name, year, genres, kind], i) => ({ tmdbId: 900000 + i, kind: kind ?? "movie", name, year, genres, popularity: 100 - i * 3, releaseDate: `${year}-06-01` })))
     .onConflictDoNothing()
     .returning();
   const all = titles.length ? titles : await db.select().from(schema.titles);

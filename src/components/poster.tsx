@@ -36,6 +36,9 @@ export function Poster({ t, i = 0, size = "md" }: { t: PosterData; i?: number; s
             </div>
           )}
           {t.ready && <span className="absolute inset-y-0 left-0 w-1 bg-lime" aria-label="Dispo" />}
+          {t.kind === "tv" && (
+            <span className="absolute right-0 top-0 bg-ink/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-bone">Série</span>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </div>
         <div className="mt-2 flex items-baseline justify-between gap-2">
