@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // No "N" badge in the corner during development, errors still show up
+  devIndicators: false,
   serverExternalPackages: ["@node-rs/argon2", "pg", "nodemailer"],
   async headers() {
     return [
