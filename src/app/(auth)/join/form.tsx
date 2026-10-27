@@ -6,9 +6,11 @@ import { join } from "../actions";
 import { Field, Submit, FormError, Choice } from "@/components/ui";
 import { ageBrackets, sexes } from "@/lib/labels";
 import { Sent } from "../sent";
+import { useT } from "@/components/i18n";
 
 export function JoinForm() {
   const [state, action] = useActionState(join, undefined);
+  const t = useT();
   const [age, setAge] = useState<string>("");
   const [sex, setSex] = useState<string>("");
   if (state?.sent) return <Sent />;
@@ -19,7 +21,7 @@ export function JoinForm() {
       <Field label="Mot de passe" name="password" type="password" autoComplete="new-password" required minLength={10} />
 
       <fieldset>
-        <legend className="mb-3 font-display text-xs uppercase tracking-[0.2em]">Âge</legend>
+        <legend className="mb-3 font-display text-xs uppercase tracking-[0.2em]">{t("Âge")}</legend>
         <input type="hidden" name="age" value={age} />
         <div className="grid grid-cols-3 gap-px bg-line">
           {ageBrackets.map((a) => (
@@ -41,9 +43,9 @@ export function JoinForm() {
 
       <FormError message={state?.error} />
       <div className="flex items-center justify-between gap-4 pt-2">
-        <Submit size="lg">Créer</Submit>
+        <Submit size="lg">{t("Créer")}</Submit>
         <Link href="/login" className="text-sm text-dim underline-offset-4 hover:text-bone hover:underline">
-          J&apos;ai un compte
+          {t("J'ai un compte")}
         </Link>
       </div>
     </form>

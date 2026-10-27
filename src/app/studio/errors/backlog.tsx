@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check } from "lucide-react";
 import { purgeResolved, resolveError } from "../actions";
+import { useT } from "@/components/i18n";
 
 type Row = {
   id: number;
@@ -32,6 +33,7 @@ const ago = (iso: string) => {
 };
 
 export function Backlog({ rows, view, source, counts, canResolve, canPurge }: { rows: Row[]; view: string; source: string; counts: Record<string, number>; canResolve: boolean; canPurge: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState<number | null>(null);
   const [gone, setGone] = useState<Set<number>>(new Set());
   const [, start] = useTransition();
@@ -41,19 +43,19 @@ export function Backlog({ rows, view, source, counts, canResolve, canPurge }: { 
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-baseline gap-4">
-        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">Erreurs</h1>
+        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">{t("Erreurs")}</h1>
         <span className="font-mono text-coral">{total}</span>
         <div className="ml-auto flex gap-6 text-sm">
-          <Link href={href("open", source)} className={view === "open" ? "text-bone" : "text-dim hover:text-bone"}>Ouvertes</Link>
-          <Link href={href("done", source)} className={view === "done" ? "text-bone" : "text-dim hover:text-bone"}>Résolues</Link>
+          <Link href={href("open", source)} className={view === "open" ? "text-bone" : "text-dim hover:text-bone"}>{t("Ouvertes")}</Link>
+          <Link href={href("done", source)} className={view === "done" ? "text-bone" : "text-dim hover:text-bone"}>{t("Résolues")}</Link>
           {canPurge && view === "done" && (
-            <button onClick={() => confirm("Purger ?") && start(() => purgeResolved())} className="text-coral">Purger</button>
+            <button onClick={() => confirm(t("Purger ?")) && start(() => purgeResolved())} className="text-coral">{t("Purger")}</button>
           )}
         </div>
       </div>
 
       <div className="scrollbar-none mb-6 flex gap-2 overflow-x-auto">
-        <Link href={href(view, "")} className={`shrink-0 border px-3 py-1.5 font-mono text-xs uppercase ${!source ? "border-lime text-lime" : "border-line text-dim"}`}>Tout</Link>
+        <Link href={href(view, "")} className={`shrink-0 border px-3 py-1.5 font-mono text-xs uppercase ${!source ? "border-lime text-lime" : "border-line text-dim"}`}>{t("Tout")}</Link>
         {SOURCES.map((s) => (
           <Link key={s} href={href(view, s)} className={`flex shrink-0 items-center gap-2 border px-3 py-1.5 font-mono text-xs uppercase ${source === s ? "border-lime text-lime" : "border-line text-dim hover:text-bone"}`}>
             <span className={`size-1.5 ${tone[s]}`} />
@@ -63,7 +65,7 @@ export function Backlog({ rows, view, source, counts, canResolve, canPurge }: { 
         ))}
       </div>
 
-      {rows.length === 0 && <p className="py-24 text-center font-display text-4xl text-bone/15">Calme plat.</p>}
+      {rows.length === 0 && <p className="py-24 text-center font-display text-4xl text-bone/15">{t("Calme plat.")}</p>}
       <ul className="divide-y divide-line border-y border-line">
         <AnimatePresence initial={false}>
           {rows
@@ -87,8 +89,8 @@ export function Backlog({ rows, view, source, counts, canResolve, canPurge }: { 
                         setGone(new Set(gone).add(r.id));
                         start(() => resolveError(r.id));
                       }}
-                      aria-label="Résolu"
-                      title="Résolu"
+                      aria-label={t("Résolu")}
+                      title={t("Résolu")}
                       className="grid size-9 shrink-0 place-items-center border border-line hover:border-lime hover:text-lime"
                     >
                       <Check size={15} />

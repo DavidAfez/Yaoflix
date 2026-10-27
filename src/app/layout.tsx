@@ -6,6 +6,8 @@ import { Presence } from "@/components/presence";
 import { ErrorReporter } from "@/components/error-reporter";
 import { MarksProvider } from "@/components/marks";
 import { deepState, getMarks } from "@/lib/marks";
+import { I18nProvider } from "@/components/i18n";
+import { getLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
 const unbounded = Unbounded({ subsets: ["latin"], variable: "--font-unbounded", weight: ["400", "600", "800"] });
@@ -26,10 +28,11 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const user = await getUser();
+  const [user, locale] = await Promise.all([getUser(), getLocale()]);
   return (
-    <html lang="fr" className={`${unbounded.variable} ${geist.variable} ${geistMono.variable}`}>
+    <html lang={locale} className={`${unbounded.variable} ${geist.variable} ${geistMono.variable}`}>
       <body className="min-h-dvh">
+        <I18nProvider locale={locale}>
         {user?.approved ? (
           <MarksProvider initial={await getMarks(user.id)} deep={await deepState(user.id)}>
             <Nav role={user.role} handle={user.handle} />
@@ -40,6 +43,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         )}
         {user?.approved && <Presence />}
         <ErrorReporter />
+        </I18nProvider>
       </body>
     </html>
   );

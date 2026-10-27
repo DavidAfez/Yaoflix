@@ -4,8 +4,12 @@ import { ArrowLeft } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { thread } from "@/lib/feed";
 import { Composer, PostCard } from "@/components/feed";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata = { title: "Post" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("Post") };
+}
 
 export default async function Page(props: PageProps<"/p/[id]">) {
   const user = await requireUser();
@@ -13,6 +17,7 @@ export default async function Page(props: PageProps<"/p/[id]">) {
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const t = await thread(user.id, id);
   if (!t) notFound();
+  const tr = await getT();
   return (
     <main className="mx-auto max-w-2xl md:border-x md:border-line">
       <div className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-ink/90 px-4 backdrop-blur-xl md:top-12 md:px-6">
@@ -26,7 +31,7 @@ export default async function Page(props: PageProps<"/p/[id]">) {
         </div>
       )}
       <PostCard p={t.post} big />
-      <Composer parentId={t.post.id} placeholder={`Répondre à @${t.post.handle}`} />
+      <Composer parentId={t.post.id} placeholder={tr("Répondre à @{h}", { h: t.post.handle })} />
       {t.replies.map((r, i) => (
         <PostCard key={r.id} p={r} i={i} />
       ))}

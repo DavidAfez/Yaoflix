@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare, ArrowLeft, Ban, SlidersHorizontal } from "lucide-react";
 import { Stars, useMark } from "@/components/marks";
 import { fmtRating } from "@/lib/rating";
+import { useT } from "@/components/i18n";
 import { requestTitle, toggleWatchlist, watchNow } from "../../actions";
 import { Button, Choice, Dots } from "@/components/ui";
 import { StatusMark } from "@/components/status";
@@ -42,6 +43,7 @@ type Props = {
 const fmtRuntime = (m: number | null) => (m ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}` : null);
 
 export function TitlePanel({ path, title, state }: Props) {
+  const t = useT();
   const router = useRouter();
   const [sheet, setSheet] = useState(false);
   const [listed, setListed] = useState(state.listed);
@@ -61,16 +63,16 @@ export function TitlePanel({ path, title, state }: Props) {
   // Brand new titles rarely have a source yet: say it before the member asks
   const age = title.release ? (Date.now() - new Date(title.release).getTime()) / 86400_000 : null;
   const fresh = !state.ready && !state.grant && age !== null && age < 31;
-  const freshNote = fresh ? (age! < 0 ? "Pas encore sorti." : "Sorti il y a moins d'un mois : peut-être pas encore dispo.") : null;
+  const freshNote = fresh ? t(age! < 0 ? "Pas encore sorti." : "Sorti il y a moins d'un mois : peut-être pas encore dispo.") : null;
 
   const open = state.request && (state.request.status === "PENDING" || state.request.status === "IN_PROGRESS");
-  const meta = [title.year, fmtRuntime(title.runtime), title.kind === "tv" ? "Série" : null, ...title.genres.slice(0, 3)].filter(Boolean);
+  const meta = [title.year, fmtRuntime(title.runtime), title.kind === "tv" ? t("Série") : null, ...title.genres.slice(0, 3).map((g) => t(g))].filter(Boolean);
 
   const send = () =>
     start(async () => {
       setError(null);
       const res = await requestTitle(title.id, prefs);
-      if (!res.ok) return setError(res.error ?? "Oups");
+      if (!res.ok) return setError(t(res.error ?? "Oups"));
       if (res.watch) return router.push(res.watch);
       setSent(true);
       setTimeout(() => {
@@ -84,13 +86,13 @@ export function TitlePanel({ path, title, state }: Props) {
   if (state.grant) {
     primary = (
       <Button onClick={() => router.push(`/w/${state.grant!.id}`)}>
-        <Play size={15} fill="currentColor" /> Regarder
+        <Play size={15} fill="currentColor" /> {t("Regarder")}
       </Button>
     );
   } else if (state.ready) {
     primary = (
       <Button disabled={pending} onClick={() => start(() => watchNow(title.id))}>
-        {pending ? <Dots /> : <><Play size={15} fill="currentColor" /> Regarder</>}
+        {pending ? <Dots /> : <><Play size={15} fill="currentColor" /> {t("Regarder")}</>}
       </Button>
     );
   } else if (open) {
@@ -102,7 +104,7 @@ export function TitlePanel({ path, title, state }: Props) {
   } else {
     primary = (
       <Button onClick={() => setSheet(true)} disabled={!state.verified}>
-        Demander
+        {t("Demander")}
       </Button>
     );
   }
@@ -123,7 +125,7 @@ export function TitlePanel({ path, title, state }: Props) {
           href="/"
           className="absolute left-4 top-3 z-10 flex h-9 items-center gap-2 border border-bone/20 bg-ink/50 px-3 text-xs backdrop-blur transition-colors hover:border-lime hover:text-lime md:left-10 md:top-5"
         >
-          <ArrowLeft size={14} /> Accueil
+          <ArrowLeft size={14} /> {t("Accueil")}
         </Link>
 
         <div className="relative flex min-h-[64svh] flex-col justify-end gap-6 px-4 pb-8 pt-16 md:min-h-[66vh] md:flex-row md:items-end md:justify-start md:px-10 md:pb-10">
@@ -169,7 +171,7 @@ export function TitlePanel({ path, title, state }: Props) {
               <div className="w-full sm:w-auto [&>*]:w-full sm:[&>*]:w-auto">{primary}</div>
               <IconToggle
                 on={listed}
-                label="Liste"
+                label={t("Liste")}
                 onClick={() => {
                   setListed(!listed);
                   void toggleWatchlist(title.id, path);
@@ -179,24 +181,24 @@ export function TitlePanel({ path, title, state }: Props) {
               </IconToggle>
               {mark && (
                 <>
-                  <IconToggle on={mark.liked} label="J'aime" onClick={mark.toggleLike} tone="coral">
+                  <IconToggle on={mark.liked} label={t("J'aime")} onClick={mark.toggleLike} tone="coral">
                     <Heart size={16} fill={mark.liked ? "currentColor" : "none"} />
                   </IconToggle>
-                  <IconToggle on={mark.disliked} label="Bof" onClick={mark.toggleDislike} tone="coral">
+                  <IconToggle on={mark.disliked} label={t("Bof")} onClick={mark.toggleDislike} tone="coral">
                     <ThumbsDown size={16} />
                   </IconToggle>
-                  <IconToggle on={mark.seen} label={mark.seen ? "Vu" : "Déjà vu"} onClick={mark.toggleSeen} >
+                  <IconToggle on={mark.seen} label={t(mark.seen ? "Vu" : "Déjà vu")} onClick={mark.toggleSeen} >
                     {mark.seen ? <EyeOff size={16} /> : <Eye size={16} />}
                   </IconToggle>
-                  <IconToggle on={mark.reviewed} label="Avis" onClick={mark.review}>
+                  <IconToggle on={mark.reviewed} label={t("Avis")} onClick={mark.review}>
                     <MessageSquare size={16} fill={mark.reviewed ? "currentColor" : "none"} />
                   </IconToggle>
                   {mark.deep && (
-                    <IconToggle on={false} label="Analyse" onClick={mark.analyse}>
+                    <IconToggle on={false} label={t("Analyse")} onClick={mark.analyse}>
                       <SlidersHorizontal size={16} />
                     </IconToggle>
                   )}
-                  <IconToggle on={mark.never} label="Jamais" onClick={mark.toggleNever} tone="coral">
+                  <IconToggle on={mark.never} label={t("Jamais")} onClick={mark.toggleNever} tone="coral">
                     <Ban size={16} />
                   </IconToggle>
                 </>
@@ -219,7 +221,7 @@ export function TitlePanel({ path, title, state }: Props) {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSheet(false)} className="fixed inset-0 z-[60] bg-ink/70 backdrop-blur-sm" />
             <motion.div
               role="dialog"
-              aria-label="Demande"
+              aria-label={t("Demande")}
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
@@ -233,7 +235,7 @@ export function TitlePanel({ path, title, state }: Props) {
               <div className="mx-auto mb-6 h-1 w-10 bg-bone/20 md:hidden" />
               <div className="mb-8 flex items-start justify-between gap-4">
                 <p className="font-display text-2xl font-semibold leading-tight">{title.name}</p>
-                <button onClick={() => setSheet(false)} aria-label="Fermer" className="text-dim hover:text-bone">
+                <button onClick={() => setSheet(false)} aria-label={t("Fermer")} className="text-dim hover:text-bone">
                   <X />
                 </button>
               </div>
@@ -252,7 +254,7 @@ export function TitlePanel({ path, title, state }: Props) {
                     {freshNote && <p className="border-l-2 border-coral pl-3 text-sm">{freshNote}</p>}
                     {error && <p className="text-sm text-coral">{error}</p>}
                     <Button size="lg" className="w-full" onClick={send} disabled={pending}>
-                      {pending ? <Dots /> : "Envoyer"}
+                      {pending ? <Dots /> : t("Envoyer")}
                     </Button>
                   </motion.div>
                 )}

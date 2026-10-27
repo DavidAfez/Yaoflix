@@ -7,6 +7,7 @@ import { Check, Mic, Square, X, RotateCcw, Star, Lock, SlidersHorizontal } from 
 import { getDeepReview, likeByRef, rateByRef, saveDeepReview, setNeverByRef, setSeenByRef } from "@/app/t/actions";
 import { CRITERIA, DEEP_UNLOCK, TAGS } from "@/lib/deep";
 import { fmtRating } from "@/lib/rating";
+import { useT } from "./i18n";
 import { Dots } from "./ui";
 
 type Key = string;
@@ -180,8 +181,9 @@ export function StarShape({ fill, size }: { fill: number; size: number }) {
 export function Stars({ value, onChange, size = 22 }: { value: number; onChange: (n: number) => void; size?: number }) {
   const [hover, setHover] = useState(0);
   const shown = hover || value;
+  const t = useT();
   return (
-    <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)} role="radiogroup" aria-label="Note">
+    <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)} role="radiogroup" aria-label={t("Note")}>
       {[1, 2, 3, 4, 5].map((n) => (
         <motion.span
           key={n}
@@ -197,7 +199,7 @@ export function Stars({ value, onChange, size = 22 }: { value: number; onChange:
               type="button"
               role="radio"
               aria-checked={value === v}
-              aria-label={`${fmtRating(v)} sur 5`}
+              aria-label={t("{n} sur 5", { n: fmtRating(v) })}
               onMouseEnter={() => setHover(v)}
               onFocus={() => setHover(v)}
               onBlur={() => setHover(0)}
@@ -230,6 +232,7 @@ function ReviewSheet({
   onDeep: () => void;
 }) {
   const router = useRouter();
+  const t = useT();
   const [mounted, setMounted] = useState(false);
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"idle" | "rec" | "ready" | "sending" | "sent">("idle");
@@ -281,7 +284,7 @@ function ReviewSheet({
       }, 200);
       setPhase("rec");
     } catch {
-      setError("Micro bloqué");
+      setError(t("Micro bloqué"));
     }
   };
 
@@ -299,7 +302,7 @@ function ReviewSheet({
     const res = await fetch("/api/feedback", { method: "POST", body: fd }).catch(() => null);
     if (!res?.ok) {
       setPhase(blob.current ? "ready" : "idle");
-      setError("Envoi impossible");
+      setError(t("Envoi impossible"));
       return;
     }
     setPhase("sent");
@@ -316,7 +319,7 @@ function ReviewSheet({
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-[90] bg-ink/70 backdrop-blur-sm" />
           <motion.div
             role="dialog"
-            aria-label="Avis"
+            aria-label={t("Avis")}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -325,7 +328,7 @@ function ReviewSheet({
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <p className="font-display text-2xl font-semibold leading-tight">{target.name}</p>
-              <button onClick={onClose} aria-label="Fermer" className="text-dim hover:text-bone">
+              <button onClick={onClose} aria-label={t("Fermer")} className="text-dim hover:text-bone">
                 <X />
               </button>
             </div>
@@ -345,7 +348,7 @@ function ReviewSheet({
                       <Square size={22} fill="currentColor" />
                     </motion.button>
                   ) : (
-                    <motion.button whileTap={{ scale: 0.9 }} onClick={record} aria-label="Note vocale" className="relative grid size-16 shrink-0 place-items-center rounded-full bg-lime text-ink">
+                    <motion.button whileTap={{ scale: 0.9 }} onClick={record} aria-label={t("Note vocale")} className="relative grid size-16 shrink-0 place-items-center rounded-full bg-lime text-ink">
                       {phase === "idle" && <motion.span className="absolute inset-0 rounded-full border-2 border-lime" animate={{ scale: [1, 1.4], opacity: [0.6, 0] }} transition={{ duration: 1.6, repeat: Infinity }} />}
                       {phase === "ready" ? <RotateCcw size={22} /> : <Mic size={26} />}
                     </motion.button>
@@ -361,17 +364,17 @@ function ReviewSheet({
                   onChange={(e) => setText(e.target.value)}
                   maxLength={2000}
                   rows={4}
-                  placeholder="Ou en quelques mots"
+                  placeholder={t("Ou en quelques mots")}
                   className="w-full resize-none border-b border-line bg-transparent py-2 text-base outline-none placeholder:text-bone/30 focus:border-lime"
                 />
                 {error && <p className="text-sm text-coral">{error}</p>}
                 {deep.allowed ? (
                   <button onClick={onDeep} className="flex h-11 w-full items-center justify-center gap-2 border border-line text-sm transition-colors hover:border-lime hover:text-lime">
-                    <SlidersHorizontal size={16} /> Analyse
+                    <SlidersHorizontal size={16} /> {t("Analyse")}
                   </button>
                 ) : (
-                  <p className="flex items-center gap-2 font-mono text-xs text-dim" title="Analyse">
-                    <Lock size={13} /> Analyse {Math.min(deep.count, DEEP_UNLOCK)}/{DEEP_UNLOCK}
+                  <p className="flex items-center gap-2 font-mono text-xs text-dim" title={t("Analyse")}>
+                    <Lock size={13} /> {t("Analyse")} {Math.min(deep.count, DEEP_UNLOCK)}/{DEEP_UNLOCK}
                   </p>
                 )}
                 <button
@@ -379,7 +382,7 @@ function ReviewSheet({
                   disabled={phase === "rec" || phase === "sending" || (!blob.current && !text.trim())}
                   className="notch flex h-12 w-full items-center justify-center bg-lime font-semibold text-ink disabled:opacity-40"
                 >
-                  {phase === "sending" ? <Dots /> : "Envoyer"}
+                  {phase === "sending" ? <Dots /> : t("Envoyer")}
                 </button>
               </div>
             )}
@@ -394,6 +397,7 @@ function ReviewSheet({
 /** Detailed review: tap a score per criterion and a few tags. Nothing to type. */
 function DeepSheet({ target, onClose, onDone }: { target: Target | null; onClose: () => void; onDone: (t: Target) => void }) {
   const router = useRouter();
+  const tr = useT();
   const [mounted, setMounted] = useState(false);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [tags, setTags] = useState<string[]>([]);
@@ -439,7 +443,7 @@ function DeepSheet({ target, onClose, onDone }: { target: Target | null; onClose
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 z-[90] bg-ink/70 backdrop-blur-sm" />
           <motion.div
             role="dialog"
-            aria-label="Analyse"
+            aria-label={tr("Analyse")}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
@@ -448,10 +452,10 @@ function DeepSheet({ target, onClose, onDone }: { target: Target | null; onClose
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-xs uppercase tracking-widest text-lime">Analyse</p>
+                <p className="font-mono text-xs uppercase tracking-widest text-lime">{tr("Analyse")}</p>
                 <p className="mt-1 font-display text-2xl font-semibold leading-tight">{target.name}</p>
               </div>
-              <button onClick={onClose} aria-label="Fermer" className="text-dim hover:text-bone">
+              <button onClick={onClose} aria-label={tr("Fermer")} className="text-dim hover:text-bone">
                 <X />
               </button>
             </div>
@@ -471,7 +475,7 @@ function DeepSheet({ target, onClose, onDone }: { target: Target | null; onClose
                 <ul className="space-y-3">
                   {CRITERIA.map((c) => (
                     <li key={c.key} className="grid grid-cols-[1fr_auto] items-center gap-3">
-                      <span className="text-sm">{c.label}</span>
+                      <span className="text-sm">{tr(c.label)}</span>
                       <Segments
                         value={scores[c.key] ?? 0}
                         onChange={(n) =>
@@ -497,13 +501,13 @@ function DeepSheet({ target, onClose, onDone }: { target: Target | null; onClose
                         onClick={() => setTags((x) => (on ? x.filter((y) => y !== t) : [...x, t]))}
                         className={`border px-3 py-1.5 text-sm transition-colors ${on ? "border-lime bg-lime text-ink" : "border-line text-bone/80 hover:border-bone/40"}`}
                       >
-                        {t}
+                        {tr(t)}
                       </motion.button>
                     );
                   })}
                 </div>
                 <button onClick={save} disabled={!filled || phase === "sending"} className="notch flex h-12 w-full items-center justify-center bg-lime font-semibold text-ink disabled:opacity-40">
-                  {phase === "sending" ? <Dots /> : "Enregistrer"}
+                  {phase === "sending" ? <Dots /> : tr("Enregistrer")}
                 </button>
               </div>
             )}
@@ -517,6 +521,7 @@ function DeepSheet({ target, onClose, onDone }: { target: Target | null; onClose
 
 /** Five tappable blocks, from 1 to 5. Tapping the current value clears it. */
 function Segments({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const t = useT();
   return (
     <div className="flex gap-1" role="radiogroup">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -525,7 +530,7 @@ function Segments({ value, onChange }: { value: number; onChange: (n: number) =>
           type="button"
           role="radio"
           aria-checked={value === n}
-          aria-label={`${n} sur 5`}
+          aria-label={t("{n} sur 5", { n })}
           whileTap={{ scale: 0.85 }}
           onClick={() => onChange(n)}
           className={`h-8 w-7 transition-colors md:w-8 ${n <= value ? "bg-lime" : "bg-bone/10 hover:bg-bone/20"}`}

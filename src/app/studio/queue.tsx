@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Upload, Hand } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { rejectLabels } from "@/lib/labels";
+import { useT } from "@/components/i18n";
 import { claimTitle, refuseTitle } from "./actions";
 import type { RejectReason } from "@/db/schema";
 
@@ -31,6 +32,7 @@ const ago = (iso: string) => {
 const reasons = Object.entries(rejectLabels).map(([value, label]) => ({ value: value as RejectReason, label }));
 
 export function Queue({ items }: { items: QueueItem[] }) {
+  const t = useT();
   const [gone, setGone] = useState<Set<number>>(new Set());
   const [, start] = useTransition();
   const visible = items.filter((i) => !gone.has(i.titleId));
@@ -38,10 +40,10 @@ export function Queue({ items }: { items: QueueItem[] }) {
   return (
     <div>
       <div className="mb-8 flex items-baseline gap-4">
-        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">File</h1>
+        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">{t("File")}</h1>
         <span className="font-mono text-lime">{String(visible.length).padStart(2, "0")}</span>
       </div>
-      {visible.length === 0 && <p className="py-24 text-center font-display text-4xl text-bone/15">Rien à faire.</p>}
+      {visible.length === 0 && <p className="py-24 text-center font-display text-4xl text-bone/15">{t("Rien à faire.")}</p>}
       <ul className="divide-y divide-line border-y border-line">
         <AnimatePresence initial={false}>
           {visible.map((it, i) => (
@@ -72,17 +74,17 @@ export function Queue({ items }: { items: QueueItem[] }) {
                   </p>
                 </div>
               </Link>
-              <span className="font-display text-3xl font-semibold tabular-nums text-lime" title="Demandes">
+              <span className="font-display text-3xl font-semibold tabular-nums text-lime" title={t("Demandes")}>
                 ×{it.count}
               </span>
               <div className="flex items-center gap-2">
                 {!it.claimed && (
-                  <button onClick={() => start(() => claimTitle(it.titleId))} aria-label="Prendre" title="Prendre" className="grid size-10 place-items-center border border-line hover:border-ice hover:text-ice">
+                  <button onClick={() => start(() => claimTitle(it.titleId))} aria-label={t("Prendre")} title={t("Prendre")} className="grid size-10 place-items-center border border-line hover:border-ice hover:text-ice">
                     <Hand size={17} />
                   </button>
                 )}
                 <Link href={`/studio/library?title=${it.titleId}`} className="notch flex h-10 items-center gap-2 bg-lime px-4 text-sm font-semibold text-ink">
-                  <Upload size={16} /> Uploader
+                  <Upload size={16} /> {t("Mettre en ligne")}
                 </Link>
                 <Dropdown
                   label="Refuser"

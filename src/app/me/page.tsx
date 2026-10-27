@@ -12,8 +12,12 @@ import { logout } from "../(auth)/actions";
 import { Bug, LogOut } from "lucide-react";
 import Link from "next/link";
 import { Stat } from "./stat";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata = { title: "Moi" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("Moi") };
+}
 
 export default async function Page() {
   const user = await requireUser();
@@ -89,6 +93,7 @@ export default async function Page() {
     `).then((r) => r.rows),
   ]);
 
+  const t = await getT();
   const [pref] = await db.select({ ms: schema.users.billboardMs }).from(schema.users).where(eq(schema.users.id, uid));
   const toAsk = (await Promise.all(seeds.map((s) => similar(s.kind as "movie" | "tv", s.tmdbId)))).flat();
   const askReady = await readyTitleIds(toAsk.map((t) => t.id));
@@ -111,23 +116,23 @@ export default async function Page() {
     <main className="px-4 py-8 md:px-10 md:py-10">
       <header className="border-b border-line pb-8">
         <div className="flex items-center justify-between gap-4">
-          <p className="font-mono text-xs uppercase tracking-widest text-lime">{roleLabel[user.role]}</p>
+          <p className="font-mono text-xs uppercase tracking-widest text-lime">{t(roleLabel[user.role])}</p>
           <div className="flex gap-2">
           <Link
             href="/bug?from=/me"
-            aria-label="Signaler un bug"
+            aria-label={t("Signaler un bug")}
             className="flex h-10 items-center gap-2 border border-line px-3 text-sm transition-colors hover:border-lime hover:text-lime"
           >
             <Bug size={15} />
-            <span className="hidden sm:inline">Un souci ?</span>
+            <span className="hidden sm:inline">{t("Un souci ?")}</span>
           </Link>
           <form action={logout}>
             <button
-              aria-label="Déconnexion"
+              aria-label={t("Déconnexion")}
               className="flex h-10 items-center gap-2 border border-line px-3 text-sm transition-colors hover:border-coral hover:text-coral"
             >
               <LogOut size={15} />
-              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="hidden sm:inline">{t("Déconnexion")}</span>
             </button>
           </form>
           </div>

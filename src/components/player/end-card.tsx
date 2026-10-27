@@ -5,6 +5,7 @@ import { Check, Mic, RotateCcw, Square, ThumbsDown, ThumbsUp, Send, X } from "lu
 import Link from "next/link";
 import { setLike } from "@/app/t/actions";
 import { Dots } from "../ui";
+import { useT } from "../i18n";
 
 const MAX_SEC = 120;
 const BARS = 28;
@@ -17,6 +18,7 @@ function pickMime() {
 type Phase = "idle" | "rec" | "review" | "sending" | "sent";
 
 export function EndCard({ titleId, title, onReplay }: { titleId: number; title: string; onReplay: () => void }) {
+  const t = useT();
   const [phase, setPhase] = useState<Phase>("idle");
   const [levels, setLevels] = useState<number[]>(Array(BARS).fill(0.08));
   const [sec, setSec] = useState(0);
@@ -111,12 +113,12 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
       exit={{ opacity: 0 }}
       className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-10 bg-ink/85 px-6 backdrop-blur-md"
     >
-      <button onClick={() => setHidden(true)} aria-label="Fermer" className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] grid size-11 place-items-center text-dim hover:text-bone md:right-8 md:top-8">
+      <button onClick={() => setHidden(true)} aria-label={t("Fermer")} className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] grid size-11 place-items-center text-dim hover:text-bone md:right-8 md:top-8">
         <X />
       </button>
 
       <motion.p initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="text-center font-display text-5xl font-extrabold tracking-tight md:text-7xl">
-        Alors ?
+        {t("Alors ?")}
       </motion.p>
       <p className="-mt-6 max-w-md truncate text-center font-mono text-xs uppercase tracking-widest text-bone/60">{title}</p>
 
@@ -130,7 +132,7 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
               exit={{ scale: 0 }}
               whileTap={{ scale: 0.9 }}
               onClick={start}
-              aria-label="Note vocale"
+              aria-label={t("Note vocale")}
               className="relative grid size-28 place-items-center rounded-full bg-lime text-ink"
             >
               <motion.span className="absolute inset-0 rounded-full border-2 border-lime" animate={{ scale: [1, 1.5], opacity: [0.7, 0] }} transition={{ duration: 1.6, repeat: Infinity }} />
@@ -156,11 +158,11 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
             <motion.div key="review" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-5">
               {url.current && <audio src={url.current} controls className="w-72" />}
               <div className="flex gap-3">
-                <button onClick={() => setPhase("idle")} aria-label="Refaire" className="grid size-14 place-items-center border border-line hover:border-bone/40">
+                <button onClick={() => setPhase("idle")} aria-label={t("Refaire")} className="grid size-14 place-items-center border border-line hover:border-bone/40">
                   <RotateCcw size={20} />
                 </button>
                 <button onClick={send} disabled={phase === "sending"} className="notch flex h-14 items-center gap-2 bg-lime px-8 font-semibold text-ink">
-                  {phase === "sending" ? <Dots /> : <><Send size={18} /> Envoyer</>}
+                  {phase === "sending" ? <Dots /> : <><Send size={18} /> {t("Envoyer")}</>}
                 </button>
               </div>
             </motion.div>
@@ -171,7 +173,7 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
             </motion.div>
           )}
         </AnimatePresence>
-        {denied && phase === "idle" && <p className="mt-4 text-sm text-coral">Micro bloqué</p>}
+        {denied && phase === "idle" && <p className="mt-4 text-sm text-coral">{t("Micro bloqué")}</p>}
       </div>
 
       <div className="flex items-center gap-3">
@@ -185,10 +187,10 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
 
       <div className="flex gap-8 text-sm">
         <button onClick={onReplay} className="text-bone/70 underline-offset-4 hover:text-bone hover:underline">
-          Revoir
+          {t("Revoir")}
         </button>
         <Link href="/" className="text-bone/70 underline-offset-4 hover:text-bone hover:underline">
-          Accueil
+          {t("Accueil")}
         </Link>
       </div>
     </motion.div>
@@ -196,6 +198,8 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
 }
 
 function VoteBtn({ on, onClick, label, children, tone = "lime" }: { on: boolean; onClick: () => void; label: string; children: React.ReactNode; tone?: "lime" | "coral" }) {
+  const t = useT();
+  label = t(label);
   return (
     <motion.button
       whileTap={{ scale: 0.85 }}

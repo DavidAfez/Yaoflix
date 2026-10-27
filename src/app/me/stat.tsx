@@ -1,8 +1,10 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { animate, useInView } from "motion/react";
+import { useT } from "@/components/i18n";
 
 export function Stat({ label, value, decimals = 0, unit }: { label: string; value: number; decimals?: number; unit?: string }) {
+  const t = useT();
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   useEffect(() => {
@@ -20,7 +22,7 @@ export function Stat({ label, value, decimals = 0, unit }: { label: string; valu
         <span ref={ref}>0</span>
         {unit && <span className="font-mono text-[10px] font-normal text-bone/60 md:text-sm">{unit}</span>}
       </dd>
-      <dt className="mt-1 truncate font-mono text-[10px] uppercase tracking-wider text-dim md:text-[11px] md:tracking-widest">{label}</dt>
+      <dt className="mt-1 truncate font-mono text-[10px] uppercase tracking-wider text-dim md:text-[11px] md:tracking-widest">{t(label)}</dt>
     </div>
   );
 }

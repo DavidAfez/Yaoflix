@@ -6,6 +6,7 @@ import { getUser } from "@/lib/auth";
 import { cinephile, recommend } from "@/lib/recos";
 import { trending, topRated, byGenre, byCountry, classics, interleave, AFRICA, COUNTRY_ROWS, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
 import { neverTitleIds } from "@/lib/marks";
+import { getT } from "@/lib/i18n/server";
 import { KindTabs } from "@/components/kind-tabs";
 import { Billboard, type Slide } from "@/components/billboard";
 import { readyTitleIds } from "@/lib/recos";
@@ -82,6 +83,7 @@ export default async function Page(props: PageProps<"/">) {
     db.select({ id: schema.watchlist.titleId }).from(schema.watchlist).where(eq(schema.watchlist.userId, user.id)),
   ]);
   const listedIds = new Set(listed.map((l) => l.id));
+  const t = await getT();
   // Titles the member refuses to watch never show up in a row
   const keep = (rows: TitleRow[]) => rows.filter((t) => !never.has(t.id));
   const topReady = await readyTitleIds(
@@ -159,7 +161,7 @@ export default async function Page(props: PageProps<"/">) {
 
         {k === "all" && myRequests.length > 0 && (
           <section className="mt-14 px-4 md:px-10">
-            <h2 className="mb-4 font-display text-xl font-semibold md:text-2xl">Demandes</h2>
+            <h2 className="mb-4 font-display text-xl font-semibold md:text-2xl">{t("Demandes")}</h2>
             <ul className="divide-y divide-line border-y border-line">
               {myRequests.map(({ req, title }) => (
                 <li key={req.id}>
@@ -179,7 +181,7 @@ export default async function Page(props: PageProps<"/">) {
 
         {!grants.length && !recos.length && !latest.length && !myRequests.length && !topMovies.length && !topShows.length && !genres.some((r) => r.items.length) && (
           <div className="grid min-h-[40vh] place-items-center px-6 text-center">
-            <p className="font-display text-5xl font-extrabold leading-none text-bone/15 md:text-8xl">Cherche.<br />Demande.<br />Regarde.</p>
+            <p className="font-display text-5xl font-extrabold leading-none text-bone/15 md:text-8xl">{t("Cherche.")}<br />{t("Demande.")}<br />{t("Regarde.")}</p>
           </div>
         )}
 

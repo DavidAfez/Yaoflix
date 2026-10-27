@@ -5,6 +5,7 @@ import { motion, useMotionValue, useSpring } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import { Kinetic, Glow } from "./kinetic";
 import { VoiceStrip } from "./voice-strip";
+import { LangSwitch, useT } from "./i18n";
 
 function Magnetic({ children, href }: { children: React.ReactNode; href: string }) {
   const x = useMotionValue(0);
@@ -103,6 +104,7 @@ function Line({ children, className = "" }: { children: React.ReactNode; classNa
 }
 
 function Countdown() {
+  const t = useT();
   return (
     <div className="relative grid size-56 place-items-center md:size-72">
       <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
@@ -120,12 +122,13 @@ function Countdown() {
           transition={{ duration: 2.4, ease: [0.22, 1, 0.36, 1] }}
         />
       </svg>
-      <span className="font-display text-7xl font-extrabold md:text-8xl">7J</span>
+      <span className="font-display text-7xl font-extrabold md:text-8xl">{t("7J")}</span>
     </div>
   );
 }
 
 export function Landing({ tiles }: { tiles: Tile[] }) {
+  const t = useT();
   return (
     <main className="relative overflow-x-clip">
       <Glow />
@@ -133,9 +136,12 @@ export function Landing({ tiles }: { tiles: Tile[] }) {
         <span className="font-display text-xl font-extrabold">
           GABAOFLIX<span className="text-lime">.</span>
         </span>
-        <Link href="/login" className="text-sm tracking-wide text-bone/70 underline-offset-8 hover:text-bone hover:underline">
-          Connexion
-        </Link>
+        <div className="flex items-center gap-4">
+          <LangSwitch />
+          <Link href="/login" className="text-sm tracking-wide text-bone/70 underline-offset-8 hover:text-bone hover:underline">
+            {t("Connexion")}
+          </Link>
+        </div>
       </header>
 
       <section className="relative z-10 px-5 pt-[8vh] md:px-10">
@@ -144,12 +150,12 @@ export function Landing({ tiles }: { tiles: Tile[] }) {
           <Kinetic text="Flix" className="text-lime" delay={0.18} />
         </h1>
         <p className="mt-6 font-display text-[6vw] font-extrabold leading-[0.95] tracking-tight md:text-[3.2vw]">
-          <span className="block"><Kinetic text="Tu demandes." delay={0.5} /></span>
-          <span className="block"><Kinetic text="On upload." className="text-bone/30" delay={0.7} /></span>
-          <span className="block"><Kinetic text="Tu regardes." className="text-lime" delay={0.9} /></span>
+          <span className="block"><Kinetic text={t("Tu demandes.")} delay={0.5} /></span>
+          <span className="block"><Kinetic text={t("On upload.")} className="text-bone/30" delay={0.7} /></span>
+          <span className="block"><Kinetic text={t("Tu regardes.")} className="text-lime" delay={0.9} /></span>
         </p>
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3 }} className="mt-10">
-          <Magnetic href="/join">Entrer</Magnetic>
+          <Magnetic href="/join">{t("Entrer")}</Magnetic>
         </motion.div>
       </section>
 
@@ -157,9 +163,9 @@ export function Landing({ tiles }: { tiles: Tile[] }) {
 
       <section className="relative z-10 px-5 md:px-10">
         <div className="space-y-2">
-          <Line className="text-[13.5vw] md:text-[6.4vw]">0 nom.</Line>
+          <Line className="text-[13.5vw] md:text-[6.4vw]">{t("0 nom.")}</Line>
           <Line className="text-[13.5vw] text-bone/25 md:text-[6.4vw]">0 IP.</Line>
-          <Line className="text-[13.5vw] text-lime md:text-[6.4vw]">Mail chiffré.</Line>
+          <Line className="text-[13.5vw] text-lime md:text-[6.4vw]">{t("Mail chiffré.")}</Line>
         </div>
       </section>
 
@@ -170,8 +176,8 @@ export function Landing({ tiles }: { tiles: Tile[] }) {
       <section className="relative z-10 mt-40 flex flex-col items-center gap-12 px-5 pb-32 text-center md:flex-row md:justify-between md:px-10 md:text-left">
         <Countdown />
         <div className="space-y-10">
-          <Line className="text-5xl md:text-7xl">Lien privé.</Line>
-          <Magnetic href="/join">Commencer</Magnetic>
+          <Line className="text-5xl md:text-7xl">{t("Lien privé.")}</Line>
+          <Magnetic href="/join">{t("Commencer")}</Magnetic>
         </div>
       </section>
     </main>

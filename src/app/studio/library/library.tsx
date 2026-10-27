@@ -6,6 +6,7 @@ import { FileVideo, Pause, Play, RotateCcw, Search, Trash2, X, Captions } from "
 import type { PosterData } from "@/components/poster";
 import { Button, Dots } from "@/components/ui";
 import { deleteMedia, retryMedia } from "../actions";
+import { useT } from "@/components/i18n";
 
 type MediaRow = {
   id: string;
@@ -31,6 +32,7 @@ const mb = (b: number) => (b / 1024 ** 2).toFixed(0);
 const eta = (s: number) => (s > 3600 ? `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}` : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
 
 export function Library({ media, preselect, canDelete }: { media: MediaRow[]; preselect: Picked | null; canDelete: boolean }) {
+  const t = useT();
   const router = useRouter();
   const [picked, setPicked] = useState<Picked | null>(preselect);
   const busy = media.some((m) => m.status === "QUEUED" || m.status === "PROCESSING");
@@ -44,7 +46,7 @@ export function Library({ media, preselect, canDelete }: { media: MediaRow[]; pr
   return (
     <div className="grid gap-12 xl:grid-cols-[minmax(0,420px)_1fr]">
       <section>
-        <h1 className="mb-6 font-display text-4xl font-extrabold tracking-tight md:text-6xl">Upload</h1>
+        <h1 className="mb-6 font-display text-4xl font-extrabold tracking-tight md:text-6xl">{t("Upload")}</h1>
         <AnimatePresence mode="wait">
           {picked ? (
             <Uploader key={picked.id} title={picked} onClose={() => setPicked(null)} onDone={() => router.refresh()} />
@@ -60,13 +62,14 @@ export function Library({ media, preselect, canDelete }: { media: MediaRow[]; pr
             <MediaLine key={m.id} m={m} i={i} canDelete={canDelete} />
           ))}
         </ul>
-        {!media.length && <p className="py-20 text-center font-display text-3xl text-bone/15">Vide.</p>}
+        {!media.length && <p className="py-20 text-center font-display text-3xl text-bone/15">{t("Vide.")}</p>}
       </section>
     </div>
   );
 }
 
 function TitlePicker({ onPick }: { onPick: (p: Picked) => void }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const [res, setRes] = useState<(PosterData & { id?: number })[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +93,7 @@ function TitlePicker({ onPick }: { onPick: (p: Picked) => void }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <label className="flex items-center gap-3 border-b border-line pb-3 focus-within:border-lime">
         <Search size={20} className="text-lime" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Titre" className="w-full bg-transparent text-xl outline-none placeholder:text-bone/25" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Titre")} className="w-full bg-transparent text-xl outline-none placeholder:text-bone/25" />
         {loading && <Dots />}
       </label>
       <ul className="mt-4 max-h-[60vh] overflow-y-auto">
@@ -121,6 +124,7 @@ function TitlePicker({ onPick }: { onPick: (p: Picked) => void }) {
 }
 
 function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => void; onDone: () => void }) {
+  const t = useT();
   const [file, setFile] = useState<File | null>(null);
   const [subs, setSubs] = useState<{ file: File; lang: string }[]>([]);
   const [sent, setSent] = useState(0);
@@ -200,7 +204,7 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
           <p className="font-mono text-xs text-dim">{title.year}</p>
         </div>
         {state !== "up" && (
-          <button onClick={onClose} aria-label="Fermer" className="text-dim hover:text-bone">
+          <button onClick={onClose} aria-label={t("Fermer")} className="text-dim hover:text-bone">
             <X />
           </button>
         )}
@@ -208,9 +212,9 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
 
       {state === "done" ? (
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="border-l-2 border-lime bg-ink-2 p-6">
-          <p className="font-display text-2xl font-semibold">Envoyé.</p>
+          <p className="font-display text-2xl font-semibold">{t("Envoyé.")}</p>
           <button onClick={onClose} className="mt-4 text-sm text-lime underline-offset-4 hover:underline">
-            Suivant
+            {t("Suivant")}
           </button>
         </motion.div>
       ) : (
@@ -239,7 +243,7 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
               />
             )}
             <FileVideo size={32} className={file ? "text-lime" : "text-dim"} />
-            <span className="max-w-[90%] truncate text-sm">{file ? file.name : "Fichier vidéo"}</span>
+            <span className="max-w-[90%] truncate text-sm">{file ? file.name : t("Fichier vidéo")}</span>
             {file && <span className="font-mono text-xs text-dim">{mb(file.size)} Mo</span>}
           </button>
           <input ref={input} type="file" accept="video/*,.mkv,.avi,.mov,.m4v,.ts" className="hidden" onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
@@ -248,7 +252,7 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
             {subs.map((s, i) => (
               <span key={i} className="flex items-center gap-2 border border-line px-3 py-1.5 font-mono text-xs">
                 ST {s.lang.toUpperCase()}
-                <button onClick={() => setSubs(subs.filter((_, j) => j !== i))} aria-label="Retirer">
+                <button onClick={() => setSubs(subs.filter((_, j) => j !== i))} aria-label={t("Retirer")}>
                   <X size={12} />
                 </button>
               </span>
@@ -293,7 +297,7 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
           <div className="flex gap-3">
             {(state === "idle" || state === "paused" || state === "error") && (
               <Button size="lg" onClick={run} disabled={!file} className="flex-1">
-                {state === "idle" ? "Envoyer" : <><RotateCcw size={18} /> Reprendre</>}
+                {state === "idle" ? t("Envoyer") : <><RotateCcw size={18} /> {t("Reprendre")}</>}
               </Button>
             )}
             {state === "up" && (
@@ -302,7 +306,7 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
               </Button>
             )}
           </div>
-          {state === "error" && <p className="text-sm text-coral">Coupure réseau</p>}
+          {state === "error" && <p className="text-sm text-coral">{t("Coupure réseau")}</p>}
         </>
       )}
     </motion.div>
@@ -310,6 +314,7 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
 }
 
 function MediaLine({ m, i, canDelete }: { m: MediaRow; i: number; canDelete: boolean }) {
+  const t = useT();
   const [pending, start] = useTransition();
   const live = m.status === "PROCESSING" || m.status === "UPLOADING";
   return (
@@ -332,19 +337,19 @@ function MediaLine({ m, i, canDelete }: { m: MediaRow; i: number; canDelete: boo
       </div>
       <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
         <span className={`size-2 ${statusColor[m.status]} ${live ? "animate-pulse" : ""}`} />
-        {statusLabel[m.status]}
+        {t(statusLabel[m.status])}
         {live && <span className="tabular-nums text-bone">{m.progress}%</span>}
       </span>
       {m.status === "FAILED" && (
-        <button onClick={() => start(() => retryMedia(m.id))} aria-label="Relancer" title="Relancer" className="grid size-9 place-items-center border border-line hover:border-lime hover:text-lime">
+        <button onClick={() => start(() => retryMedia(m.id))} aria-label={t("Relancer")} title={t("Relancer")} className="grid size-9 place-items-center border border-line hover:border-lime hover:text-lime">
           {pending ? <Dots /> : <Play size={14} />}
         </button>
       )}
       {canDelete && m.status !== "PROCESSING" && (
         <button
           onClick={() => confirm(`Supprimer ${m.name} ?`) && start(() => deleteMedia(m.id))}
-          aria-label="Supprimer"
-          title="Supprimer"
+          aria-label={t("Supprimer")}
+          title={t("Supprimer")}
           className="grid size-9 place-items-center text-dim hover:text-coral"
         >
           <Trash2 size={15} />

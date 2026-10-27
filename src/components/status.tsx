@@ -1,4 +1,6 @@
+"use client";
 import { rejectLabels } from "@/lib/labels";
+import { useT } from "./i18n";
 import type { RejectReason } from "@/db/schema";
 
 const map = {
@@ -10,10 +12,11 @@ const map = {
 
 export function StatusMark({ status, reason }: { status: keyof typeof map; reason?: RejectReason | null }) {
   const s = map[status];
+  const t = useT();
   return (
     <span className="flex shrink-0 items-center gap-2 font-mono text-[11px] uppercase tracking-wider">
       <span className={`size-2 ${s.cls}`} />
-      {status === "REJECTED" && reason ? rejectLabels[reason] : s.label}
+      {t(status === "REJECTED" && reason ? rejectLabels[reason] : s.label)}
     </span>
   );
 }

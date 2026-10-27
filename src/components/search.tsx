@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Search as Icon, X, History } from "lucide-react";
 import { Poster, type PosterData } from "./poster";
 import { Dots } from "./ui";
+import { useT } from "./i18n";
 
 type Person = { handle: string; seen: number; reviews: number };
 type Filter = "all" | "movie" | "tv" | "ready";
@@ -94,38 +95,39 @@ function useTitleSearch() {
 type S = ReturnType<typeof useTitleSearch>;
 
 function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: S; input: React.RefObject<HTMLInputElement | null>; focused: boolean; setFocused: (b: boolean) => void; onClose?: () => void; big?: boolean }) {
+  const t = useT();
   const showRecent = focused && !s.q && s.recent.length > 0;
   return (
     <>
       <form
-        className={`my-3 flex items-center gap-3 border border-line bg-ink-2/60 px-4 transition-colors focus-within:border-lime ${big ? "h-12 md:h-14" : "h-12 md:h-14"}`}
+        className={`my-2.5 flex h-10 items-center gap-3 border border-line bg-ink-2/60 px-3 transition-colors focus-within:border-lime md:h-11`}
         onSubmit={(e) => {
           e.preventDefault();
           input.current?.blur();
         }}
       >
-        <Icon size={20} className="shrink-0 text-lime" />
+        <Icon size={17} className="shrink-0 text-lime" />
         <input
           ref={input}
           value={s.q}
           onChange={(e) => s.setQ(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
-          placeholder="Un film, une série, @membre"
-          className={`w-full bg-transparent font-display font-semibold tracking-tight outline-none placeholder:text-bone/25 focus-visible:outline-none text-lg md:text-xl`}
+          placeholder={t("Un film, une série, @membre")}
+          className={`w-full bg-transparent font-medium outline-none placeholder:text-bone/25 focus-visible:outline-none text-base`}
           enterKeyHint="search"
           autoComplete="off"
-          aria-label="Rechercher"
+          aria-label={t("Rechercher")}
         />
         {s.loading && <Dots />}
         {s.q && !s.loading && (
-          <motion.button type="button" initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => s.setQ("")} aria-label="Effacer" className="text-dim hover:text-bone">
-            <X size={20} />
+          <motion.button type="button" initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => s.setQ("")} aria-label={t("Effacer")} className="text-dim hover:text-bone">
+            <X size={17} />
           </motion.button>
         )}
         {onClose && (
-          <button type="button" onClick={onClose} className="shrink-0 border border-line px-3 py-1.5 text-sm text-dim hover:border-bone/40 hover:text-bone">
-            Fermer
+          <button type="button" onClick={onClose} className="shrink-0 px-1 text-xs text-dim hover:text-bone">
+            {t("Fermer")}
           </button>
         )}
       </form>
@@ -134,7 +136,7 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
         {showRecent && (
           <motion.div key="recent" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="scrollbar-none flex items-center gap-2 overflow-x-auto pb-4">
-              <History size={15} className="shrink-0 text-dim" aria-label="Récents" />
+              <History size={15} className="shrink-0 text-dim" aria-label={t("Récents")} />
               {s.recent.map((r) => (
                 <button key={r} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => s.setQ(r)} className="shrink-0 border border-line px-3 py-1.5 text-sm text-bone/80 hover:border-lime hover:text-lime">
                   {r}
@@ -158,7 +160,7 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
                     className={`relative shrink-0 py-3 text-sm transition-colors disabled:opacity-30 ${on ? "text-bone" : "text-dim hover:text-bone"}`}
                   >
                     {f.key === "ready" && <span className="mr-1.5 inline-block h-2.5 w-1 bg-lime align-middle" />}
-                    {f.label}
+                    {t(f.label)}
                     <span className="ml-1.5 font-mono text-[11px] tabular-nums text-lime">{n}</span>
                     {on && <motion.span layoutId={big ? "search-filter" : "search-filter-o"} className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" />}
                   </button>
@@ -173,13 +175,14 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
 }
 
 function Results({ s }: { s: S }) {
+  const t = useT();
   if (!s.results) return null;
   if (s.people) return <People people={s.people} q={s.q} />;
   return (
     <div className="px-4 py-8 md:px-10">
       {s.results.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-20 text-center">
-          <p className="font-display text-4xl font-extrabold text-bone/15 md:text-6xl">Rien pour « {s.q.trim()} ».</p>
+          <p className="font-display text-4xl font-extrabold text-bone/15 md:text-6xl">{t("Rien pour « {q} ».", { q: s.q.trim() })}</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 md:gap-x-5 xl:grid-cols-8 [&>*]:w-auto">
@@ -194,10 +197,11 @@ function Results({ s }: { s: S }) {
 
 /** Members found with "@": pseudonym and two counters, nothing else. */
 function People({ people, q }: { people: Person[]; q: string }) {
+  const t = useT();
   return (
     <div className="px-4 py-8 md:px-10">
       {people.length === 0 ? (
-        <p className="py-20 text-center font-display text-4xl font-extrabold text-bone/15 md:text-6xl">Personne pour « {q.trim()} ».</p>
+        <p className="py-20 text-center font-display text-4xl font-extrabold text-bone/15 md:text-6xl">{t("Personne pour « {q} ».", { q: q.trim() })}</p>
       ) : (
         <ul className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-3">
           {people.map((p, i) => (
@@ -206,7 +210,7 @@ function People({ people, q }: { people: Person[]; q: string }) {
                 <span className="grid size-11 shrink-0 place-items-center bg-lime font-display text-lg font-extrabold uppercase text-ink">{p.handle.charAt(0)}</span>
                 <span className="min-w-0 flex-1 truncate font-mono group-hover:text-lime">@{p.handle}</span>
                 <span className="shrink-0 font-mono text-[11px] text-dim">
-                  {p.seen} vus · {p.reviews} avis
+                  {t("{seen} vus · {reviews} avis", { seen: p.seen, reviews: p.reviews })}
                 </span>
               </Link>
             </motion.li>
@@ -263,6 +267,7 @@ export function SearchHero({ children }: { children: React.ReactNode }) {
 
 /** Full-screen search reachable from every page through the nav, "/" or Ctrl+K. */
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const s = useTitleSearch();
   const [focused, setFocused] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -299,7 +304,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
       {open && (
         <motion.div
           role="dialog"
-          aria-label="Recherche"
+          aria-label={t("Recherche")}
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}

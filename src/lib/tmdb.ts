@@ -404,3 +404,14 @@ export async function credits(kind: "movie" | "tv", tmdbId: number): Promise<Cre
     return null;
   }
 }
+
+/** Name and synopsis in another language, for the title page of English-speaking members. */
+export async function localized(kind: "movie" | "tv", tmdbId: number, language: string): Promise<{ name: string | null; overview: string | null } | null> {
+  if (!hasTmdb()) return null;
+  try {
+    const d = await tmdb<TmdbItem>(`/${kind}/${tmdbId}`, { language });
+    return { name: d.title ?? d.name ?? null, overview: d.overview || null };
+  } catch {
+    return null;
+  }
+}

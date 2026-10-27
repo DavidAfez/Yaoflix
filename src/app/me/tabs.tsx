@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Play, Search } from "lucide-react";
 import { Poster, type PosterData } from "@/components/poster";
 import { useMarkSets } from "@/components/marks";
+import { LangSwitch, useT, useTag } from "@/components/i18n";
 import { Choice, Field, Submit, FormError } from "@/components/ui";
 import { StatusMark } from "@/components/status";
 import { ageBrackets, sexes } from "@/lib/labels";
@@ -33,6 +34,7 @@ export function MeTabs(props: {
     const all = [...props.liked, ...props.seen, ...props.overview.recos, ...props.overview.listed, ...props.overview.toAsk, ...props.requests.map((r) => r.poster)];
     return [...new Map(all.map((p) => [`${p.kind}:${p.tmdbId}`, p])).values()];
   }, [props]);
+  const tr = useT();
   const liked = pool.filter((p) => marks.has(marks.liked, p));
   const seen = pool.filter((p) => marks.has(marks.seen, p));
   return (
@@ -40,7 +42,7 @@ export function MeTabs(props: {
       <nav className="scrollbar-none sticky top-0 z-20 -mx-4 flex gap-8 overflow-x-auto border-b border-line bg-ink/90 px-4 backdrop-blur md:top-12 md:-mx-10 md:px-10">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`relative shrink-0 py-5 text-sm ${tab === t ? "text-bone" : "text-dim hover:text-bone"}`}>
-            {t}
+            {tr(t)}
             {t === "Aimés" && liked.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{liked.length}</span>}
             {t === "Vus" && seen.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{seen.length}</span>}
             {t === "Demandes" && props.requests.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.requests.length}</span>}
@@ -63,24 +65,26 @@ export function MeTabs(props: {
 
 /** Ghost headline plus one clear way out, never a dead end. */
 function Empty({ word }: { word: string }) {
+  const t = useT();
   return (
     <div className="flex flex-col items-start gap-6 py-14">
-      <p className="font-display text-4xl font-extrabold leading-none tracking-tight text-bone/15 md:text-6xl">{word}</p>
+      <p className="font-display text-4xl font-extrabold leading-none tracking-tight text-bone/15 md:text-6xl">{t(word)}</p>
       <Link href="/" className="notch flex h-11 items-center gap-2 bg-lime px-5 text-sm font-semibold text-ink">
-        <Search size={16} /> Chercher
+        <Search size={16} /> {t("Chercher")}
       </Link>
     </div>
   );
 }
 
 function Section({ title, href, children }: { title: string; href?: string; children: React.ReactNode }) {
+  const t = useT();
   return (
     <section className="mb-14">
       <div className="mb-5 flex items-baseline justify-between gap-4">
-        <h2 className="font-display text-xl font-semibold tracking-tight md:text-2xl">{title}</h2>
+        <h2 className="font-display text-xl font-semibold tracking-tight md:text-2xl">{t(title)}</h2>
         {href && (
-          <Link href={href} className="flex items-center gap-1 text-sm text-dim hover:text-lime" aria-label={`${title} : tout`}>
-            Tout <ArrowRight size={14} />
+          <Link href={href} className="flex items-center gap-1 text-sm text-dim hover:text-lime" aria-label={`${t(title)} : ${t("Tout")}`}>
+            {t("Tout")} <ArrowRight size={14} />
           </Link>
         )}
       </div>
@@ -100,12 +104,13 @@ function Strip({ items }: { items: PosterData[] }) {
 }
 
 function Bars({ rows }: { rows: Share[] }) {
+  const t = useT();
   const max = Math.max(...rows.map((r) => r.share), 0.0001);
   return (
     <ul className="space-y-3">
       {rows.map((r, i) => (
         <li key={r.label} className="grid grid-cols-[7.5rem_1fr_3rem] items-center gap-3 text-sm md:grid-cols-[9rem_1fr_3rem]">
-          <span className="truncate">{r.label}</span>
+          <span className="truncate">{t(r.label)}</span>
           <span className="relative h-2.5 bg-bone/5">
             <motion.span
               className="absolute inset-y-0 left-0 bg-lime"
@@ -122,6 +127,7 @@ function Bars({ rows }: { rows: Share[] }) {
 }
 
 function OverviewTab({ watching, taste, recency, recos, listed, toAsk }: Overview) {
+  const t = useT();
   const nothing = !watching.length && !taste.length && !recos.length && !listed.length && !toAsk.length;
   if (nothing) return <Empty word="Tout reste à voir." />;
   return (
@@ -162,13 +168,13 @@ function OverviewTab({ watching, taste, recency, recos, listed, toAsk }: Overvie
         <div className="mb-14 grid gap-12 md:grid-cols-2 md:gap-16">
           {taste.length > 0 && (
             <div>
-              <h2 className="mb-5 font-display text-xl font-semibold tracking-tight md:text-2xl">Ton goût</h2>
+              <h2 className="mb-5 font-display text-xl font-semibold tracking-tight md:text-2xl">{t("Ton goût")}</h2>
               <Bars rows={taste} />
             </div>
           )}
           {recency.length > 0 && (
             <div>
-              <h2 className="mb-5 font-display text-xl font-semibold tracking-tight md:text-2xl">Tes époques</h2>
+              <h2 className="mb-5 font-display text-xl font-semibold tracking-tight md:text-2xl">{t("Tes époques")}</h2>
               <Bars rows={recency} />
             </div>
           )}
@@ -206,6 +212,7 @@ function Grid({ items }: { items: PosterData[] }) {
 
 /** Films first, then series, each with its own count. */
 function ByKind({ items }: { items: PosterData[] }) {
+  const t = useT();
   const groups = [
     { label: "Films", items: items.filter((p) => p.kind === "movie") },
     { label: "Séries", items: items.filter((p) => p.kind === "tv") },
@@ -215,7 +222,7 @@ function ByKind({ items }: { items: PosterData[] }) {
       {groups.map((g) => (
         <section key={g.label} className="mb-12">
           <h2 className="mb-5 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
-            {g.label}
+            {t(g.label)}
             <span className="font-mono text-xs text-lime">{String(g.items.length).padStart(2, "0")}</span>
           </h2>
           <Grid items={g.items} />
@@ -239,6 +246,8 @@ const prefLabel = (p: RequestPrefs) =>
     .join(" · ");
 
 function Requests({ items }: { items: Req[] }) {
+  const t = useT();
+  const locale = useTag();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("ALL");
   const shown = useMemo(() => items.filter((r) => match(filter, r.status)), [items, filter]);
   if (!items.length) return <Empty word="Aucune demande." />;
@@ -254,7 +263,7 @@ function Requests({ items }: { items: Req[] }) {
               onClick={() => setFilter(f.key)}
               className={`flex shrink-0 items-center gap-2 border px-3 py-2 text-sm transition-colors ${on ? "border-lime text-lime" : "border-line text-dim hover:text-bone"}`}
             >
-              {f.label}
+              {t(f.label)}
               <span className="font-mono text-[11px] tabular-nums">{n}</span>
             </button>
           );
@@ -276,7 +285,7 @@ function Requests({ items }: { items: Req[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate">{r.poster.name}</p>
                   <p className="mt-0.5 flex flex-wrap gap-x-3 font-mono text-[11px] uppercase text-dim">
-                    <span>{new Date(r.at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}</span>
+                    <span>{new Date(r.at).toLocaleDateString(locale, { day: "2-digit", month: "short" })}</span>
                     <span className="text-bone/70">{prefLabel(r.prefs)}</span>
                   </p>
                 </div>
@@ -300,6 +309,7 @@ const SPEEDS = [
 
 function Settings({ handle, age, sex, hasPhone, optIn, billboardMs }: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean; billboardMs: number }) {
   const [speed, setSpeed] = useState(String(billboardMs));
+  const t = useT();
   const [p, saveP] = useActionState(saveProfile, undefined);
   const [w, saveW] = useActionState(saveWhatsApp, undefined);
   const [d, del] = useActionState(deleteAccount, undefined);
@@ -310,14 +320,14 @@ function Settings({ handle, age, sex, hasPhone, optIn, billboardMs }: { handle: 
   return (
     <div className="grid max-w-5xl gap-16 md:grid-cols-2">
       <form action={saveP} className="space-y-7">
-        <h3 className="font-display text-lg font-semibold">Profil</h3>
+        <h3 className="font-display text-lg font-semibold">{t("Profil")}</h3>
         <Field label="Pseudo" name="handle" defaultValue={handle} required minLength={3} maxLength={20} autoComplete="username" />
         <input type="hidden" name="age" value={a} />
         <input type="hidden" name="sex" value={s} />
         <Choice name="age-ui" label="Âge" value={a} onChange={setA} options={ageBrackets.map((x) => ({ value: x, label: x }))} />
         <Choice name="sex-ui" label="Genre" value={s} onChange={setS} options={[...sexes, { value: "", label: "Passer" }]} />
         <FormError message={p?.error} />
-        <Submit>{p?.ok ? "✓" : "Enregistrer"}</Submit>
+        <Submit>{p?.ok ? "✓" : t("Enregistrer")}</Submit>
       </form>
 
       <form action={saveW} className="space-y-7">
@@ -326,14 +336,14 @@ function Settings({ handle, age, sex, hasPhone, optIn, billboardMs }: { handle: 
         <label className="flex cursor-pointer items-center gap-3">
           <input type="checkbox" name="optin" defaultChecked={optIn} className="peer sr-only" />
           <span className="relative h-6 w-11 bg-ink-3 transition-colors peer-checked:bg-lime after:absolute after:left-1 after:top-1 after:size-4 after:bg-bone after:transition-transform peer-checked:after:translate-x-5 peer-checked:after:bg-ink" />
-          <span className="text-sm">Alertes et avis vocaux</span>
+          <span className="text-sm">{t("Alertes et avis vocaux")}</span>
         </label>
         <FormError message={w?.error} />
-        <Submit>{w?.ok ? "✓" : "Enregistrer"}</Submit>
+        <Submit>{w?.ok ? "✓" : t("Enregistrer")}</Submit>
       </form>
 
       <div className="space-y-7">
-        <h3 className="font-display text-lg font-semibold">Carrousel</h3>
+        <h3 className="font-display text-lg font-semibold">{t("Carrousel")}</h3>
         <Choice
           name="billboard"
           label="Défilement"
@@ -344,18 +354,22 @@ function Settings({ handle, age, sex, hasPhone, optIn, billboardMs }: { handle: 
             void saveBillboard(Number(v));
           }}
         />
+        <div>
+          <p className="mb-2 font-display text-xs uppercase tracking-[0.2em]">{t("Langue")}</p>
+          <LangSwitch className="-ml-2 text-sm" />
+        </div>
       </div>
 
       <div className="md:col-span-2">
         {!danger ? (
           <button onClick={() => setDanger(true)} className="text-sm text-dim hover:text-coral">
-            Supprimer mon compte
+            {t("Supprimer mon compte")}
           </button>
         ) : (
           <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} action={del} className="max-w-sm space-y-6 border-l-2 border-coral pl-5">
             <Field label="Mot de passe" name="password" type="password" required autoComplete="current-password" />
             <FormError message={d?.error} />
-            <Submit tone="coral">Supprimer</Submit>
+            <Submit tone="coral">{t("Supprimer")}</Submit>
           </motion.form>
         )}
       </div>

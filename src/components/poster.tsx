@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Ban, ChevronLeft, ChevronRight, Eye, EyeOff, Heart, MessageSquare } from "lucide-react";
 import { useMark } from "./marks";
+import { useT } from "./i18n";
 import { fmtRating } from "@/lib/rating";
 
 export type PosterData = {
@@ -17,6 +18,7 @@ export type PosterData = {
 
 export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: PosterData; i?: number; size?: "sm" | "md" | "lg"; hideNever?: boolean }) {
   const mark = useMark(t);
+  const tr = useT();
   const seen = Boolean(mark?.seen);
   const never = Boolean(mark?.never);
   // Rows of suggestions drop refused titles at once; search and profile keep them, marked
@@ -46,9 +48,9 @@ export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: Poster
               {t.name.charAt(0)}
             </div>
           )}
-          {t.ready && <span className={`absolute inset-y-0 left-0 w-1 ${seen ? "bg-lime/40" : "bg-lime"}`} aria-label="Dispo" />}
+          {t.ready && <span className={`absolute inset-y-0 left-0 w-1 ${seen ? "bg-lime/40" : "bg-lime"}`} aria-label={tr("Dispo")} />}
           {t.kind === "tv" && (
-            <span className="absolute bottom-0 left-0 bg-ink/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-bone">Série</span>
+            <span className="absolute bottom-0 left-0 bg-ink/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-bone">{tr("Série")}</span>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </div>
@@ -65,16 +67,16 @@ export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: Poster
       {mark && (
         // Siblings of the link, not inside it: buttons cannot live in an <a>
         <div className="absolute right-1 top-1 flex flex-col gap-0.5 transition-opacity md:gap-1 duration-200 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
-          <QuickAction on={mark.liked} label="J'aime" onClick={mark.toggleLike} tone="coral">
+          <QuickAction on={mark.liked} label={tr("J'aime")} onClick={mark.toggleLike} tone="coral">
             <Heart className="size-3 md:size-[15px]" fill={mark.liked ? "currentColor" : "none"} />
           </QuickAction>
-          <QuickAction on={seen} label={seen ? "Vu" : "Déjà vu"} onClick={mark.toggleSeen}>
+          <QuickAction on={seen} label={tr(seen ? "Vu" : "Déjà vu")} onClick={mark.toggleSeen}>
             {seen ? <EyeOff className="size-3 md:size-[15px]" /> : <Eye className="size-3 md:size-[15px]" />}
           </QuickAction>
-          <QuickAction on={mark.reviewed} label="Avis" onClick={mark.review}>
+          <QuickAction on={mark.reviewed} label={tr("Avis")} onClick={mark.review}>
             <MessageSquare className="size-3 md:size-[15px]" fill={mark.reviewed ? "currentColor" : "none"} />
           </QuickAction>
-          <QuickAction on={never} label="Jamais" onClick={mark.toggleNever} tone="coral">
+          <QuickAction on={never} label={tr("Jamais")} onClick={mark.toggleNever} tone="coral">
             <Ban className="size-3 md:size-[15px]" />
           </QuickAction>
         </div>
@@ -124,6 +126,7 @@ function QuickAction({ on, label, onClick, children, tone = "lime" }: { on: bool
  * Arrows page through it on desktop.
  */
 export function Row({ title, children, count }: { title: string; children: React.ReactNode; count?: number }) {
+  const t = useT();
   const scroller = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ start: true, end: false });
   const update = () => {
@@ -140,7 +143,7 @@ export function Row({ title, children, count }: { title: string; children: React
   return (
     <section className="group/row mt-10 md:mt-12">
       <div className="mb-4 flex items-baseline gap-3 px-4 md:px-10">
-        <h2 className="font-display text-xl font-semibold tracking-tight md:text-2xl">{title}</h2>
+        <h2 className="font-display text-xl font-semibold tracking-tight md:text-2xl">{t(title)}</h2>
         {count != null && <span className="font-mono text-xs text-lime">{String(count).padStart(2, "0")}</span>}
       </div>
       <div className="relative mx-4 md:mx-10">
@@ -155,12 +158,13 @@ export function Row({ title, children, count }: { title: string; children: React
 }
 
 function RowArrow({ side, onClick }: { side: "left" | "right"; onClick: () => void }) {
+  const t = useT();
   const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={side === "left" ? "Précédents" : "Suivants"}
+      aria-label={t(side === "left" ? "Précédents" : "Suivants")}
       className={`absolute inset-y-0 z-10 hidden w-10 -translate-y-1 items-center justify-center bg-ink/80 text-bone opacity-0 backdrop-blur transition-opacity hover:text-lime group-hover/row:opacity-100 md:flex ${
         side === "left" ? "-left-10" : "-right-10"
       }`}

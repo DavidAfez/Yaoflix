@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Check, Heart, Info, Play, Plus } from "lucide-react";
 import { toggleWatchlist } from "@/app/t/actions";
 import { useMark } from "./marks";
+import { useT } from "./i18n";
 
 export type Slide = {
   id: number;
@@ -27,6 +28,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  * (Réglages, 0 keeps it still), pauses on hover, swipes on mobile.
  */
 export function Billboard({ slides, delay = 3000 }: { slides: Slide[]; delay?: number }) {
+  const t = useT();
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   const go = useCallback((n: number) => setI((n + slides.length) % slides.length), [slides.length]);
@@ -75,9 +77,9 @@ export function Billboard({ slides, delay = 3000 }: { slides: Slide[]; delay?: n
           <motion.div key={s.tmdbId + s.kind} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.6, ease: EASE }} className="max-w-2xl">
             <p className="flex flex-wrap gap-x-4 font-mono text-xs uppercase tracking-wider text-bone/70">
               {s.year && <span>{s.year}</span>}
-              {s.kind === "tv" && <span>Série</span>}
+              {s.kind === "tv" && <span>{t("Série")}</span>}
               {s.genres.slice(0, 2).map((g) => (
-                <span key={g}>{g}</span>
+                <span key={g}>{t(g)}</span>
               ))}
               {s.vote ? <span className="text-lime">★ {s.vote.toFixed(1)}</span> : null}
             </p>
@@ -94,19 +96,20 @@ export function Billboard({ slides, delay = 3000 }: { slides: Slide[]; delay?: n
 
 function Actions({ s }: { s: Slide }) {
   const mark = useMark(s);
+  const t = useT();
   const [listed, setListed] = useState(s.listed);
   useEffect(() => setListed(s.listed), [s.listed]);
   return (
     <div className="mt-6 flex items-center gap-2">
       <Link href={`/t/${s.kind}/${s.tmdbId}`} className="notch flex h-12 items-center gap-2 bg-lime px-6 font-semibold text-ink transition-transform hover:scale-[1.03]">
         {s.ready ? <Play size={18} fill="currentColor" /> : <Info size={18} />}
-        {s.ready ? "Regarder" : "Voir"}
+        {t(s.ready ? "Regarder" : "Voir")}
       </Link>
       {mark && (
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={mark.toggleLike}
-          aria-label="J'aime"
+          aria-label={t("J'aime")}
           aria-pressed={mark.liked}
           className={`grid size-12 place-items-center border bg-ink/40 backdrop-blur transition-colors ${mark.liked ? "border-coral text-coral" : "border-bone/30 hover:border-bone"}`}
         >
@@ -119,9 +122,9 @@ function Actions({ s }: { s: Slide }) {
           setListed(!listed);
           void toggleWatchlist(s.id, "/");
         }}
-        aria-label="Ma liste"
+        aria-label={t("Ma liste")}
         aria-pressed={listed}
-        title="Ma liste"
+        title={t("Ma liste")}
         className={`grid size-12 place-items-center border bg-ink/40 backdrop-blur transition-colors ${listed ? "border-lime text-lime" : "border-bone/30 hover:border-bone"}`}
       >
         {listed ? <Check size={20} /> : <Plus size={22} />}

@@ -3,6 +3,7 @@ import { motion, type HTMLMotionProps } from "motion/react";
 import { useFormStatus } from "react-dom";
 import { forwardRef, useId, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useT } from "./i18n";
 
 type BtnProps = HTMLMotionProps<"button"> & { tone?: "lime" | "ghost" | "coral" | "bone"; size?: "md" | "lg" };
 
@@ -66,6 +67,7 @@ export function Field({
   const id = useId();
   const secret = type === "password";
   const [shown, setShown] = useState(false);
+  const t = useT();
   return (
     <label htmlFor={id} className={`group relative block pt-5 ${className}`}>
       <input
@@ -79,15 +81,15 @@ export function Field({
         <button
           type="button"
           onClick={() => setShown(!shown)}
-          aria-label={shown ? "Masquer" : "Afficher"}
-          title={shown ? "Masquer" : "Afficher"}
+          aria-label={t(shown ? "Masquer" : "Afficher")}
+          title={t(shown ? "Masquer" : "Afficher")}
           className="absolute bottom-2 right-0 grid size-8 place-items-center text-dim transition-colors hover:text-lime"
         >
           {shown ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       )}
       <span className="pointer-events-none absolute left-0 top-6 text-lg text-dim transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] peer-focus:top-0 peer-focus:text-xs peer-focus:text-lime peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs">
-        {label}
+        {t(label)}
       </span>
     </label>
   );
@@ -108,16 +110,17 @@ export function Choice<T extends string>({
   label?: string;
 }) {
   const group = useId();
+  const t = useT();
   return (
     <fieldset className="min-w-0">
-      {label && <legend className="mb-2 font-display text-xs uppercase tracking-[0.2em] text-bone">{label}</legend>}
+      {label && <legend className="mb-2 font-display text-xs uppercase tracking-[0.2em] text-bone">{t(label)}</legend>}
       <div className="flex border-b border-line">
         {options.map((o) => {
           const on = o.value === value;
           return (
             <label key={o.value} className="relative flex-1 cursor-pointer py-3 text-center text-sm">
               <input type="radio" name={name} value={o.value} checked={on} onChange={() => onChange(o.value)} className="sr-only" />
-              <span className={on ? "text-bone" : "text-dim transition-colors hover:text-bone"}>{o.label}</span>
+              <span className={on ? "text-bone" : "text-dim transition-colors hover:text-bone"}>{t(o.label)}</span>
               {on && <motion.span layoutId={group} className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
             </label>
           );
@@ -128,6 +131,7 @@ export function Choice<T extends string>({
 }
 
 export function FormError({ message }: { message?: string | null }) {
+  const t = useT();
   if (!message) return null;
   return (
     <motion.p initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: [0, -4, 4, 0] }} className="text-sm text-coral">

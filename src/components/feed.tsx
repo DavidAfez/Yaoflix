@@ -9,19 +9,22 @@ import { StarShape, Stars, useMark } from "./marks";
 import { Dots } from "./ui";
 import { fmtRating } from "@/lib/rating";
 import type { FeedPost } from "@/lib/feed";
+import { useLocale, useT } from "./i18n";
+import { tag, type Locale, type T } from "@/lib/i18n";
 import type { PosterData } from "./poster";
 
-function ago(iso: string) {
+function ago(iso: string, t: T, locale: Locale) {
   const m = (Date.now() - new Date(iso).getTime()) / 60_000;
-  if (m < 1) return "à l'instant";
+  if (m < 1) return t("à l'instant");
   if (m < 60) return `${Math.floor(m)} min`;
   if (m < 60 * 24) return `${Math.floor(m / 60)} h`;
-  if (m < 60 * 24 * 30) return `${Math.floor(m / 1440)} j`;
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+  if (m < 60 * 24 * 30) return t("{n} j", { n: Math.floor(m / 1440) });
+  return new Date(iso).toLocaleDateString(tag(locale), { day: "2-digit", month: "short" });
 }
 
 /** Title block on top of a post: poster, name, year and the author's stars. */
 function TitleBlock({ t, rating }: { t: NonNullable<FeedPost["title"]>; rating: number | null }) {
+  const tr = useT();
   return (
     <Link href={`/t/${t.kind}/${t.tmdbId}`} className="flex items-center gap-3 border border-line bg-ink-2 p-2 pr-4 transition-colors hover:border-lime">
       <div className="grid h-16 w-11 shrink-0 place-items-center overflow-hidden bg-ink-3 font-display text-lg font-extrabold text-bone/15">
@@ -36,9 +39,9 @@ function TitleBlock({ t, rating }: { t: NonNullable<FeedPost["title"]>; rating: 
         <p className="truncate font-display text-sm font-semibold">{t.name}</p>
         <p className="mt-1 flex items-center gap-3 font-mono text-[11px] text-dim">
           {t.year}
-          {t.kind === "tv" && <span className="uppercase">Série</span>}
+          {t.kind === "tv" && <span className="uppercase">{tr("Série")}</span>}
           {rating ? (
-            <span className="flex items-center gap-0.5" aria-label={`${fmtRating(rating)} sur 5`}>
+            <span className="flex items-center gap-0.5" aria-label={tr("{n} sur 5", { n: fmtRating(rating) })}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <StarShape key={n} fill={Math.max(0, Math.min(1, rating - (n - 1)))} size={11} />
               ))}
@@ -52,6 +55,8 @@ function TitleBlock({ t, rating }: { t: NonNullable<FeedPost["title"]>; rating: 
 
 export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; big?: boolean }) {
   const router = useRouter();
+  const t = useT();
+  const locale = useLocale();
   const [liked, setLiked] = useState(p.liked);
   const [reposted, setReposted] = useState(p.reposted);
   const [gone, setGone] = useState(false);
@@ -87,7 +92,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
           {p.replyTo && <span className="ml-2 font-mono text-[11px] text-dim">↳ @{p.replyTo}</span>}
         </div>
         <Link href={`/p/${p.id}`} className="font-mono text-[11px] text-dim hover:text-bone">
-          {ago(p.at)}
+          {ago(p.at, t, locale)}
         </Link>
       </header>
 
@@ -100,20 +105,20 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
       <Link href={`/p/${p.id}`} className="block">
         {p.body ? (
           <p className={`whitespace-pre-line leading-relaxed ${big ? "text-lg md:text-xl" : ""}`}>
-            {p.voice && <Mic size={14} className="mr-2 inline align-[-2px] text-lime" aria-label="Vocal" />}
+            {p.voice && <Mic size={14} className="mr-2 inline align-[-2px] text-lime" aria-label={t("Vocal")} />}
             {p.body}
           </p>
         ) : (
           p.voice && (
             <p className="flex items-center gap-2 font-mono text-xs text-dim">
-              <Mic size={14} className="text-lime" /> Vocal
+              <Mic size={14} className="text-lime" /> {t("Vocal")}
             </p>
           )
         )}
       </Link>
 
       <footer className="mt-4 flex items-center gap-8 text-dim">
-        <Link href={`/p/${p.id}`} className="flex items-center gap-2 text-sm transition-colors hover:text-ice" aria-label="Répondre">
+        <Link href={`/p/${p.id}`} className="flex items-center gap-2 text-sm transition-colors hover:text-ice" aria-label={t("Répondre")}>
           <MessageCircle size={17} /> <span className="font-mono text-xs tabular-nums">{p.replies || ""}</span>
         </Link>
         <motion.button
@@ -122,7 +127,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
             setReposted(!reposted);
             start(() => toggleRepost(p.id, !reposted));
           }}
-          aria-label="Reposter"
+          aria-label={t("Reposter")}
           aria-pressed={reposted}
           className={`flex items-center gap-2 text-sm transition-colors ${reposted ? "text-lime" : "hover:text-lime"}`}
         >
@@ -134,7 +139,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
             setLiked(!liked);
             start(() => toggleFav(p.id, !liked));
           }}
-          aria-label="Favori"
+          aria-label={t("Favori")}
           aria-pressed={liked}
           className={`flex items-center gap-2 text-sm transition-colors ${liked ? "text-coral" : "hover:text-coral"}`}
         >
@@ -152,8 +157,8 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
                 if (big) router.push("/feed");
               });
             }}
-            aria-label="Supprimer"
-            title="Supprimer"
+            aria-label={t("Supprimer")}
+            title={t("Supprimer")}
             className="ml-auto transition-colors hover:text-coral"
           >
             <Trash2 size={15} />
@@ -165,8 +170,9 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
 }
 
 /** Writes a post, optionally about a title (picked with the search) and with stars. With parentId, a reply. */
-export function Composer({ parentId, placeholder = "Ton avis, ta théorie, ta reco" }: { parentId?: string; placeholder?: string }) {
+export function Composer({ parentId, placeholder }: { parentId?: string; placeholder?: string }) {
   const router = useRouter();
+  const t = useT();
   const [body, setBody] = useState("");
   const [title, setTitle] = useState<PosterData | null>(null);
   const [picking, setPicking] = useState(false);
@@ -185,7 +191,7 @@ export function Composer({ parentId, placeholder = "Ton avis, ta théorie, ta re
     start(async () => {
       setError(null);
       const res = await createPost({ body, parentId, kind: title?.kind as "movie" | "tv" | undefined, tmdbId: title?.tmdbId });
-      if (!res.ok) return setError(res.error ?? "Oups");
+      if (!res.ok) return setError(t(res.error ?? "Oups"));
       setBody("");
       setTitle(null);
       router.refresh();
@@ -200,7 +206,7 @@ export function Composer({ parentId, placeholder = "Ton avis, ta théorie, ta re
         onChange={(e) => setBody(e.target.value)}
         maxLength={1000}
         rows={2}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t("Ton avis, ta théorie, ta reco")}
         className="w-full resize-none bg-transparent text-lg outline-none placeholder:text-bone/30"
       />
       <AnimatePresence>{picking && <TitlePicker onPick={(t) => (setTitle(t), setPicking(false))} onClose={() => setPicking(false)} />}</AnimatePresence>
@@ -212,7 +218,7 @@ export function Composer({ parentId, placeholder = "Ton avis, ta théorie, ta re
             onClick={() => setPicking(!picking)}
             className={`flex h-10 items-center gap-2 border px-3 text-sm transition-colors ${picking || title ? "border-lime text-lime" : "border-line text-bone/70 hover:border-bone/40"}`}
           >
-            <Clapperboard size={16} /> Film ou série
+            <Clapperboard size={16} /> {t("Film ou série")}
           </button>
         ) : (
           <span />
@@ -220,7 +226,7 @@ export function Composer({ parentId, placeholder = "Ton avis, ta théorie, ta re
         <div className="flex items-center gap-4">
           {body.length > 800 && <span className="font-mono text-xs text-dim">{1000 - body.length}</span>}
           <button onClick={send} disabled={!body.trim() || pending} className="notch flex h-10 min-w-24 items-center justify-center bg-lime px-5 text-sm font-semibold text-ink disabled:opacity-40">
-            {pending ? <Dots /> : parentId ? "Répondre" : "Publier"}
+            {pending ? <Dots /> : t(parentId ? "Répondre" : "Publier")}
           </button>
         </div>
       </div>
@@ -230,6 +236,7 @@ export function Composer({ parentId, placeholder = "Ton avis, ta théorie, ta re
 
 function PickedTitle({ t, onClear }: { t: PosterData; onClear: () => void }) {
   const mark = useMark(t);
+  const tr = useT();
   return (
     <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mb-3 flex flex-wrap items-center gap-4 border border-line bg-ink-2 p-2 pr-3">
       <div className="h-14 w-10 shrink-0 overflow-hidden bg-ink-3">
@@ -242,7 +249,7 @@ function PickedTitle({ t, onClear }: { t: PosterData; onClear: () => void }) {
         {t.name} <span className="font-mono text-[11px] font-normal text-dim">{t.year}</span>
       </p>
       {mark && <Stars value={mark.rating} onChange={mark.rate} size={18} />}
-      <button onClick={onClear} aria-label="Retirer" className="text-dim hover:text-bone">
+      <button onClick={onClear} aria-label={tr("Retirer")} className="text-dim hover:text-bone">
         <X size={18} />
       </button>
     </motion.div>
@@ -250,6 +257,7 @@ function PickedTitle({ t, onClear }: { t: PosterData; onClear: () => void }) {
 }
 
 function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => void; onClose: () => void }) {
+  const tr = useT();
   const [q, setQ] = useState("");
   const [items, setItems] = useState<PosterData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -282,7 +290,7 @@ function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => void; onC
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && onClose()}
-            placeholder="Chercher un titre"
+            placeholder={tr("Chercher un titre")}
             className="h-11 w-full bg-transparent outline-none placeholder:text-bone/30"
           />
           {loading && <Dots />}
@@ -298,7 +306,7 @@ function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => void; onC
                   )}
                 </div>
                 <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                <span className="font-mono text-[11px] text-dim">{t.kind === "tv" ? "Série" : t.year}</span>
+                <span className="font-mono text-[11px] text-dim">{t.kind === "tv" ? tr("Série") : t.year}</span>
               </button>
             </li>
           ))}
@@ -309,6 +317,7 @@ function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => void; onC
 }
 
 export function FollowButton({ handle, following }: { handle: string; following: boolean }) {
+  const t = useT();
   const [on, setOn] = useState(following);
   const [, start] = useTransition();
   return (
@@ -320,7 +329,7 @@ export function FollowButton({ handle, following }: { handle: string; following:
       }}
       className={`flex h-11 items-center px-6 text-sm font-semibold transition-colors ${on ? "border border-line text-bone hover:border-coral hover:text-coral" : "notch bg-lime text-ink"}`}
     >
-      {on ? "Abonné" : "Suivre"}
+      {t(on ? "Abonné" : "Suivre")}
     </motion.button>
   );
 }

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
+import { useT } from "./i18n";
 
 /** Animated dropdown. Items stagger in, the panel has a lime edge instead of rounded corners. */
 export function Dropdown<T extends string>({
@@ -18,6 +19,7 @@ export function Dropdown<T extends string>({
   align?: "left" | "right";
 }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const close = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
@@ -33,7 +35,7 @@ export function Dropdown<T extends string>({
           tone === "coral" ? "border-coral/40 text-coral hover:border-coral" : "border-line hover:border-bone/40"
         }`}
       >
-        {label}
+        {t(label)}
         <motion.span animate={{ rotate: open ? 180 : 0 }}>
           <ChevronDown size={15} />
         </motion.span>
@@ -56,7 +58,7 @@ export function Dropdown<T extends string>({
                   }}
                   className="w-full px-4 py-2.5 text-left text-sm hover:bg-bone/5"
                 >
-                  {o.label}
+                  {t(o.label)}
                 </button>
               </motion.li>
             ))}

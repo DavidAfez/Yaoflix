@@ -8,6 +8,8 @@ import { Choice, Field, FormError, Submit } from "@/components/ui";
 import { can, roleLabel } from "@/lib/rbac";
 import { ageBrackets, sexes } from "@/lib/labels";
 import { DEEP_UNLOCK } from "@/lib/deep";
+import { useT } from "@/components/i18n";
+import type { T } from "@/lib/i18n";
 import { approveMember, createMember, deleteMember, setBan, setDeepReview, setRole, updateMember } from "../actions";
 import type { Role } from "@/db/schema";
 
@@ -32,13 +34,14 @@ type Row = {
 const ROLES: Role[] = ["USER", "UPLOADER", "MODERATOR", "DEV"];
 const roleColor: Record<Role, string> = { USER: "text-dim", UPLOADER: "text-ice", MODERATOR: "text-lime", DEV: "text-coral" };
 const flag = (c: string | null) => (c ? String.fromCodePoint(...[...c].map((x) => 0x1f1a5 + x.charCodeAt(0))) : "");
-const since = (iso: string | null) => {
-  if (!iso) return "jamais";
+const since = (iso: string | null, t: T) => {
+  if (!iso) return t("jamais");
   const d = (Date.now() - new Date(iso).getTime()) / 86400_000;
-  return d < 1 ? "auj." : `${Math.floor(d)}j`;
+  return d < 1 ? t("auj.") : t("{n} j", { n: Math.floor(d) });
 };
 
 export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: string; role: Role }; total: number; staff: number; q: string }) {
+  const t = useT();
   const router = useRouter();
   const [term, setTerm] = useState(q);
   const [, start] = useTransition();
@@ -60,22 +63,22 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
               onClick={() => start(() => approveMember(r.id))}
               className="notch flex h-10 items-center gap-2 bg-lime px-4 text-sm font-semibold text-ink"
             >
-              <Check size={15} /> Valider
+              <Check size={15} /> {t("Valider")}
             </button>
           ) : (
-            <span className="flex h-10 items-center px-2 font-mono text-[11px] uppercase text-dim" title="Mail pas encore confirmé">
-              mail
+            <span className="flex h-10 items-center px-2 font-mono text-[11px] uppercase text-dim" title={t("Mail pas encore confirmé")}>
+              {t("mail")}
             </span>
           ))}
         <IconBtn
-          label={r.deep ? "Analyse : retirer" : r.reviews >= DEEP_UNLOCK ? "Analyse : débloquée" : "Analyse : activer"}
+          label={t(r.deep ? "Analyse : retirer" : r.reviews >= DEEP_UNLOCK ? "Analyse : débloquée" : "Analyse : activer")}
           on={r.deep || r.reviews >= DEEP_UNLOCK}
           onClick={() => start(() => setDeepReview(r.id, !r.deep))}
         >
           <SlidersHorizontal size={15} />
         </IconBtn>
         {(self || can.moderate(me.role, r.role)) && (
-          <IconBtn label="Modifier" on={editing === r.id} onClick={() => setEditing(editing === r.id ? null : r.id)}>
+          <IconBtn label={t("Modifier")} on={editing === r.id} onClick={() => setEditing(editing === r.id ? null : r.id)}>
             <Pencil size={15} />
           </IconBtn>
         )}
@@ -85,8 +88,8 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
           {can.moderate(me.role, r.role) && (
             <button
               onClick={() => start(() => setBan(r.id, !banned))}
-              title={banned ? "Réactiver" : "Bannir"}
-              aria-label={banned ? "Réactiver" : "Bannir"}
+              title={t(banned ? "Réactiver" : "Bannir")}
+              aria-label={t(banned ? "Réactiver" : "Bannir")}
               className={`grid size-10 place-items-center border transition-colors ${banned ? "border-lime text-lime" : "border-line hover:border-coral hover:text-coral"}`}
             >
               <Ban size={15} />
@@ -100,10 +103,10 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
                 autoFocus
                 className="flex h-10 items-center gap-2 bg-coral px-3 text-sm font-semibold text-ink"
               >
-                <Trash2 size={15} /> Supprimer
+                <Trash2 size={15} /> {t("Supprimer")}
               </button>
             ) : (
-              <IconBtn label="Supprimer" on={false} tone="coral" onClick={() => setConfirm(r.id)}>
+              <IconBtn label={t("Supprimer")} on={false} tone="coral" onClick={() => setConfirm(r.id)}>
                 <Trash2 size={15} />
               </IconBtn>
             ))}
@@ -117,17 +120,17 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
     <div>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
-          <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">Membres</h1>
+          <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">{t("Membres")}</h1>
           <span className="font-mono text-lime">{total}</span>
-          <span className="font-mono text-xs text-dim">staff {staff}</span>
+          <span className="font-mono text-xs text-dim">{t("staff")} {staff}</span>
           {rows.some((r) => !r.approved) && (
-            <span className="font-mono text-xs text-coral">à valider {rows.filter((r) => r.verified && !r.approved).length}</span>
+            <span className="font-mono text-xs text-coral">{t("à valider")} {rows.filter((r) => r.verified && !r.approved).length}</span>
           )}
           <button
             onClick={() => setCreating(!creating)}
             className={`ml-2 flex h-10 items-center gap-2 px-4 text-sm font-semibold transition-colors ${creating ? "border border-line text-bone" : "notch bg-lime text-ink"}`}
           >
-            {creating ? <X size={16} /> : <Plus size={16} />} {creating ? "Fermer" : "Nouveau"}
+            {creating ? <X size={16} /> : <Plus size={16} />} {t(creating ? "Fermer" : "Nouveau")}
           </button>
         </div>
         <form
@@ -159,16 +162,16 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
                 @{r.handle}
                 {r.verified && <ShieldCheck size={13} className="shrink-0 text-lime" />}
               </span>
-              <span className={`shrink-0 font-mono text-[11px] uppercase ${roleColor[r.role]}`}>{roleLabel[r.role]}</span>
+              <span className={`shrink-0 font-mono text-[11px] uppercase ${roleColor[r.role]}`}>{t(roleLabel[r.role])}</span>
             </div>
             <p className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-dim">
               {r.age && <span>{r.age}</span>}
               {r.sex && <span>{r.sex}</span>}
               {r.country && <span>{flag(r.country)} {r.country}</span>}
-              <span>{r.requests} dem.</span>
-              <span>{r.watched} vus</span>
-              <span>{r.reviews} avis</span>
-              <span>vu {since(r.lastSeenAt)}</span>
+              <span>{r.requests} {t("dem.")}</span>
+              <span>{r.watched} {t("vus")}</span>
+              <span>{r.reviews} {t("avis")}</span>
+              <span>{t("vu")} {since(r.lastSeenAt, t)}</span>
             </p>
             <div className="[&>div]:justify-start">{actions(r)}</div>
             {editing === r.id && (
@@ -184,15 +187,15 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
         <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-line text-left font-mono text-[11px] uppercase tracking-wider text-dim">
-              <th className="py-3 font-normal">Pseudo</th>
-              <th className="font-normal">Rôle</th>
-              <th className="font-normal">Âge</th>
-              <th className="font-normal">Genre</th>
-              <th className="font-normal">Pays</th>
-              <th className="text-right font-normal">Dem.</th>
-              <th className="text-right font-normal">Vus</th>
-              <th className="text-right font-normal">Avis</th>
-              <th className="text-right font-normal">Vu</th>
+              <th className="py-3 font-normal">{t("Pseudo")}</th>
+              <th className="font-normal">{t("Rôle")}</th>
+              <th className="font-normal">{t("Âge")}</th>
+              <th className="font-normal">{t("Genre")}</th>
+              <th className="font-normal">{t("Pays")}</th>
+              <th className="text-right font-normal">{t("Dem.")}</th>
+              <th className="text-right font-normal">{t("Vus")}</th>
+              <th className="text-right font-normal">{t("Avis")}</th>
+              <th className="text-right font-normal">{t("Vu")}</th>
               <th />
             </tr>
           </thead>
@@ -213,14 +216,14 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
                       {r.verified && <ShieldCheck size={13} className="text-lime" />}
                     </span>
                   </td>
-                  <td className={`font-mono text-xs uppercase ${roleColor[r.role]}`}>{roleLabel[r.role]}</td>
+                  <td className={`font-mono text-xs uppercase ${roleColor[r.role]}`}>{t(roleLabel[r.role])}</td>
                   <td className="font-mono text-xs">{r.age ?? ""}</td>
                   <td className="font-mono text-xs">{r.sex ?? ""}</td>
                   <td>{flag(r.country)} <span className="font-mono text-xs text-dim">{r.country}</span></td>
                   <td className="text-right font-mono tabular-nums">{r.requests}</td>
                   <td className="text-right font-mono tabular-nums">{r.watched}</td>
                   <td className="text-right font-mono tabular-nums">{r.reviews}</td>
-                  <td className="text-right font-mono text-xs text-dim">{since(r.lastSeenAt)}</td>
+                  <td className="text-right font-mono text-xs text-dim">{since(r.lastSeenAt, t)}</td>
                   <td className="py-2 pl-4">
                     {actions(r)}
                   </td>
@@ -262,6 +265,7 @@ const ageOptions = [{ value: "", label: "?" }, ...ageBrackets.map((x) => ({ valu
 const sexOptions = [...sexes, { value: "", label: "Passer" }];
 
 function CreateForm({ roles, onDone }: { roles: { value: Role; label: string }[]; onDone: () => void }) {
+  const t = useT();
   const [state, action] = useActionState(createMember, undefined);
   const [role, setRoleV] = useState<Role>("USER");
   const [age, setAge] = useState("");
@@ -278,7 +282,7 @@ function CreateForm({ roles, onDone }: { roles: { value: Role; label: string }[]
       <Choice name="age" label="Âge" value={age} onChange={setAge} options={ageOptions} />
       <Choice name="sex" label="Genre" value={sex} onChange={setSex} options={sexOptions} />
       <div className="flex items-center gap-6 md:col-span-3">
-        <Submit>Créer</Submit>
+        <Submit>{t("Créer")}</Submit>
         <FormError message={state?.error} />
       </div>
     </form>
@@ -286,6 +290,7 @@ function CreateForm({ roles, onDone }: { roles: { value: Role; label: string }[]
 }
 
 function EditForm({ row, onDone }: { row: Row; onDone: () => void }) {
+  const t = useT();
   const [state, action] = useActionState(updateMember, undefined);
   const [age, setAge] = useState(row.age ?? "");
   const [sex, setSex] = useState(row.sex ?? "");
@@ -299,7 +304,7 @@ function EditForm({ row, onDone }: { row: Row; onDone: () => void }) {
       <Choice name="age" label="Âge" value={age} onChange={setAge} options={ageOptions} />
       <Choice name="sex" label="Genre" value={sex} onChange={setSex} options={sexOptions} />
       <div className="flex items-center gap-4">
-        <Submit>Enregistrer</Submit>
+        <Submit>{t("Enregistrer")}</Submit>
       </div>
       <div className="md:col-span-4">
         <FormError message={state?.error} />

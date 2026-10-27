@@ -57,6 +57,8 @@ export const users = pgTable(
     deepReview: boolean("deep_review").notNull().default(false),
     // Home billboard: time per slide in milliseconds, 0 keeps it still
     billboardMs: integer("billboard_ms").notNull().default(3000),
+    // Language of the interface and of the mails
+    locale: text("locale").notNull().default("fr"),
     country: text("country"),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

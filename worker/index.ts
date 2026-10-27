@@ -45,7 +45,7 @@ async function claim(types: string[]): Promise<Job | null> {
 
 async function contact(userId: string) {
   const [u] = await db
-    .select({ emailEnc: schema.users.emailEnc, phoneEnc: schema.users.phoneEnc, wa: schema.users.whatsappOptIn, banned: schema.users.bannedAt })
+    .select({ emailEnc: schema.users.emailEnc, phoneEnc: schema.users.phoneEnc, wa: schema.users.whatsappOptIn, banned: schema.users.bannedAt, locale: schema.users.locale })
     .from(schema.users)
     .where(eq(schema.users.id, userId));
   return u;
@@ -61,7 +61,7 @@ async function handle(job: Job) {
     case "mail": {
       const u = await contact(String(p.userId));
       if (!u || u.banned) return;
-      const mail = renderMail(String(p.template), (p.data ?? {}) as Record<string, unknown>);
+      const mail = renderMail(String(p.template), (p.data ?? {}) as Record<string, unknown>, u.locale === "en" ? "en" : "fr");
       const to = decrypt(u.emailEnc);
       if (!mailer) {
         const masked = to.replace(/^(.).*(@.*)$/, "$1***$2");

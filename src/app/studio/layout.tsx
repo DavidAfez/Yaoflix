@@ -1,8 +1,12 @@
 import { requireRole } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { StudioNav } from "./nav";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata = { title: "Studio" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("Studio") };
+}
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const user = await requireRole(can.isStaff);

@@ -2,15 +2,17 @@
 import { useActionState } from "react";
 import { resetPassword } from "../../actions";
 import { Field, Submit, FormError } from "@/components/ui";
+import { useT } from "@/components/i18n";
 
 export function ResetForm({ token }: { token: string }) {
   const [state, action] = useActionState(resetPassword, undefined);
+  const t = useT();
   return (
     <form action={action} className="space-y-8">
       <input type="hidden" name="token" value={token} />
       <Field label="Mot de passe" name="password" type="password" required minLength={10} autoComplete="new-password" />
       <FormError message={state?.error} />
-      <Submit size="lg">Valider</Submit>
+      <Submit size="lg">{t("Valider")}</Submit>
     </form>
   );
 }

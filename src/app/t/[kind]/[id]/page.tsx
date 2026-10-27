@@ -2,8 +2,9 @@ import { notFound } from "next/navigation";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
-import { credits, getTitle, img, similar } from "@/lib/tmdb";
+import { credits, getTitle, img, localized, similar } from "@/lib/tmdb";
 import { CreditsPanel } from "./credits";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { readyTitleIds } from "@/lib/recos";
 import { toPoster } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
@@ -50,6 +51,9 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
     credits(kind, title.tmdbId),
   ]);
   const moreReady = await readyTitleIds(more.map((m) => m.id));
+  const [tr, locale] = await Promise.all([getT(), getLocale()]);
+  // English speakers get the English name and synopsis, the cache stays in French
+  const en = locale === "en" ? await localized(kind, title.tmdbId, "en-US") : null;
 
   return (
     <main>
@@ -58,11 +62,11 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
         title={{
           id: title.id,
           tmdbId: title.tmdbId,
-          name: title.name,
+          name: en?.name ?? title.name,
           year: title.year,
           runtime: title.runtime,
           genres: title.genres,
-          overview: title.overview,
+          overview: en?.overview ?? title.overview,
           poster: img(title.posterPath, "w500"),
           backdrop: img(title.backdropPath, "w1280"),
           vote: title.voteAverage,
@@ -82,14 +86,14 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
       {reviews.length > 0 && (
         <section className="mt-12 px-4 md:px-10">
           <h2 className="mb-6 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
-            Avis <span className="font-mono text-xs text-lime">{String(reviews.length).padStart(2, "0")}</span>
+            {tr("Avis")} <span className="font-mono text-xs text-lime">{String(reviews.length).padStart(2, "0")}</span>
           </h2>
-          <DeepSummary {...deep} />
-          <ReviewList items={reviews} />
+          <DeepSummary {...deep} t={tr} />
+          <ReviewList items={reviews} t={tr} locale={locale} />
         </section>
       )}
       {more.length > 0 && (
-        <Row title="Dans la même veine">
+        <Row title={tr("Dans la même veine")}>
           {more.map((t, i) => (
             <Poster key={t.id} t={toPoster(t, moreReady.has(t.id))} i={i} size="sm" />
           ))}

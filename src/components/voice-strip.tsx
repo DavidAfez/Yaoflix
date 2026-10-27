@@ -1,6 +1,7 @@
 "use client";
 import { motion } from "motion/react";
 import { Mic } from "lucide-react";
+import { useT } from "./i18n";
 
 const BARS = 40;
 // Deterministic heights so server and client render the same waveform
@@ -24,6 +25,7 @@ function Wave({ className = "" }: { className?: string }) {
 
 /** Voice reviews, transcribed. Shown on the home and the landing. */
 export function VoiceStrip({ big = false }: { big?: boolean }) {
+  const t = useT();
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -37,9 +39,9 @@ export function VoiceStrip({ big = false }: { big?: boolean }) {
         </span>
         <div className="shrink-0">
           <p className={`font-display font-extrabold leading-none tracking-tight ${big ? "text-5xl md:text-7xl" : "text-2xl md:text-4xl"}`}>
-            Ton avis, en vocal.
+            {t("Ton avis, en vocal.")}
           </p>
-          <p className={`mt-2 font-mono uppercase tracking-widest text-lime ${big ? "text-sm" : "text-xs"}`}>Transcrit</p>
+          <p className={`mt-2 font-mono uppercase tracking-widest text-lime ${big ? "text-sm" : "text-xs"}`}>{t("Transcrit")}</p>
         </div>
         <Wave className="min-w-0 flex-1 overflow-hidden" />
       </div>

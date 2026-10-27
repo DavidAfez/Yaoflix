@@ -4,8 +4,12 @@ import { getUser } from "@/lib/auth";
 import { resolveGrant } from "@/lib/access";
 import { img } from "@/lib/tmdb";
 import { Player } from "@/components/player/player";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata = { title: "Lecture", referrer: "no-referrer" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t("Visionnage"), referrer: "no-referrer" };
+}
 
 export default async function Page(props: PageProps<"/w/[key]">) {
   const { key } = await props.params;
@@ -14,15 +18,16 @@ export default async function Page(props: PageProps<"/w/[key]">) {
   if (!user.approved) redirect("/pending");
   const g = await resolveGrant(key, user.id);
   if (!g) {
+    const t = await getT();
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-10 p-6 text-center">
         <p className="font-display text-6xl font-extrabold tracking-tighter md:text-8xl">
-          Lien
+          {t("Lien")}
           <br />
-          <span className="text-bone/25">expiré.</span>
+          <span className="text-bone/25">{t("expiré.")}</span>
         </p>
         <Link href="/" className="notch bg-lime px-8 py-4 font-semibold text-ink">
-          Accueil
+          {t("Accueil")}
         </Link>
       </main>
     );

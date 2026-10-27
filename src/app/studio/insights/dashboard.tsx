@@ -6,10 +6,11 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Too
 import type { Insights } from "@/lib/insights";
 import { ageBrackets, recencyOrder, rejectLabels } from "@/lib/labels";
 import type { RejectReason } from "@/db/schema";
+import { useT } from "@/components/i18n";
 
 /** Categorical slots validated against the #131316 surface (CVD + normal vision + contrast). */
 const S = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9"];
-const LIME = "#c8ff2e";
+const LIME = "#b4a2ff";
 const GRID = "rgb(243 240 232 / 0.06)";
 const AXIS = { fill: "#8c8a84", fontSize: 11, fontFamily: "var(--font-geist-mono)" };
 
@@ -32,6 +33,7 @@ function Count({ to, decimals = 0, suffix = "" }: { to: number; decimals?: numbe
 }
 
 function Panel({ title, children, className = "", i = 0 }: { title: string; children: React.ReactNode; className?: string; i?: number }) {
+  const t = useT();
   return (
     <motion.section
       initial={{ opacity: 0, y: 24 }}
@@ -40,13 +42,14 @@ function Panel({ title, children, className = "", i = 0 }: { title: string; chil
       transition={{ delay: (i % 3) * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className={`min-w-0 border-t border-line pt-5 ${className}`}
     >
-      <h2 className="mb-5 font-display text-base font-semibold tracking-tight">{title}</h2>
+      <h2 className="mb-5 font-display text-base font-semibold tracking-tight">{t(title)}</h2>
       {children}
     </motion.section>
   );
 }
 
 function Tip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
+  const t = useT();
   if (!active || !payload?.length) return null;
   return (
     <div className="border-l-2 border-lime bg-ink-3 px-3 py-2 text-xs shadow-xl">
@@ -63,12 +66,13 @@ function Tip({ active, payload, label }: { active?: boolean; payload?: { name: s
 }
 
 function Legend({ items }: { items: { label: string; color: string }[] }) {
+  const t = useT();
   return (
     <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-bone/80">
       {items.map((it) => (
         <span key={it.label} className="flex items-center gap-1.5">
           <span className="size-2" style={{ background: it.color }} />
-          {it.label}
+          {t(it.label)}
         </span>
       ))}
     </div>
@@ -77,13 +81,14 @@ function Legend({ items }: { items: { label: string; color: string }[] }) {
 
 /** Ranked list with inline bars. Text stays in ink, the bar carries the value. */
 function Bars({ rows, color = LIME, unit = "" }: { rows: { label: string; value: number; extra?: string }[]; color?: string; unit?: string }) {
+  const t = useT();
   const max = Math.max(1, ...rows.map((r) => r.value));
   if (!rows.length) return <Empty />;
   return (
     <ul className="space-y-2.5">
       {rows.map((r, i) => (
         <li key={r.label} className="group grid grid-cols-[minmax(0,7rem)_1fr_auto] items-center gap-3 text-sm" title={`${r.label} : ${r.value}${unit}`}>
-          <span className="truncate text-bone/80">{r.label}</span>
+          <span className="truncate text-bone/80">{t(r.label)}</span>
           <span className="relative h-2 bg-bone/5">
             <motion.span
               className="absolute inset-y-0 left-0 rounded-r-[2px]"
@@ -108,6 +113,7 @@ function Bars({ rows, color = LIME, unit = "" }: { rows: { label: string; value:
 const Empty = () => <p className="py-10 text-center font-mono text-xs text-dim">0</p>;
 
 export function Dashboard({ data, days }: { data: Insights; days: number }) {
+  const t = useT();
   const k = data.kpi;
   const servedRate = k.served + k.rejected ? (k.served / (k.served + k.rejected)) * 100 : 0;
 
@@ -165,7 +171,7 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
   return (
     <div className="pb-20">
       <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">Insights</h1>
+        <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">{t("Insights")}</h1>
         <div className="flex border-b border-line">
           {[7, 30, 90, 365].map((d) => (
             <Link key={d} href={`/studio/insights?d=${d}`} scroll={false} className={`relative px-4 py-2 font-mono text-sm ${d === days ? "text-bone" : "text-dim hover:text-bone"}`}>
@@ -184,13 +190,13 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
           { label: "Focus médian", v: (k.focus_median ?? 0) / 60, d: 1, suffix: " min" },
           { label: "Session moy.", v: (k.session_avg ?? 0) / 60, d: 1, suffix: " min" },
           { label: "Vus jusqu'au bout", v: (k.completion ?? 0) * 100, d: 0, suffix: "%" },
-        ].map((t) => (
-          <div key={t.label} className="bg-ink p-5">
-            <p className="font-mono text-[11px] uppercase tracking-widest text-dim">{t.label}</p>
+        ].map((x) => (
+          <div key={x.label} className="bg-ink p-5">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-dim">{t(x.label)}</p>
             <p className="mt-3 font-display text-3xl font-semibold tabular-nums md:text-4xl">
-              <Count to={t.v} decimals={t.d} suffix={t.suffix} />
+              <Count to={x.v} decimals={x.d} suffix={x.suffix} />
             </p>
-            {t.sub && <p className="mt-1 font-mono text-xs text-lime">{t.sub}</p>}
+            {x.sub && <p className="mt-1 font-mono text-xs text-lime">{x.sub}</p>}
           </div>
         ))}
       </div>
@@ -205,9 +211,9 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
                 <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={false} minTickGap={24} />
                 <YAxis tick={AXIS} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<Tip />} cursor={{ stroke: "rgb(243 240 232 / .25)" }} />
-                <Line type="monotone" dataKey="requests" name="Demandes" stroke={S[0]} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: "#131316", strokeWidth: 2 }} />
-                <Line type="monotone" dataKey="served" name="Servies" stroke={S[1]} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: "#131316", strokeWidth: 2 }} />
-                <Line type="monotone" dataKey="watches" name="Lectures" stroke={S[2]} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: "#131316", strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="requests" name={t("Demandes")} stroke={S[0]} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: "#131316", strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="served" name={t("Servies")} stroke={S[1]} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: "#131316", strokeWidth: 2 }} />
+                <Line type="monotone" dataKey="watches" name={t("Lectures")} stroke={S[2]} strokeWidth={2} dot={false} activeDot={{ r: 4, stroke: "#131316", strokeWidth: 2 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -304,9 +310,9 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
             <table className="mt-8 w-full text-sm">
               <thead>
                 <tr className="text-left font-mono text-[11px] uppercase tracking-wider text-dim">
-                  <th className="pb-2 font-normal">Âge</th>
-                  <th className="pb-2 text-right font-normal">Médiane</th>
-                  <th className="pb-2 text-right font-normal">Pauses / film</th>
+                  <th className="pb-2 font-normal">{t("Âge")}</th>
+                  <th className="pb-2 text-right font-normal">{t("Médiane")}</th>
+                  <th className="pb-2 text-right font-normal">{t("Pauses / film")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -354,7 +360,7 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
           <Bars rows={data.reasons.map((r) => ({ label: rejectLabels[r.reason as RejectReason] ?? r.reason, value: r.n }))} color="#f3f0e8" />
         </Panel>
 
-        <Panel title={`Avis · ${k.voice}`} i={9}>
+        <Panel title={`${t("Avis")} · ${k.voice}`} i={9}>
           {data.voices.length ? (
             <ul className="space-y-3">
               {data.voices.map((v) => (

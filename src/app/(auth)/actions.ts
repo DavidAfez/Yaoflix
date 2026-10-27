@@ -11,6 +11,7 @@ import { queueMail } from "@/lib/jobs";
 import { rateLimit } from "@/lib/ratelimit";
 import { ageBrackets } from "@/lib/labels";
 import { logError } from "@/lib/errors";
+import { getLocale } from "@/lib/i18n/server";
 
 export type AuthState = { error?: string; sent?: boolean } | undefined;
 
@@ -74,6 +75,7 @@ export async function join(_: AuthState, form: FormData): Promise<AuthState> {
         ageBracket: age,
         sex: sex || null,
         country: countryFrom(await headers()),
+        locale: await getLocale(),
       })
       .returning({ id: schema.users.id });
     const token = await issueToken(user.id, "verify", 60 * 24);

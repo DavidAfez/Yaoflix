@@ -9,6 +9,7 @@ import { report } from "../error-reporter";
 import { useTelemetry } from "./telemetry";
 import { EndCard } from "./end-card";
 import type { RequestPrefs, Track } from "@/db/schema";
+import { useT } from "../i18n";
 
 type Props = {
   grantId: string;
@@ -35,6 +36,7 @@ const fmt = (s: number) => {
 const qLabel = (h: number) => (h >= 2000 ? "4K" : `${h}p`);
 
 export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, prefs, subtitles }: Props) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -440,7 +442,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
       {fatal && (
         <div className="absolute inset-0 grid place-items-center bg-ink/90">
           <button onClick={() => location.reload()} className="notch bg-lime px-8 py-4 font-semibold text-ink">
-            Relancer
+            {t("Relancer")}
           </button>
         </div>
       )}
@@ -452,7 +454,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
             <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/90 to-transparent" />
 
             <div className="pointer-events-auto absolute inset-x-0 top-0 flex items-center gap-4 p-4 pt-[max(1rem,env(safe-area-inset-top))] md:p-8">
-              <Link href="/" aria-label="Retour" className="grid size-11 place-items-center hover:text-lime">
+              <Link href="/" aria-label={t("Retour")} className="grid size-11 place-items-center hover:text-lime">
                 <ArrowLeft />
               </Link>
               <p className="truncate font-display text-lg font-semibold md:text-2xl">{title}</p>
@@ -465,7 +467,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
               <motion.button
                 whileTap={{ scale: 0.88 }}
                 onClick={toggle}
-                aria-label={playing ? "Pause" : "Lecture"}
+                aria-label={t(playing ? "Pause" : "Lecture")}
                 className="grid size-20 place-items-center rounded-full bg-bone text-ink md:size-24"
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -546,7 +548,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
                         <>
                           {audios.length > 1 && <div className="my-2 h-px bg-line" />}
                           <MenuItem on={sub === -1} onClick={() => setSub(-1)}>
-                            Sans ST
+                            {t("Sans ST")}
                           </MenuItem>
                           {subtitles.map((s, i) => (
                             <MenuItem key={`s${i}`} on={sub === i} onClick={() => setSub(i)}>
@@ -570,6 +572,8 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
 }
 
 function CtrlBtn({ children, label, onClick, on, className = "" }: { children: React.ReactNode; label: string; onClick: () => void; on?: boolean; className?: string }) {
+  const t = useT();
+  label = t(label);
   return (
     <motion.button whileTap={{ scale: 0.85 }} onClick={onClick} aria-label={label} title={label} className={`grid size-11 place-items-center transition-colors ${on ? "text-lime" : "text-bone hover:text-lime"} ${className}`}>
       {children}

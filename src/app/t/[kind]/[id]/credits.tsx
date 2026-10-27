@@ -3,15 +3,17 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import type { Credits } from "@/lib/tmdb";
+import { useT } from "@/components/i18n";
 
 /** Studios, crew and cast, folded by default. */
 export function CreditsPanel({ data }: { data: Credits }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const studios = [...data.networks, ...data.companies];
   return (
     <section className="mx-4 mt-12 border-y border-line md:mx-10">
       <button onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center justify-between py-5 text-left">
-        <span className="font-display text-xl font-semibold tracking-tight md:text-2xl">Crédits</span>
+        <span className="font-display text-xl font-semibold tracking-tight md:text-2xl">{t("Crédits")}</span>
         <motion.span animate={{ rotate: open ? 180 : 0 }}>
           <ChevronDown size={22} />
         </motion.span>
@@ -22,13 +24,13 @@ export function CreditsPanel({ data }: { data: Credits }) {
             <div className="grid gap-x-10 gap-y-5 pb-8 sm:grid-cols-2 lg:grid-cols-3">
               {data.crew.map((c) => (
                 <div key={c.job}>
-                  <p className="font-mono text-[11px] uppercase tracking-wider text-lime">{c.job}</p>
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-lime">{t(c.job)}</p>
                   <p className="mt-1">{c.names.join(", ")}</p>
                 </div>
               ))}
               {studios.length > 0 && (
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-wider text-lime">Studios</p>
+                  <p className="font-mono text-[11px] uppercase tracking-wider text-lime">{t("Studios")}</p>
                   <p className="mt-1">{studios.join(", ")}</p>
                 </div>
               )}

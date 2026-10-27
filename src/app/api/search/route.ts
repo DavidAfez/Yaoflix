@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, asc, ilike, isNull, sql } from "drizzle-orm";
+import { and, asc, ilike, isNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { apiUser } from "@/lib/auth";
 import { searchTitles } from "@/lib/tmdb";
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
         reviews: sql<number>`(select count(*)::int from feedback f where f.user_id = "users"."id")`,
       })
       .from(schema.users)
-      .where(and(isNull(schema.users.bannedAt), term ? ilike(schema.users.handle, `%${term}%`) : undefined))
+      .where(and(isNull(schema.users.bannedAt), ne(schema.users.id, user.id), term ? ilike(schema.users.handle, `%${term}%`) : undefined))
       .orderBy(sql`position(${term} in ${schema.users.handle})`, asc(schema.users.handle))
       .limit(30);
     return NextResponse.json({ results: [], people });

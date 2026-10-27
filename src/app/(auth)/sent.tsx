@@ -1,8 +1,10 @@
 "use client";
 import { motion } from "motion/react";
 import { Mail } from "lucide-react";
+import { useT } from "@/components/i18n";
 
 export function Sent() {
+  const t = useT();
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <motion.div
@@ -13,7 +15,7 @@ export function Sent() {
       >
         <Mail size={34} />
       </motion.div>
-      <p className="font-display text-3xl font-semibold leading-tight">Regarde tes mails.</p>
+      <p className="font-display text-3xl font-semibold leading-tight">{t("Regarde tes mails.")}</p>
     </motion.div>
   );
 }

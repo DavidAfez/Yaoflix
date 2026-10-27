@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Home, Bookmark, User, Clapperboard, LogOut, Search, Bug, MessagesSquare } from "lucide-react";
 import { SearchOverlay } from "./search";
+import { useT } from "./i18n";
 import { logout } from "@/app/(auth)/actions";
 import type { Role } from "@/db/schema";
 
@@ -12,6 +13,7 @@ const isStaff = (r: Role) => r !== "USER";
 
 export function Nav({ role, handle }: { role: Role; handle: string }) {
   const path = usePathname();
+  const t = useT();
   const [searching, setSearching] = useState(false);
   const close = useCallback(() => setSearching(false), []);
   // The home page has its own big bar: focus it rather than stacking an overlay
@@ -37,10 +39,10 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
   if (path.startsWith("/w/")) return null;
 
   const items = [
-    { href: "/", label: "Accueil", icon: Home },
+    { href: "/", label: t("Accueil"), icon: Home },
     { href: "/feed", label: "Feed", icon: MessagesSquare },
-    { href: "/list", label: "Liste", icon: Bookmark },
-    { href: "/me", label: "Moi", icon: User },
+    { href: "/list", label: t("Liste"), icon: Bookmark },
+    { href: "/me", label: t("Moi"), icon: User },
     ...(isStaff(role) ? [{ href: "/studio", label: "Studio", icon: Clapperboard }] : []),
   ];
   const active = (href: string) =>
@@ -70,21 +72,21 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
             className="ml-auto flex h-8 w-72 items-center gap-3 border border-line px-3 text-sm text-bone/40 transition-colors hover:border-lime hover:text-bone lg:w-96"
           >
             <Search size={16} className="text-lime" />
-            Un film, une série, @membre
+            {t("Un film, une série, @membre")}
             <kbd className="ml-auto font-mono text-[11px] text-dim">/</kbd>
           </button>
         )}
         <span className={`${path === "/" ? "ml-auto" : "ml-6"} font-mono text-xs text-dim`}>@{handle}</span>
         <Link
           href={`/bug?from=${encodeURIComponent(path)}`}
-          aria-label="Signaler un bug"
-          title="Signaler un bug"
+          aria-label={t("Signaler un bug")}
+          title={t("Signaler un bug")}
           className="ml-4 grid size-9 place-items-center text-dim transition-colors hover:text-lime"
         >
           <Bug size={17} />
         </Link>
         <form action={logout} className="ml-1">
-          <button aria-label="Déconnexion" title="Déconnexion" className="grid size-9 place-items-center text-dim transition-colors hover:text-coral">
+          <button aria-label={t("Déconnexion")} title={t("Déconnexion")} className="grid size-9 place-items-center text-dim transition-colors hover:text-coral">
             <LogOut size={17} />
           </button>
         </form>
@@ -94,9 +96,9 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
         className="fixed inset-x-0 bottom-0 z-50 grid border-t border-line bg-ink/90 backdrop-blur-xl md:hidden"
         style={{ gridTemplateColumns: `repeat(${items.length + 1}, 1fr)`, paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <button type="button" onClick={openSearch} className="relative order-1 flex h-14 flex-col items-center justify-center gap-1" aria-label="Chercher">
+        <button type="button" onClick={openSearch} className="relative order-1 flex h-14 flex-col items-center justify-center gap-1" aria-label={t("Chercher")}>
           <Search size={19} strokeWidth={searching ? 2.2 : 1.6} className={searching ? "text-lime" : "text-dim"} />
-          <span className={`text-[10px] tracking-wider ${searching ? "text-bone" : "text-dim"}`}>Chercher</span>
+          <span className={`text-[10px] tracking-wider ${searching ? "text-bone" : "text-dim"}`}>{t("Chercher")}</span>
         </button>
         {items.map((it) => {
           const on = active(it.href);

@@ -11,6 +11,7 @@ import { ReviewList } from "@/components/reviews";
 import { followState, postsBy } from "@/lib/feed";
 import { FollowButton, PostCard } from "@/components/feed";
 import { Stat } from "@/app/me/stat";
+import { getLocale, getT } from "@/lib/i18n/server";
 
 export async function generateMetadata(props: PageProps<"/u/[handle]">) {
   const { handle } = await props.params;
@@ -60,6 +61,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     tv: rows.filter((r) => r.title.kind === "tv"),
   });
   const l = split(liked);
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
   const s = split(seen);
 
   return (
@@ -85,7 +87,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
       {posts.length > 0 && (
         <section className="mx-4 mt-12 max-w-2xl border-t border-line md:mx-10">
           <h2 className="mb-2 mt-8 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
-            Posts <span className="font-mono text-xs text-lime">{String(posts.length).padStart(2, "0")}</span>
+            {t("Posts")} <span className="font-mono text-xs text-lime">{String(posts.length).padStart(2, "0")}</span>
           </h2>
           {posts.map((p, i) => (
             <PostCard key={p.id} p={p} i={i} />
@@ -96,9 +98,9 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
       {reviews.length > 0 && (
         <section className="mx-4 mt-12 md:mx-10">
           <h2 className="mb-6 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
-            Avis <span className="font-mono text-xs text-lime">{String(reviews.length).padStart(2, "0")}</span>
+            {t("Avis")} <span className="font-mono text-xs text-lime">{String(reviews.length).padStart(2, "0")}</span>
           </h2>
-          <ReviewList items={reviews} showTitle />
+          <ReviewList items={reviews} showTitle t={t} locale={locale} />
         </section>
       )}
 
