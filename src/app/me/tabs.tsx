@@ -8,7 +8,7 @@ import { useMarkSets } from "@/components/marks";
 import { Choice, Field, Submit, FormError } from "@/components/ui";
 import { StatusMark } from "@/components/status";
 import { ageBrackets, sexes } from "@/lib/labels";
-import { saveProfile, saveWhatsApp, deleteAccount } from "./actions";
+import { saveProfile, saveWhatsApp, deleteAccount, saveBillboard } from "./actions";
 import type { RejectReason, RequestPrefs } from "@/db/schema";
 
 type Status = "PENDING" | "IN_PROGRESS" | "FULFILLED" | "REJECTED";
@@ -24,7 +24,7 @@ export function MeTabs(props: {
   liked: PosterData[];
   seen: PosterData[];
   requests: Req[];
-  profile: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean };
+  profile: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean; billboardMs: number };
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Moi");
   // Every poster the page knows about, so a like or a seen mark shows up in its tab right away
@@ -290,7 +290,16 @@ function Requests({ items }: { items: Req[] }) {
   );
 }
 
-function Settings({ handle, age, sex, hasPhone, optIn }: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean }) {
+const SPEEDS = [
+  { value: "1500", label: "1,5 s" },
+  { value: "3000", label: "3 s" },
+  { value: "5000", label: "5 s" },
+  { value: "8000", label: "8 s" },
+  { value: "0", label: "Fixe" },
+];
+
+function Settings({ handle, age, sex, hasPhone, optIn, billboardMs }: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean; billboardMs: number }) {
+  const [speed, setSpeed] = useState(String(billboardMs));
   const [p, saveP] = useActionState(saveProfile, undefined);
   const [w, saveW] = useActionState(saveWhatsApp, undefined);
   const [d, del] = useActionState(deleteAccount, undefined);
@@ -322,6 +331,20 @@ function Settings({ handle, age, sex, hasPhone, optIn }: { handle: string; age: 
         <FormError message={w?.error} />
         <Submit>{w?.ok ? "✓" : "Enregistrer"}</Submit>
       </form>
+
+      <div className="space-y-7">
+        <h3 className="font-display text-lg font-semibold">Carrousel</h3>
+        <Choice
+          name="billboard"
+          label="Défilement"
+          value={speed}
+          options={SPEEDS}
+          onChange={(v) => {
+            setSpeed(v);
+            void saveBillboard(Number(v));
+          }}
+        />
+      </div>
 
       <div className="md:col-span-2">
         {!danger ? (

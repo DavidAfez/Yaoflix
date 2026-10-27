@@ -55,6 +55,8 @@ export const users = pgTable(
     whatsappOptIn: boolean("whatsapp_opt_in").notNull().default(false),
     // Detailed reviews: granted by staff, or unlocked automatically after 10 reviews
     deepReview: boolean("deep_review").notNull().default(false),
+    // Home billboard: time per slide in milliseconds, 0 keeps it still
+    billboardMs: integer("billboard_ms").notNull().default(1500),
     country: text("country"),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

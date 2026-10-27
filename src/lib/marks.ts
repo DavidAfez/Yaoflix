@@ -87,3 +87,32 @@ export async function deepState(userId: string): Promise<{ allowed: boolean; cou
 }
 
 export const deepAllowed = async (userId: string) => (await deepState(userId)).allowed;
+
+/**
+ * Hours spent on titles: streamed time here, plus the runtime of films marked seen and never streamed.
+ * Series marked seen are left out, nobody knows how many episodes were watched.
+ */
+export async function hoursSeen(userId: string): Promise<number> {
+  // Films found through lists have no runtime yet: fetch the details once, TMDB answers are cached
+  const missing = await db.execute<{ tmdb_id: number }>(sql`
+    select t.tmdb_id from seen s join titles t on t.id = s.title_id
+    where s.user_id = ${userId} and t.kind = 'movie' and t.runtime is null limit 40
+  `);
+  if (missing.rows.length) {
+    const { getTitle } = await import("./tmdb");
+    await Promise.all(missing.rows.map((r) => getTitle("movie", r.tmdb_id).catch(() => null)));
+  }
+  const [r] = (
+    await db.execute<{ h: number }>(sql`
+      select (
+        coalesce((select sum(watched_sec) from watch_sessions where user_id = ${userId}), 0) / 3600.0 +
+        coalesce((
+          select sum(t.runtime) from seen s join titles t on t.id = s.title_id
+          where s.user_id = ${userId} and t.kind = 'movie'
+            and not exists (select 1 from watch_sessions w where w.user_id = s.user_id and w.title_id = s.title_id)
+        ), 0) / 60.0
+      )::float as h
+    `)
+  ).rows;
+  return r?.h ?? 0;
+}

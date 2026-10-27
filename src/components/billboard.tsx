@@ -2,10 +2,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Heart, Info, Play } from "lucide-react";
+import { Check, Heart, Info, Play, Plus } from "lucide-react";
+import { toggleWatchlist } from "@/app/t/actions";
 import { useMark } from "./marks";
 
 export type Slide = {
+  id: number;
+  listed: boolean;
   kind: string;
   tmdbId: number;
   name: string;
@@ -18,19 +21,21 @@ export type Slide = {
 };
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const DELAY = 7000;
 
-/** Big recommendation carousel at the top of the home page. Rotates alone, pauses on hover, swipes on mobile. */
-export function Billboard({ slides }: { slides: Slide[] }) {
+/**
+ * Big recommendation carousel at the top of the home page. Rotates on its own at the member's pace
+ * (Réglages, 0 keeps it still), pauses on hover, swipes on mobile.
+ */
+export function Billboard({ slides, delay = 1500 }: { slides: Slide[]; delay?: number }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   const go = useCallback((n: number) => setI((n + slides.length) % slides.length), [slides.length]);
 
   useEffect(() => {
-    if (paused || slides.length < 2) return;
-    const t = setTimeout(() => go(i + 1), DELAY);
+    if (paused || slides.length < 2 || !delay) return;
+    const t = setTimeout(() => go(i + 1), delay);
     return () => clearTimeout(t);
-  }, [i, paused, go, slides.length]);
+  }, [i, paused, go, slides.length, delay]);
 
   if (!slides.length) return null;
   const s = slides[i];
@@ -49,7 +54,7 @@ export function Billboard({ slides }: { slides: Slide[] }) {
           initial={{ opacity: 0, scale: 1.08 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1.1, ease: EASE }}
+          transition={{ duration: Math.min(1.1, (delay || 3000) / 2000), ease: EASE }}
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           dragElastic={0.2}
@@ -59,7 +64,7 @@ export function Billboard({ slides }: { slides: Slide[] }) {
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={s.backdrop} alt="" className="pointer-events-none size-full object-cover" draggable={false} />
+          <img src={s.backdrop} alt="" className="pointer-events-none size-full object-cover object-top" draggable={false} />
         </motion.div>
       </AnimatePresence>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink via-ink/40 to-ink/0" />
@@ -83,30 +88,14 @@ export function Billboard({ slides }: { slides: Slide[] }) {
         </AnimatePresence>
       </div>
 
-      {slides.length > 1 && (
-        <div className="absolute bottom-4 right-4 flex gap-1.5 md:bottom-8 md:right-10">
-          {slides.map((x, n) => (
-            <button key={x.tmdbId + x.kind} onClick={() => go(n)} aria-label={x.name} className="relative h-1 w-6 overflow-hidden bg-bone/20 md:w-10">
-              {n === i && (
-                <motion.span
-                  key={`${i}-${paused}`}
-                  className="absolute inset-y-0 left-0 bg-lime"
-                  initial={{ width: paused ? "100%" : "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{ duration: paused ? 0 : DELAY / 1000, ease: "linear" }}
-                />
-              )}
-              {n < i && <span className="absolute inset-0 bg-bone/60" />}
-            </button>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
 
 function Actions({ s }: { s: Slide }) {
   const mark = useMark(s);
+  const [listed, setListed] = useState(s.listed);
+  useEffect(() => setListed(s.listed), [s.listed]);
   return (
     <div className="mt-6 flex items-center gap-2">
       <Link href={`/t/${s.kind}/${s.tmdbId}`} className="notch flex h-12 items-center gap-2 bg-lime px-6 font-semibold text-ink transition-transform hover:scale-[1.03]">
@@ -124,6 +113,19 @@ function Actions({ s }: { s: Slide }) {
           <Heart size={20} fill={mark.liked ? "currentColor" : "none"} />
         </motion.button>
       )}
+      <motion.button
+        whileTap={{ scale: 0.85 }}
+        onClick={() => {
+          setListed(!listed);
+          void toggleWatchlist(s.id, "/");
+        }}
+        aria-label="Ma liste"
+        aria-pressed={listed}
+        title="Ma liste"
+        className={`grid size-12 place-items-center border bg-ink/40 backdrop-blur transition-colors ${listed ? "border-lime text-lime" : "border-bone/30 hover:border-bone"}`}
+      >
+        {listed ? <Check size={20} /> : <Plus size={22} />}
+      </motion.button>
     </div>
   );
 }

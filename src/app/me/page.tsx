@@ -5,6 +5,7 @@ import { recommend, topLiked, readyTitleIds } from "@/lib/recos";
 import { similar, img } from "@/lib/tmdb";
 import { toPoster } from "@/lib/view";
 import { roleLabel } from "@/lib/rbac";
+import { hoursSeen } from "@/lib/marks";
 import { recencyBucket, recencyOrder } from "@/lib/labels";
 import { MeTabs } from "./tabs";
 import { logout } from "../(auth)/actions";
@@ -61,7 +62,7 @@ export default async function Page() {
     db.execute<{ completed: number; hours: number; focus: number | null }>(sql`
       select
         (select count(*)::int from seen where user_id = ${uid}) as completed,
-        (select coalesce(sum(watched_sec), 0) / 3600.0 from watch_sessions where user_id = ${uid})::float as hours,
+        ${await hoursSeen(uid)}::float as hours,
         (select avg(f.seconds) / 60.0 from focus_spans f join watch_sessions w on w.id = f.watch_session_id where w.user_id = ${uid})::float as focus
     `).then((r) => r.rows),
     // Taste: likes weigh 3, dislikes -3, completed views 2, requests 1
@@ -88,6 +89,7 @@ export default async function Page() {
     `).then((r) => r.rows),
   ]);
 
+  const [pref] = await db.select({ ms: schema.users.billboardMs }).from(schema.users).where(eq(schema.users.id, uid));
   const toAsk = (await Promise.all(seeds.map((s) => similar(s.kind as "movie" | "tv", s.tmdbId)))).flat();
   const askReady = await readyTitleIds(toAsk.map((t) => t.id));
   const likedReady = await readyTitleIds(liked.map((l) => l.title.id));
@@ -166,7 +168,7 @@ export default async function Page() {
           prefs: req.prefs,
           poster: toPoster(title),
         }))}
-        profile={{ handle: user.handle, age: user.ageBracket ?? "", sex: user.sex ?? "", hasPhone: user.hasPhone, optIn: user.whatsappOptIn }}
+        profile={{ handle: user.handle, age: user.ageBracket ?? "", sex: user.sex ?? "", hasPhone: user.hasPhone, optIn: user.whatsappOptIn, billboardMs: pref?.ms ?? 1500 }}
       />
     </main>
   );

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "billboard_ms" integer DEFAULT 1500 NOT NULL;

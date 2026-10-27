@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { readyTitleIds } from "@/lib/recos";
 import { userReviews } from "@/lib/reviews";
+import { hoursSeen } from "@/lib/marks";
 import { toPoster } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
 import { ReviewList } from "@/components/reviews";
@@ -27,7 +28,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     .where(and(eq(schema.users.handle, handle), isNull(schema.users.bannedAt)));
   if (!member) notFound();
 
-  const [reviews, liked, seen, [counts], posts, fol] = await Promise.all([
+  const [reviews, liked, seen, [counts], posts, fol, hours] = await Promise.all([
     userReviews(member.id),
     db
       .select({ title: schema.titles })
@@ -51,6 +52,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     `).then((r) => r.rows),
     postsBy(me.id, member.id),
     followState(me.id, member.id),
+    hoursSeen(member.id),
   ]);
   const ready = await readyTitleIds([...liked, ...seen].map((r) => r.title.id));
   const split = (rows: typeof liked) => ({
@@ -67,8 +69,9 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
           <h1 className="break-all font-display text-5xl font-extrabold tracking-tighter md:text-8xl">@{member.handle}</h1>
           <FollowButton handle={member.handle} following={fol.following} />
         </div>
-        <dl className="mt-8 grid grid-cols-3 gap-px bg-line md:grid-cols-5">
+        <dl className="mt-8 grid grid-cols-3 gap-px bg-line md:grid-cols-6">
           <Stat label="Vus" value={counts.seen} />
+          <Stat label="Heures" value={hours} decimals={0} unit="h" />
           <Stat label="Aimés" value={counts.liked} />
           <Stat label="Avis" value={counts.reviews} />
           <Stat label="Abonnés" value={fol.followers} />

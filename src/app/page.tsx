@@ -34,7 +34,7 @@ export default async function Page(props: PageProps<"/">) {
 
   const rowKind: "movie" | "tv" = k === "tv" ? "tv" : "movie";
   const none = Promise.resolve([] as TitleRow[]);
-  const [grants, myRequests, fresh, recos, topMovies, topShows, genres, countries, old, mine, never] = await Promise.all([
+  const [grants, myRequests, fresh, recos, topMovies, topShows, genres, countries, old, mine, never, [pref], listed] = await Promise.all([
     db
       .select({ grant: schema.accessGrants, title: schema.titles })
       .from(schema.accessGrants)
@@ -78,7 +78,10 @@ export default async function Page(props: PageProps<"/">) {
     k === "tv" ? none : classics("movie").catch(() => [] as TitleRow[]),
     k === "tv" ? none : cinephile(user, 18).catch(() => [] as TitleRow[]),
     neverTitleIds(user.id),
+    db.select({ ms: schema.users.billboardMs }).from(schema.users).where(eq(schema.users.id, user.id)),
+    db.select({ id: schema.watchlist.titleId }).from(schema.watchlist).where(eq(schema.watchlist.userId, user.id)),
   ]);
+  const listedIds = new Set(listed.map((l) => l.id));
   // Titles the member refuses to watch never show up in a row
   const keep = (rows: TitleRow[]) => rows.filter((t) => !never.has(t.id));
   const topReady = await readyTitleIds(
@@ -88,6 +91,8 @@ export default async function Page(props: PageProps<"/">) {
   const slides: Slide[] = [...new Map([...keep(recos), ...keep(mine), ...keep(topMovies)].filter((t) => t.backdropPath).map((t) => [t.id, t])).values()]
     .slice(0, 6)
     .map((t) => ({
+      id: t.id,
+      listed: listedIds.has(t.id),
       kind: t.kind,
       tmdbId: t.tmdbId,
       name: t.name,
@@ -103,7 +108,7 @@ export default async function Page(props: PageProps<"/">) {
   return (
     <main>
       <SearchHero>
-        <Billboard slides={slides} />
+        <Billboard slides={slides} delay={pref?.ms ?? 1500} />
         <KindTabs current={k} />
 
         {grants.length > 0 && (

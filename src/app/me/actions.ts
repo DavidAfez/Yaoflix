@@ -64,3 +64,13 @@ export async function deleteAccount(_: MeState, form: FormData): Promise<MeState
   await db.delete(schema.users).where(eq(schema.users.id, user.id));
   redirect("/");
 }
+
+const BILLBOARD = [0, 1500, 3000, 5000, 8000];
+
+/** Time per slide of the home billboard, 0 keeps it still. */
+export async function saveBillboard(ms: number) {
+  const user = await requireUser();
+  if (!BILLBOARD.includes(ms)) return;
+  await db.update(schema.users).set({ billboardMs: ms }).where(eq(schema.users.id, user.id));
+  revalidatePath("/");
+}

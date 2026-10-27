@@ -305,20 +305,18 @@ export async function byCountry(kind: "movie" | "tv", codes: string[], opts: { g
 }
 
 /**
- * The great classics: at least 25 years old, widely seen and highly rated.
- * Offline: the oldest best rated titles of the local cache.
+ * The great films, old or recent: very widely seen and very highly rated.
+ * Offline: the best rated titles of the local cache.
  */
 export async function classics(kind: "movie" | "tv" = "movie", limit = 40): Promise<TitleRow[]> {
-  const before = new Date().getFullYear() - 25;
   if (hasTmdb()) {
     try {
-      const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
       const pages = await Promise.all(
         ["1", "2", "3"].map((page) =>
           tmdb<{ results: TmdbItem[] }>(`/discover/${kind}`, {
-            [dateKey]: `${before}-12-31`,
             sort_by: "vote_average.desc",
-            "vote_count.gte": kind === "movie" ? "3000" : "500",
+            // A high bar on the number of votes keeps cult and niche titles out, only the landmarks stay
+            "vote_count.gte": kind === "movie" ? "8000" : "1500",
             include_adult: "false",
             page,
           }),
@@ -333,7 +331,7 @@ export async function classics(kind: "movie" | "tv" = "movie", limit = 40): Prom
   return db
     .select()
     .from(schema.titles)
-    .where(and(eq(schema.titles.kind, kind), sql`${schema.titles.year} <= ${before}`))
+    .where(eq(schema.titles.kind, kind))
     .orderBy(desc(schema.titles.voteAverage))
     .limit(limit);
 }
