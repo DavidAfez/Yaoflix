@@ -1,5 +1,12 @@
 import type { Instrumentation } from "next";
 
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { useEnvProxy } = await import("./lib/net");
+  const proxy = useEnvProxy();
+  if (proxy) console.log(`[net] outbound requests through ${proxy}`);
+}
+
 /** Every server error lands in the studio backlog. Query strings are dropped: they can hold private tokens. */
 export const onRequestError: Instrumentation.onRequestError = async (err, request, context) => {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;

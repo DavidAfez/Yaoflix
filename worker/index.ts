@@ -6,6 +6,9 @@ import { logError } from "@/lib/errors";
 import { renderMail, renderWhatsApp } from "@/lib/notify/templates";
 import { sendWhatsApp, whatsappEnabled } from "@/lib/notify/whatsapp";
 import { transcode } from "./transcode";
+import { useEnvProxy } from "@/lib/net";
+
+useEnvProxy();
 import { transcribe } from "./transcribe";
 
 type Job = typeof schema.jobs.$inferSelect;
