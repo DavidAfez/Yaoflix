@@ -51,6 +51,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
         path={`/t/${kind}/${id}`}
         title={{
           id: title.id,
+          tmdbId: title.tmdbId,
           name: title.name,
           year: title.year,
           runtime: title.runtime,

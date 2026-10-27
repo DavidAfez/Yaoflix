@@ -4,6 +4,8 @@ import { getUser } from "@/lib/auth";
 import { Nav } from "@/components/nav";
 import { Presence } from "@/components/presence";
 import { ErrorReporter } from "@/components/error-reporter";
+import { MarksProvider } from "@/components/marks";
+import { getMarks } from "@/lib/marks";
 import "./globals.css";
 
 const unbounded = Unbounded({ subsets: ["latin"], variable: "--font-unbounded", weight: ["400", "600", "800"] });
@@ -29,7 +31,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="fr" className={`${unbounded.variable} ${geist.variable} ${geistMono.variable}`}>
       <body className="min-h-dvh">
         {user && <Nav role={user.role} handle={user.handle} />}
-        <div className={user ? "pb-24 md:pb-0 md:pt-16" : ""}>{children}</div>
+        {user ? (
+          <MarksProvider initial={await getMarks(user.id)}>
+            <div className="pb-24 md:pb-0 md:pt-16">{children}</div>
+          </MarksProvider>
+        ) : (
+          children
+        )}
         {user && <Presence />}
         <ErrorReporter />
       </body>

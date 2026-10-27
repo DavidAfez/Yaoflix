@@ -201,3 +201,53 @@ export async function topRated(kind: "movie" | "tv"): Promise<TitleRow[]> {
     .orderBy(desc(schema.titles.voteAverage), desc(schema.titles.popularity))
     .limit(30);
 }
+
+/** Genre rows for the home page. TMDB genre ids differ between movies and series. */
+export const GENRE_ROWS: Record<"movie" | "tv", { id: number; name: string; local: string }[]> = {
+  movie: [
+    { id: 28, name: "Action", local: "Action" },
+    { id: 35, name: "Comédie", local: "Comédie" },
+    { id: 18, name: "Drame", local: "Drame" },
+    { id: 878, name: "Science-fiction", local: "Science-fiction" },
+    { id: 53, name: "Thriller", local: "Thriller" },
+    { id: 16, name: "Animation", local: "Animation" },
+    { id: 27, name: "Horreur", local: "Horreur" },
+    { id: 10749, name: "Romance", local: "Romance" },
+    { id: 80, name: "Crime", local: "Crime" },
+    { id: 99, name: "Documentaire", local: "Documentaire" },
+  ],
+  tv: [
+    { id: 18, name: "Drame", local: "Drame" },
+    { id: 35, name: "Comédie", local: "Comédie" },
+    { id: 80, name: "Crime", local: "Crime" },
+    { id: 10765, name: "Science-fiction et fantastique", local: "Science-fiction" },
+    { id: 10759, name: "Action et aventure", local: "Action" },
+    { id: 16, name: "Animation", local: "Animation" },
+    { id: 9648, name: "Mystère", local: "Mystère" },
+    { id: 99, name: "Documentaire", local: "Documentaire" },
+  ],
+};
+
+/** Popular, well rated titles of one genre. Offline: the local cache filtered by genre. */
+export async function byGenre(kind: "movie" | "tv", genre: { id: number; local: string }, limit = 20): Promise<TitleRow[]> {
+  if (hasTmdb()) {
+    try {
+      const data = await tmdb<{ results: TmdbItem[] }>(`/discover/${kind}`, {
+        with_genres: String(genre.id),
+        sort_by: "popularity.desc",
+        "vote_count.gte": "300",
+        include_adult: "false",
+      });
+      return upsert(data.results.slice(0, limit).map((it) => toRow(it, kind)));
+    } catch (e) {
+      const { logError } = await import("./errors");
+      await logError("server", e, { where: "tmdb.byGenre", kind, genre: genre.id });
+    }
+  }
+  return db
+    .select()
+    .from(schema.titles)
+    .where(and(eq(schema.titles.kind, kind), sql`${genre.local} = any(${schema.titles.genres})`))
+    .orderBy(desc(schema.titles.popularity))
+    .limit(limit);
+}

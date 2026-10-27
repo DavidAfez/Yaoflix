@@ -3,7 +3,8 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getUser } from "@/lib/auth";
 import { recommend } from "@/lib/recos";
-import { trending, topRated, img } from "@/lib/tmdb";
+import { trending, topRated, byGenre, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
+import { KindTabs } from "@/components/kind-tabs";
 import { readyTitleIds } from "@/lib/recos";
 import { VoiceStrip } from "@/components/voice-strip";
 import { toPoster, daysLeft } from "@/lib/view";
@@ -12,7 +13,7 @@ import { SearchHero } from "@/components/search";
 import { Landing } from "@/components/landing";
 import { StatusMark } from "@/components/status";
 
-export default async function Page() {
+export default async function Page(props: PageProps<"/">) {
   const user = await getUser();
   if (!user) {
     let rows = await trending().catch(() => []);
@@ -21,7 +22,14 @@ export default async function Page() {
     return <Landing tiles={tiles} />;
   }
 
-  const [grants, myRequests, fresh, recos, topMovies, topShows] = await Promise.all([
+  const sp = await props.searchParams;
+  const k: "all" | "movie" | "tv" = sp.k === "movie" || sp.k === "tv" ? sp.k : "all";
+  const kindFilter = k === "all" ? undefined : k;
+  // Genre rows: a handful of movie genres on "Tout", every genre of the chosen kind otherwise
+  const genreRows: { kind: "movie" | "tv"; g: (typeof GENRE_ROWS)["movie"][number] }[] =
+    k === "all" ? GENRE_ROWS.movie.slice(0, 4).map((g) => ({ kind: "movie", g })) : GENRE_ROWS[k].map((g) => ({ kind: k, g }));
+
+  const [grants, myRequests, fresh, recos, topMovies, topShows, genres] = await Promise.all([
     db
       .select({ grant: schema.accessGrants, title: schema.titles })
       .from(schema.accessGrants)
@@ -48,19 +56,22 @@ export default async function Page() {
       .selectDistinctOn([schema.media.titleId], { title: schema.titles, readyAt: schema.media.readyAt })
       .from(schema.media)
       .innerJoin(schema.titles, eq(schema.titles.id, schema.media.titleId))
-      .where(eq(schema.media.status, "READY"))
+      .where(and(eq(schema.media.status, "READY"), kindFilter ? eq(schema.titles.kind, kindFilter) : undefined))
       .orderBy(schema.media.titleId, desc(schema.media.readyAt))
       .limit(30),
-    recommend(user),
-    topRated("movie").catch(() => []),
-    topRated("tv").catch(() => []),
+    recommend(user, 18, kindFilter),
+    k === "tv" ? Promise.resolve([] as TitleRow[]) : topRated("movie").catch(() => [] as TitleRow[]),
+    k === "movie" ? Promise.resolve([] as TitleRow[]) : topRated("tv").catch(() => [] as TitleRow[]),
+    Promise.all(genreRows.map(async ({ kind, g }) => ({ name: g.name, items: await byGenre(kind, g).catch(() => [] as TitleRow[]) }))),
   ]);
-  const topReady = await readyTitleIds([...topMovies, ...topShows].map((t) => t.id));
+  const topReady = await readyTitleIds([...topMovies, ...topShows, ...recos, ...genres.flatMap((r) => r.items)].map((t) => t.id));
   const latest = fresh.sort((a, b) => (b.readyAt?.getTime() ?? 0) - (a.readyAt?.getTime() ?? 0)).slice(0, 16);
 
   return (
     <main>
       <SearchHero>
+        <KindTabs current={k} />
+
         {grants.length > 0 && (
           <section className="mt-10 px-4 md:px-10">
             <div className="scrollbar-none -mx-4 flex snap-x gap-3 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -94,7 +105,7 @@ export default async function Page() {
         {recos.length > 0 && (
           <Row title="Pour toi">
             {recos.map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, true)} i={i} size="lg" />
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} size="lg" />
             ))}
           </Row>
         )}
@@ -107,7 +118,7 @@ export default async function Page() {
           </Row>
         )}
 
-        {myRequests.length > 0 && (
+        {k === "all" && myRequests.length > 0 && (
           <section className="mt-14 px-4 md:px-10">
             <h2 className="mb-4 font-display text-xl font-semibold md:text-2xl">Demandes</h2>
             <ul className="divide-y divide-line border-y border-line">
@@ -127,7 +138,7 @@ export default async function Page() {
           </section>
         )}
 
-        {!grants.length && !recos.length && !latest.length && !myRequests.length && !topMovies.length && !topShows.length && (
+        {!grants.length && !recos.length && !latest.length && !myRequests.length && !topMovies.length && !topShows.length && !genres.some((r) => r.items.length) && (
           <div className="grid min-h-[40vh] place-items-center px-6 text-center">
             <p className="font-display text-5xl font-extrabold leading-none text-bone/15 md:text-8xl">Cherche.<br />Demande.<br />Regarde.</p>
           </div>
@@ -150,6 +161,16 @@ export default async function Page() {
             ))}
           </Row>
         )}
+
+        {genres
+          .filter((r) => r.items.length > 0)
+          .map((r) => (
+            <Row key={r.name} title={r.name}>
+              {r.items.map((t, i) => (
+                <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} />
+              ))}
+            </Row>
+          ))}
 
         <div className="h-16" />
       </SearchHero>

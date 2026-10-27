@@ -14,11 +14,11 @@ export async function transcribe(feedbackId: string) {
   const model = process.env.TRANSCRIBE_MODEL || "whisper-large-v3";
 
   const [fb] = await db.select().from(schema.feedback).where(eq(schema.feedback.id, feedbackId));
-  if (!fb || fb.transcript) return;
+  if (!fb || !fb.audioFile || fb.transcript) return;
   const audio = await readFile(paths.voice(fb.audioFile));
 
   const form = new FormData();
-  form.set("file", new Blob([audio], { type: fb.mime }), fb.audioFile);
+  form.set("file", new Blob([audio], { type: fb.mime ?? "audio/webm" }), fb.audioFile);
   form.set("model", model);
   form.set("language", "fr");
   form.set("response_format", "json");

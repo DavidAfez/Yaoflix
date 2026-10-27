@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { requestContext } from "@/lib/context";
 import { createGrant } from "@/lib/access";
 import { rateLimit } from "@/lib/ratelimit";
+import { markSeen, titleIdFor } from "@/lib/marks";
 
 const prefsSchema = z.object({
   quality: z.enum(["auto", "480", "720", "1080", "2160"]),
@@ -116,10 +117,31 @@ export async function setLike(titleId: number, value: 1 | -1 | 0, path?: string)
   const user = await requireUser();
   const where = and(eq(schema.likes.userId, user.id), eq(schema.likes.titleId, titleId));
   if (value === 0) await db.delete(schema.likes).where(where);
-  else
+  else {
     await db
       .insert(schema.likes)
       .values({ userId: user.id, titleId, value })
       .onConflictDoUpdate({ target: [schema.likes.userId, schema.likes.titleId], set: { value, createdAt: new Date() } });
+    // An opinion means the title was seen
+    await markSeen(user.id, titleId, "like");
+  }
   if (path) revalidatePath(path);
+}
+
+/** Poster shortcuts: they only know kind + tmdbId. */
+export async function likeByRef(kind: string, tmdbId: number, value: 1 | -1 | 0) {
+  const titleId = await titleIdFor(kind, tmdbId);
+  if (titleId) await setLike(titleId, value);
+}
+
+/** Toggle "seen". Removing it also removes a like or dislike, which only made sense if seen. */
+export async function setSeenByRef(kind: string, tmdbId: number, on: boolean) {
+  const user = await requireUser();
+  const titleId = await titleIdFor(kind, tmdbId);
+  if (!titleId) return;
+  if (on) await markSeen(user.id, titleId, "manual");
+  else {
+    await db.delete(schema.seen).where(and(eq(schema.seen.userId, user.id), eq(schema.seen.titleId, titleId)));
+    await db.delete(schema.likes).where(and(eq(schema.likes.userId, user.id), eq(schema.likes.titleId, titleId)));
+  }
 }

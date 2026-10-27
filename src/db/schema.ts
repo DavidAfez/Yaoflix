@@ -197,6 +197,21 @@ export const likes = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
 );
 
+/**
+ * Titles the member has seen. Set by hand, or implied by a like, a review or a finished viewing.
+ * source keeps why, so an explicit "seen" survives removing a like.
+ */
+export const seen = pgTable(
+  "seen",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    titleId: integer("title_id").notNull().references(() => titles.id, { onDelete: "cascade" }),
+    source: text("source").notNull(), // manual | like | review | watch
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
+);
+
 /** One visit on the platform, kept alive by heartbeats. activeSec counts visible time only. */
 export const platformSessions = pgTable(
   "platform_sessions",
@@ -247,8 +262,10 @@ export const feedback = pgTable("feedback", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
   titleId: integer("title_id").references(() => titles.id, { onDelete: "set null" }),
-  audioFile: text("audio_file").notNull(),
-  mime: text("mime").notNull(),
+  // A review is a voice note, a short text, or both
+  audioFile: text("audio_file"),
+  mime: text("mime"),
+  text: text("text"),
   durationSec: integer("duration_sec"),
   source: text("source").notNull(), // web | whatsapp
   transcript: text("transcript"),

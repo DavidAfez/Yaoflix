@@ -16,11 +16,12 @@ type Watching = { grantId: string; name: string; backdrop: string | null; progre
 type Share = { label: string; share: number };
 type Overview = { watching: Watching[]; taste: Share[]; recency: Share[]; recos: PosterData[]; listed: PosterData[]; toAsk: PosterData[] };
 
-const TABS = ["Moi", "Aimés", "Demandes", "Réglages"] as const;
+const TABS = ["Moi", "Aimés", "Vus", "Demandes", "Réglages"] as const;
 
 export function MeTabs(props: {
   overview: Overview;
   liked: PosterData[];
+  seen: PosterData[];
   requests: Req[];
   profile: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean };
 }) {
@@ -32,6 +33,7 @@ export function MeTabs(props: {
           <button key={t} onClick={() => setTab(t)} className={`relative shrink-0 py-5 text-sm ${tab === t ? "text-bone" : "text-dim hover:text-bone"}`}>
             {t}
             {t === "Aimés" && props.liked.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.liked.length}</span>}
+            {t === "Vus" && props.seen.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.seen.length}</span>}
             {t === "Demandes" && props.requests.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.requests.length}</span>}
             {tab === t && <motion.span layoutId="me-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" />}
           </button>
@@ -41,6 +43,7 @@ export function MeTabs(props: {
         <motion.section key={tab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }} className="pt-8">
           {tab === "Moi" && <OverviewTab {...props.overview} />}
           {tab === "Aimés" && (props.liked.length ? <Grid items={props.liked} /> : <Empty word="Aucun coup de cœur." />)}
+          {tab === "Vus" && (props.seen.length ? <Grid items={props.seen} /> : <Empty word="Rien de vu encore." />)}
           {tab === "Demandes" && <Requests items={props.requests} />}
           {tab === "Réglages" && <Settings {...props.profile} />}
         </motion.section>

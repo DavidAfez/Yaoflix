@@ -354,7 +354,7 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
           <Bars rows={data.reasons.map((r) => ({ label: rejectLabels[r.reason as RejectReason] ?? r.reason, value: r.n }))} color="#f3f0e8" />
         </Panel>
 
-        <Panel title={`Avis vocaux · ${k.voice}`} i={9}>
+        <Panel title={`Avis · ${k.voice}`} i={9}>
           {data.voices.length ? (
             <ul className="space-y-3">
               {data.voices.map((v) => (
@@ -365,7 +365,8 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
                       {v.handle ? `@${v.handle}` : "anonyme"} {v.age ? `· ${v.age}` : ""} · {v.at} {v.source === "whatsapp" ? "· WA" : ""}
                     </span>
                   </p>
-                  <audio src={`/api/voice/${v.file}`} controls preload="none" className="mt-1 h-9 w-full" />
+                  {v.file && <audio src={`/api/voice/${v.file}`} controls preload="none" className="mt-1 h-9 w-full" />}
+                  {v.text && <p className="mt-2 text-sm leading-relaxed">{v.text}</p>}
                   {v.transcript && <p className="mt-2 text-sm leading-relaxed text-bone/85">« {v.transcript} »</p>}
                 </li>
               ))}

@@ -17,7 +17,7 @@ export default async function Page() {
   const user = await requireUser();
   const uid = user.id;
 
-  const [recos, liked, reqs, seeds, listed, watching, [stats], tasteRows, recencyRows] = await Promise.all([
+  const [recos, liked, reqs, seeds, listed, watching, [stats], tasteRows, seenRows, recencyRows] = await Promise.all([
     recommend(user, 18),
     db
       .select({ title: schema.titles })
@@ -59,7 +59,7 @@ export default async function Page() {
       .limit(10),
     db.execute<{ completed: number; hours: number; focus: number | null }>(sql`
       select
-        (select count(*)::int from watch_sessions where user_id = ${uid} and completed) as completed,
+        (select count(*)::int from seen where user_id = ${uid}) as completed,
         (select coalesce(sum(watched_sec), 0) / 3600.0 from watch_sessions where user_id = ${uid})::float as hours,
         (select avg(f.seconds) / 60.0 from focus_spans f join watch_sessions w on w.id = f.watch_session_id where w.user_id = ${uid})::float as focus
     `).then((r) => r.rows),
@@ -74,6 +74,12 @@ export default async function Page() {
       ) x, unnest(x.genres) g
       group by g having sum(w) > 0 order by 2 desc limit 6
     `).then((r) => r.rows),
+    db
+      .select({ title: schema.titles })
+      .from(schema.seen)
+      .innerJoin(schema.titles, eq(schema.titles.id, schema.seen.titleId))
+      .where(eq(schema.seen.userId, uid))
+      .orderBy(desc(schema.seen.createdAt)),
     db.execute<{ years: number | null }>(sql`
       select recency_years as years from requests where user_id = ${uid}
       union all
@@ -85,6 +91,7 @@ export default async function Page() {
   const askReady = await readyTitleIds(toAsk.map((t) => t.id));
   const likedReady = await readyTitleIds(liked.map((l) => l.title.id));
   const listReady = await readyTitleIds(listed.map((l) => l.title.id));
+  const seenReady = await readyTitleIds(seenRows.map((l) => l.title.id));
   const uniqueAsk = [...new Map(toAsk.filter((t) => !askReady.has(t.id)).map((t) => [t.id, t])).values()].slice(0, 18);
 
   const tasteTotal = tasteRows.reduce((s, r) => s + r.w, 0) || 1;
@@ -139,6 +146,7 @@ export default async function Page() {
           toAsk: uniqueAsk.map((t) => toPoster(t)),
         }}
         liked={liked.map((l) => toPoster(l.title, likedReady.has(l.title.id)))}
+        seen={seenRows.map((l) => toPoster(l.title, seenReady.has(l.title.id)))}
         requests={reqs.map(({ req, title }) => ({
           id: req.id,
           status: req.status,

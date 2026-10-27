@@ -15,6 +15,13 @@
       "when": 1791141510611,
       "tag": "0001_feedback_transcript",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793100624982,
+      "tag": "0002_seen_and_text_reviews",
+      "breakpoints": true
     }
   ]
 }

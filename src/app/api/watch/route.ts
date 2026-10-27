@@ -7,6 +7,7 @@ import { apiUser } from "@/lib/auth";
 import { resolveGrant } from "@/lib/access";
 import { countryFrom, deviceFrom } from "@/lib/context";
 import { enqueue } from "@/lib/jobs";
+import { markSeen } from "@/lib/marks";
 
 const body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("start"), grant: z.string().max(64) }),
@@ -79,6 +80,7 @@ export async function POST(req: Request) {
       if (!ws.completed) {
         await db.update(schema.watchSessions).set({ completed: true, lastSeenAt: new Date() }).where(own);
         await savePos(0);
+        await markSeen(user.id, ws.titleId, "watch");
         const [t] = await db.select({ name: schema.titles.name }).from(schema.titles).where(eq(schema.titles.id, ws.titleId));
         // A WhatsApp nudge a bit later, for people who skipped the in-app voice note
         if (user.whatsappOptIn) await enqueue("whatsapp", { userId: user.id, template: "feedback", data: { title: t?.name } }, 10 * 60);

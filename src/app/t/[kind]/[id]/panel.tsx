@@ -3,8 +3,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
-import { Bookmark, BookmarkCheck, ThumbsDown, ThumbsUp, X, Check, Play } from "lucide-react";
-import { requestTitle, setLike, toggleWatchlist, watchNow } from "../../actions";
+import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare } from "lucide-react";
+import { useMark } from "@/components/marks";
+import { requestTitle, toggleWatchlist, watchNow } from "../../actions";
 import { Button, Choice, Dots } from "@/components/ui";
 import { StatusMark } from "@/components/status";
 import { audioOptions, qualityOptions, subsOptions } from "@/lib/labels";
@@ -14,6 +15,7 @@ type Props = {
   path: string;
   title: {
     id: number;
+    tmdbId: number;
     name: string;
     year: number | null;
     runtime: number | null;
@@ -40,7 +42,8 @@ export function TitlePanel({ path, title, state }: Props) {
   const router = useRouter();
   const [sheet, setSheet] = useState(false);
   const [listed, setListed] = useState(state.listed);
-  const [like, setLikeState] = useState(state.like);
+  // Likes, seen and reviews are shared with every poster through the marks context
+  const mark = useMark({ kind: title.kind, tmdbId: title.tmdbId, name: title.name });
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -68,11 +71,6 @@ export function TitlePanel({ path, title, state }: Props) {
       }, 1400);
     });
 
-  const vote = (v: 1 | -1) => {
-    const next = like === v ? 0 : v;
-    setLikeState(next);
-    void setLike(title.id, next, path);
-  };
 
   let primary: React.ReactNode;
   if (state.grant) {
@@ -146,7 +144,7 @@ export function TitlePanel({ path, title, state }: Props) {
             )}
             {state.request?.status === "REJECTED" && !state.ready && <StatusMark status="REJECTED" reason={state.request.reason} />}
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex items-center gap-2 pt-2">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex flex-wrap items-center gap-2 pt-2">
               {primary}
               <IconToggle
                 on={listed}
@@ -158,12 +156,22 @@ export function TitlePanel({ path, title, state }: Props) {
               >
                 {listed ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
               </IconToggle>
-              <IconToggle on={like === 1} label="J'aime" onClick={() => vote(1)}>
-                <ThumbsUp size={19} />
-              </IconToggle>
-              <IconToggle on={like === -1} label="Bof" onClick={() => vote(-1)} tone="coral">
-                <ThumbsDown size={19} />
-              </IconToggle>
+              {mark && (
+                <>
+                  <IconToggle on={mark.liked} label="J'aime" onClick={mark.toggleLike} tone="coral">
+                    <Heart size={19} fill={mark.liked ? "currentColor" : "none"} />
+                  </IconToggle>
+                  <IconToggle on={mark.disliked} label="Bof" onClick={mark.toggleDislike} tone="coral">
+                    <ThumbsDown size={19} />
+                  </IconToggle>
+                  <IconToggle on={mark.seen} label={mark.seen ? "Vu" : "Déjà vu"} onClick={mark.toggleSeen} text={mark.seen ? "Vu" : "Déjà vu"}>
+                    {mark.seen ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </IconToggle>
+                  <IconToggle on={mark.reviewed} label="Avis" onClick={mark.review} text="Avis">
+                    <MessageSquare size={18} fill={mark.reviewed ? "currentColor" : "none"} />
+                  </IconToggle>
+                </>
+              )}
             </motion.div>
           </div>
         </div>
@@ -229,12 +237,14 @@ function IconToggle({
   label,
   children,
   tone = "lime",
+  text,
 }: {
   on: boolean;
   onClick: () => void;
   label: string;
   children: React.ReactNode;
   tone?: "lime" | "coral";
+  text?: string;
 }) {
   return (
     <motion.button
@@ -243,13 +253,14 @@ function IconToggle({
       aria-label={label}
       aria-pressed={on}
       title={label}
-      className={`grid size-14 place-items-center border transition-colors ${
+      className={`flex h-14 items-center justify-center gap-2 border transition-colors ${text ? "px-4 text-sm" : "w-14"} ${
         on ? (tone === "lime" ? "border-lime text-lime" : "border-coral text-coral") : "border-line text-bone/70 hover:border-bone/40 hover:text-bone"
       }`}
     >
       <motion.span key={String(on)} initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 600, damping: 15 }}>
         {children}
       </motion.span>
+      {text && <span>{text}</span>}
     </motion.button>
   );
 }
