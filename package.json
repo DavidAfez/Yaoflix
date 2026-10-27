@@ -15,7 +15,7 @@
     "db:demo": "tsx --env-file-if-exists=.env scripts/seed.ts --demo",
     "check:tmdb": "tsx --env-file-if-exists=.env scripts/check-tmdb.ts",
     "db:start": "tsx scripts/db-start.ts",
-    "maj": "git pull && npm install && npm run db:migrate",
+    "maj": "git pull && npm install && npm run db:start --silent && npm run db:migrate",
     "go": "npm run db:start --silent && concurrently -n site,worker -c green,cyan \"next dev\" \"npm run worker\""
   },
   "dependencies": {
