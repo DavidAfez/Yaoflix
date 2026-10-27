@@ -16,7 +16,7 @@
     "check:tmdb": "tsx --env-file-if-exists=.env scripts/check-tmdb.ts",
     "db:start": "tsx scripts/db-start.ts",
     "maj": "git pull && npm install && npm run db:migrate",
-    "go": "npm run db:start --silent || echo \"Base perso non demarree, on continue\" && concurrently -n site,worker -c green,cyan \"next dev\" \"npm run worker\""
+    "go": "npm run db:start --silent && concurrently -n site,worker -c green,cyan \"next dev\" \"npm run worker\""
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

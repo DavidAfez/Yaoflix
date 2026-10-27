@@ -24,9 +24,10 @@ function pgBin(tool: string): string {
   return tool;
 }
 
+// Never fail: "npm run go" chains on this script, and a machine may use the PostgreSQL service instead
 if (!existsSync(path.join(dataDir, "PG_VERSION"))) {
-  console.error(`Aucune base trouvée dans ${dataDir}. Crée-la d'abord avec initdb.`);
-  process.exit(1);
+  console.log(`Pas de base perso dans ${dataDir}, on utilise celle du .env.`);
+  process.exit(0);
 }
 
 const status = spawnSync(pgBin("pg_ctl"), ["-D", dataDir, "status"], { encoding: "utf8" });
@@ -36,6 +37,6 @@ if (status.status === 0) {
 }
 
 const start = spawnSync(pgBin("pg_ctl"), ["-D", dataDir, "-l", `${dataDir}.log`, "-w", "start"], { stdio: "inherit" });
-if (start.status === 0) console.log("Base démarrée. Garde cette fenêtre ouverte tant que tu utilises le site.");
-else console.error(`Échec du démarrage. Regarde le journal : ${dataDir}.log`);
-process.exit(start.status ?? 1);
+if (start.status === 0) console.log("Base démarrée.");
+else console.error(`La base n'a pas démarré, regarde le journal : ${dataDir}.log`);
+process.exit(0);
