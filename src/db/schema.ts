@@ -50,6 +50,8 @@ export const users = pgTable(
     phoneEnc: text("phone_enc"),
     phoneHash: text("phone_hash"),
     whatsappOptIn: boolean("whatsapp_opt_in").notNull().default(false),
+    // Detailed reviews: granted by staff, or unlocked automatically after 10 reviews
+    deepReview: boolean("deep_review").notNull().default(false),
     country: text("country"),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -207,6 +209,30 @@ export const ratings = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
+);
+
+/** Titles the member refuses to watch. Removed from every suggestion, weighs more than a dislike. */
+export const nevers = pgTable(
+  "nevers",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    titleId: integer("title_id").notNull().references(() => titles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
+);
+
+/** Detailed review: one score per criterion (1 to 5) plus quick tags, all tapped, nothing typed. */
+export const deepReviews = pgTable(
+  "deep_reviews",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    titleId: integer("title_id").notNull().references(() => titles.id, { onDelete: "cascade" }),
+    scores: jsonb("scores").$type<Record<string, number>>().notNull(),
+    tags: text("tags").array().notNull().default([]),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.titleId] }), index("deep_reviews_title_idx").on(t.titleId)],
 );
 
 /**

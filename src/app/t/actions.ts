@@ -8,7 +8,8 @@ import { requireUser } from "@/lib/auth";
 import { requestContext } from "@/lib/context";
 import { createGrant } from "@/lib/access";
 import { rateLimit } from "@/lib/ratelimit";
-import { markSeen, titleIdFor } from "@/lib/marks";
+import { deepAllowed, markSeen, titleIdFor } from "@/lib/marks";
+import { CRITERIA, TAGS } from "@/lib/deep";
 
 const prefsSchema = z.object({
   quality: z.enum(["auto", "480", "720", "1080", "2160"]),
@@ -124,6 +125,7 @@ export async function setLike(titleId: number, value: 1 | -1 | 0, path?: string)
       .onConflictDoUpdate({ target: [schema.likes.userId, schema.likes.titleId], set: { value, createdAt: new Date() } });
     // An opinion means the title was seen
     await markSeen(user.id, titleId, "like");
+    if (value === 1) await db.delete(schema.nevers).where(and(eq(schema.nevers.userId, user.id), eq(schema.nevers.titleId, titleId)));
   }
   if (path) revalidatePath(path);
 }
@@ -166,4 +168,53 @@ export async function setSeenByRef(kind: string, tmdbId: number, on: boolean) {
     await db.delete(schema.ratings).where(and(eq(schema.ratings.userId, user.id), eq(schema.ratings.titleId, titleId)));
   }
   revalidatePath("/", "layout");
+}
+
+/** "Never": removed from every suggestion and from the home rows. Mutually exclusive with a like. */
+export async function setNeverByRef(kind: string, tmdbId: number, on: boolean) {
+  const user = await requireUser();
+  const titleId = await titleIdFor(kind, tmdbId);
+  if (!titleId) return;
+  const where = and(eq(schema.nevers.userId, user.id), eq(schema.nevers.titleId, titleId));
+  if (on) {
+    await db.insert(schema.nevers).values({ userId: user.id, titleId }).onConflictDoNothing();
+    await db.delete(schema.likes).where(and(eq(schema.likes.userId, user.id), eq(schema.likes.titleId, titleId), eq(schema.likes.value, 1)));
+  } else await db.delete(schema.nevers).where(where);
+  revalidatePath("/", "layout");
+}
+
+const deepSchema = z.object({
+  scores: z.partialRecord(z.enum(CRITERIA.map((c) => c.key) as [string, ...string[]]), z.number().int().min(1).max(5)),
+  tags: z.array(z.enum(TAGS)).max(TAGS.length),
+});
+
+/** Detailed review, open to members granted by staff or with enough reviews. */
+export async function saveDeepReview(kind: string, tmdbId: number, input: { scores: Record<string, number>; tags: string[] }) {
+  const user = await requireUser();
+  if (!(await deepAllowed(user.id))) return { ok: false };
+  const parsed = deepSchema.safeParse(input);
+  if (!parsed.success || !Object.keys(parsed.data.scores).length) return { ok: false };
+  const titleId = await titleIdFor(kind, tmdbId);
+  if (!titleId) return { ok: false };
+  const tags = parsed.data.tags;
+  const scores = parsed.data.scores as Record<string, number>;
+  await db
+    .insert(schema.deepReviews)
+    .values({ userId: user.id, titleId, scores, tags })
+    .onConflictDoUpdate({ target: [schema.deepReviews.userId, schema.deepReviews.titleId], set: { scores, tags, updatedAt: new Date() } });
+  await markSeen(user.id, titleId, "review");
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** The member's own detailed review of a title, to prefill the sheet. */
+export async function getDeepReview(kind: string, tmdbId: number) {
+  const user = await requireUser();
+  const titleId = await titleIdFor(kind, tmdbId);
+  if (!titleId) return null;
+  const [r] = await db
+    .select({ scores: schema.deepReviews.scores, tags: schema.deepReviews.tags })
+    .from(schema.deepReviews)
+    .where(and(eq(schema.deepReviews.userId, user.id), eq(schema.deepReviews.titleId, titleId)));
+  return r ?? null;
 }

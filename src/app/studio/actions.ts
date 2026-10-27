@@ -1,9 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { requireRole } from "@/lib/auth";
+import { hashPassword, requireRole } from "@/lib/auth";
+import { blindIndex, encrypt, normalizeEmail } from "@/lib/crypto";
+import { ageBrackets } from "@/lib/labels";
 import { can } from "@/lib/rbac";
 import { queueMail } from "@/lib/jobs";
 import { enqueue } from "@/lib/jobs";
@@ -94,4 +96,82 @@ export async function purgeResolved() {
   await db.delete(schema.errorLogs).where(isNotNull(schema.errorLogs.resolvedAt));
   await audit(user.id, "errors.purge", "*");
   revalidatePath("/studio/errors");
+}
+
+export type MemberState = { ok?: boolean; error?: string } | undefined;
+
+const memberSchema = z.object({
+  handle: z.string().trim().toLowerCase().regex(/^[a-z0-9_.]{3,20}$/, "Pseudo : 3 à 20 caractères, lettres, chiffres, _ ou ."),
+  age: z.enum(["", ...ageBrackets]),
+  sex: z.enum(["F", "M", "X", ""]),
+});
+
+/** Staff-created account: already verified, the member changes the password later if needed. */
+export async function createMember(_: MemberState, form: FormData): Promise<MemberState> {
+  const actor = await requireRole(can.manageUsers);
+  const parsed = memberSchema
+    .extend({
+      email: z.email("Email invalide").max(254),
+      password: z.string().min(10, "Mot de passe : 10 caractères minimum").max(200),
+      role: z.enum(roleEnum.enumValues),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const { handle, email, password, role, age, sex } = parsed.data;
+  if (role !== "USER" && !can.setRole(actor.role, "USER", role)) return { error: "Rôle interdit" };
+  const emailHash = blindIndex(normalizeEmail(email), "email");
+  const [taken] = await db
+    .select({ handle: schema.users.handle, emailHash: schema.users.emailHash })
+    .from(schema.users)
+    .where(or(eq(schema.users.handle, handle), eq(schema.users.emailHash, emailHash)));
+  if (taken) return { error: taken.handle === handle ? "Pseudo déjà pris" : "Email déjà utilisé" };
+  const [u] = await db
+    .insert(schema.users)
+    .values({
+      handle,
+      emailEnc: encrypt(normalizeEmail(email)),
+      emailHash,
+      emailVerifiedAt: new Date(),
+      passwordHash: await hashPassword(password),
+      role,
+      ageBracket: age || null,
+      sex: sex || null,
+    })
+    .returning({ id: schema.users.id });
+  await audit(actor.id, "user.create", u.id, { role });
+  revalidatePath("/studio/members");
+  return { ok: true };
+}
+
+export async function updateMember(_: MemberState, form: FormData): Promise<MemberState> {
+  const actor = await requireRole(can.manageUsers);
+  const id = String(form.get("id") ?? "");
+  const parsed = memberSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+  const [target] = await db.select({ role: schema.users.role }).from(schema.users).where(eq(schema.users.id, id));
+  if (!target || (id !== actor.id && !can.moderate(actor.role, target.role))) return { error: "Interdit" };
+  const { handle, age, sex } = parsed.data;
+  const [taken] = await db.select({ id: schema.users.id }).from(schema.users).where(and(eq(schema.users.handle, handle), ne(schema.users.id, id)));
+  if (taken) return { error: "Pseudo déjà pris" };
+  await db.update(schema.users).set({ handle, ageBracket: age || null, sex: sex || null }).where(eq(schema.users.id, id));
+  await audit(actor.id, "user.update", id);
+  revalidatePath("/studio/members");
+  return { ok: true };
+}
+
+export async function setDeepReview(userId: string, on: boolean) {
+  const actor = await requireRole(can.manageUsers);
+  await db.update(schema.users).set({ deepReview: on }).where(eq(schema.users.id, userId));
+  await audit(actor.id, on ? "user.deep.on" : "user.deep.off", userId);
+  revalidatePath("/studio/members");
+}
+
+/** Deletes the account and everything tied to it. Reviews stay, anonymous (their user becomes null). */
+export async function deleteMember(userId: string) {
+  const actor = await requireRole(can.manageUsers);
+  const [target] = await db.select({ role: schema.users.role }).from(schema.users).where(eq(schema.users.id, userId));
+  if (!target || userId === actor.id || !can.moderate(actor.role, target.role)) throw new Error("Forbidden");
+  await db.delete(schema.users).where(eq(schema.users.id, userId));
+  await audit(actor.id, "user.delete", userId);
+  revalidatePath("/studio/members");
 }

@@ -7,6 +7,8 @@ import { readyTitleIds } from "@/lib/recos";
 import { toPoster } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
 import { TitlePanel } from "./panel";
+import { deepSummary, titleReviews } from "@/lib/reviews";
+import { DeepSummary, ReviewList } from "@/components/reviews";
 
 export async function generateMetadata(props: PageProps<"/t/[kind]/[id]">) {
   const { kind, id } = await props.params;
@@ -22,7 +24,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
   const title = await getTitle(kind, Number(id));
   if (!title) notFound();
 
-  const [[ready], [request], [listed], [like], [grant], more] = await Promise.all([
+  const [[ready], [request], [listed], [like], [grant], more, reviews, deep] = await Promise.all([
     db.select({ id: schema.media.id }).from(schema.media).where(and(eq(schema.media.titleId, title.id), eq(schema.media.status, "READY"))).limit(1),
     db.select().from(schema.requests).where(and(eq(schema.requests.userId, user.id), eq(schema.requests.titleId, title.id))).orderBy(desc(schema.requests.createdAt)).limit(1),
     db.select().from(schema.watchlist).where(and(eq(schema.watchlist.userId, user.id), eq(schema.watchlist.titleId, title.id))),
@@ -42,6 +44,8 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
       )
       .limit(1),
     similar(kind, title.tmdbId),
+    titleReviews(title.id),
+    deepSummary(title.id),
   ]);
   const moreReady = await readyTitleIds(more.map((m) => m.id));
 
@@ -71,6 +75,15 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           verified: Boolean(user.emailVerifiedAt),
         }}
       />
+      {reviews.length > 0 && (
+        <section className="mt-12 px-4 md:px-10">
+          <h2 className="mb-6 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
+            Avis <span className="font-mono text-xs text-lime">{String(reviews.length).padStart(2, "0")}</span>
+          </h2>
+          <DeepSummary {...deep} />
+          <ReviewList items={reviews} />
+        </section>
+      )}
       {more.length > 0 && (
         <Row title="Dans la même veine">
           {more.map((t, i) => (

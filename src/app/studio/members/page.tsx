@@ -20,8 +20,10 @@ export default async function Page(props: PageProps<"/studio/members">) {
       lastSeenAt: schema.users.lastSeenAt,
       bannedAt: schema.users.bannedAt,
       verified: schema.users.emailVerifiedAt,
-      requests: sql<number>`(select count(*)::int from requests r where r.user_id = ${schema.users.id})`,
-      watched: sql<number>`(select count(*)::int from watch_sessions w where w.user_id = ${schema.users.id})`,
+      requests: sql<number>`(select count(*)::int from requests r where r.user_id = "users"."id")`,
+      watched: sql<number>`(select count(*)::int from watch_sessions w where w.user_id = "users"."id")`,
+      reviews: sql<number>`(select count(*)::int from feedback f where f.user_id = "users"."id")`,
+      deep: schema.users.deepReview,
     })
     .from(schema.users)
     .where(q ? ilike(schema.users.handle, `%${q.replace(/[%_]/g, "")}%`) : undefined)

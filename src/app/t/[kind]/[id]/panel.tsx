@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
-import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare, ArrowLeft } from "lucide-react";
+import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare, ArrowLeft, Ban, SlidersHorizontal } from "lucide-react";
 import { Stars, useMark } from "@/components/marks";
 import { requestTitle, toggleWatchlist, watchNow } from "../../actions";
 import { Button, Choice, Dots } from "@/components/ui";
@@ -177,6 +177,14 @@ export function TitlePanel({ path, title, state }: Props) {
                   </IconToggle>
                   <IconToggle on={mark.reviewed} label="Avis" onClick={mark.review} text="Avis">
                     <MessageSquare size={18} fill={mark.reviewed ? "currentColor" : "none"} />
+                  </IconToggle>
+                  {mark.deep && (
+                    <IconToggle on={false} label="Analyse" onClick={mark.analyse} text="Analyse">
+                      <SlidersHorizontal size={18} />
+                    </IconToggle>
+                  )}
+                  <IconToggle on={mark.never} label="Jamais" onClick={mark.toggleNever} tone="coral">
+                    <Ban size={18} />
                   </IconToggle>
                 </>
               )}

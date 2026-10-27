@@ -1,17 +1,18 @@
 import "server-only";
 import { and, desc, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { similar, topRated, type TitleRow } from "./tmdb";
+import { classics, similar, topRated, type TitleRow } from "./tmdb";
 import { recencyBucket } from "./labels";
 
 /**
  * Hybrid recommender, in four steps.
  *
  * 1. Taste profile. Each genre gets a weight from what the member did:
- *    like +3, dislike -3, rating (stars - 3) x 1.5, finished viewing +2, marked seen +1, review +1, request +1, watchlist +1.
+ *    like +3, dislike -3, never -5, rating (stars - 3) x 1.5, finished viewing +2, marked seen +1, review +1, request +1, watchlist +1.
  *    Same for eras (less than a year, 1 to 5 years, 5 to 15, classics).
  * 2. Candidates. Titles already online, TMDB "recommendations" of the last liked titles,
- *    and top rated titles of the requested kind. Seen and disliked titles are removed.
+ *    top rated titles of the requested kind and a few great classics.
+ *    Seen, disliked and "never" titles are removed.
  * 3. Score. For each candidate:
  *      1.6 x genre match (average weight of its genres, normalised)
  *    + 0.9 x co-likes (members who liked what you liked also liked this one)
@@ -34,7 +35,7 @@ async function profile(userId: string): Promise<Profile> {
     if (b !== "Inconnu") eras.set(b, (eras.get(b) ?? 0) + w);
   };
 
-  const [likes, seen, watches, reviews, asked, listed, rated] = await Promise.all([
+  const [likes, seen, watches, reviews, asked, listed, rated, nevers] = await Promise.all([
     db
       .select({ id: schema.titles.id, kind: schema.titles.kind, tmdbId: schema.titles.tmdbId, genres: schema.titles.genres, year: schema.titles.year, v: schema.likes.value })
       .from(schema.likes)
@@ -71,7 +72,18 @@ async function profile(userId: string): Promise<Profile> {
       .from(schema.ratings)
       .innerJoin(schema.titles, eq(schema.titles.id, schema.ratings.titleId))
       .where(eq(schema.ratings.userId, userId)),
+    db
+      .select({ id: schema.titles.id, genres: schema.titles.genres })
+      .from(schema.nevers)
+      .innerJoin(schema.titles, eq(schema.titles.id, schema.nevers.titleId))
+      .where(eq(schema.nevers.userId, userId)),
   ]);
+
+  // Refusing a title is a stronger signal than disliking it
+  for (const n of nevers) {
+    add(n.genres, -5);
+    excluded.add(n.id);
+  }
 
   for (const r of rated) {
     add(r.genres, (r.score - 3) * 1.5);
@@ -156,20 +168,39 @@ export async function recommend(
   const fromLikes = (await Promise.all(p.likedTmdb.map((l) => similar(l.kind as "movie" | "tv", l.tmdbId)))).flat();
   const popular = kind ? await topRated(kind).catch(() => []) : [...(await topRated("movie").catch(() => [])).slice(0, 15), ...(await topRated("tv").catch(() => [])).slice(0, 15)];
 
+  const old = kind === "tv" ? [] : (await classics("movie").catch(() => [])).slice(0, 15);
+
   const pool = new Map<number, TitleRow>();
-  for (const t of [...library, ...fromLikes, ...popular]) {
+  for (const t of [...library, ...fromLikes, ...popular, ...old]) {
     if (kind && t.kind !== kind) continue;
     if (!p.excluded.has(t.id)) pool.set(t.id, t);
   }
   if (!pool.size) return [];
 
-  const [co, coh, ready] = await Promise.all([coLikes(user.id), cohort(user.ageBracket), readyTitleIds([...pool.keys()])]);
+  const scored = await rank(user, p, [...pool.values()]);
+
+  return diverse(scored, limit);
+}
+
+/**
+ * "Ta cinéphilie": the great classics, ranked with the member's own taste.
+ * Seen and refused titles leave the list, so it slowly becomes a to-watch path.
+ */
+export async function cinephile(user: { id: string; ageBracket: string | null }, limit = 18): Promise<TitleRow[]> {
+  const [p, pool] = await Promise.all([profile(user.id), classics("movie", 60).catch(() => [] as TitleRow[])]);
+  const left = pool.filter((t) => !p.excluded.has(t.id));
+  if (!left.length) return [];
+  return diverse(await rank(user, p, left), limit);
+}
+
+async function rank(user: { id: string; ageBracket: string | null }, p: Profile, items: TitleRow[]) {
+  const [co, coh, ready] = await Promise.all([coLikes(user.id), cohort(user.ageBracket), readyTitleIds(items.map((t) => t.id))]);
   const gMax = Math.max(1, ...[...p.genres.values()].map(Math.abs));
   const eTotal = [...p.eras.values()].reduce((a, b) => a + b, 0) || 1;
-  const popMax = Math.max(1, ...[...pool.values()].map((t) => t.popularity ?? 0));
+  const popMax = Math.max(1, ...items.map((t) => t.popularity ?? 0));
   const year = new Date().getFullYear();
 
-  const scored = [...pool.values()]
+  const scored = items
     .map((t) => {
       const genre = t.genres.length ? t.genres.reduce((a, g) => a + (p.genres.get(g) ?? 0), 0) / t.genres.length / gMax : 0;
       const eraFit = (p.eras.get(recencyBucket(t.year ? year - t.year : null)) ?? 0) / eTotal;
@@ -185,10 +216,14 @@ export async function recommend(
     })
     .sort((a, b) => b.score - a.score);
 
-  // Diversity: no more than 3 titles with the same main genre
+  return scored.map((x) => x.t);
+}
+
+/** Diversity: no more than 3 titles with the same main genre. */
+function diverse(scored: TitleRow[], limit: number) {
   const perGenre = new Map<string, number>();
   const out: TitleRow[] = [];
-  for (const { t } of scored) {
+  for (const t of scored) {
     const g = t.genres[0] ?? "?";
     if ((perGenre.get(g) ?? 0) >= 3) continue;
     perGenre.set(g, (perGenre.get(g) ?? 0) + 1);

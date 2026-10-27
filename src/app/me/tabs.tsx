@@ -91,7 +91,7 @@ function Section({ title, href, children }: { title: string; href?: string; chil
 
 function Strip({ items }: { items: PosterData[] }) {
   return (
-    <div className="scrollbar-none -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:-mx-10 md:gap-5 md:px-10">
+    <div className="scrollbar-none flex snap-x gap-3 overflow-x-auto pb-2 md:gap-5">
       {items.map((p, i) => (
         <Poster key={`${p.kind}${p.tmdbId}`} t={p} i={i} />
       ))}

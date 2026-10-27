@@ -2,11 +2,11 @@ import Link from "next/link";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getUser } from "@/lib/auth";
-import { recommend } from "@/lib/recos";
-import { trending, topRated, byGenre, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
+import { cinephile, recommend } from "@/lib/recos";
+import { trending, topRated, byGenre, byCountry, classics, interleave, AFRICA, COUNTRY_ROWS, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
+import { neverTitleIds } from "@/lib/marks";
 import { KindTabs } from "@/components/kind-tabs";
 import { readyTitleIds } from "@/lib/recos";
-import { VoiceStrip } from "@/components/voice-strip";
 import { toPoster, daysLeft } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
 import { SearchHero } from "@/components/search";
@@ -29,7 +29,9 @@ export default async function Page(props: PageProps<"/">) {
   const genreRows: { kind: "movie" | "tv"; g: (typeof GENRE_ROWS)["movie"][number] }[] =
     k === "all" ? GENRE_ROWS.movie.slice(0, 4).map((g) => ({ kind: "movie", g })) : GENRE_ROWS[k].map((g) => ({ kind: k, g }));
 
-  const [grants, myRequests, fresh, recos, topMovies, topShows, genres] = await Promise.all([
+  const rowKind: "movie" | "tv" = k === "tv" ? "tv" : "movie";
+  const none = Promise.resolve([] as TitleRow[]);
+  const [grants, myRequests, fresh, recos, topMovies, topShows, genres, countries, old, mine, never] = await Promise.all([
     db
       .select({ grant: schema.accessGrants, title: schema.titles })
       .from(schema.accessGrants)
@@ -62,9 +64,23 @@ export default async function Page(props: PageProps<"/">) {
     recommend(user, 18, kindFilter),
     k === "tv" ? Promise.resolve([] as TitleRow[]) : topRated("movie").catch(() => [] as TitleRow[]),
     k === "movie" ? Promise.resolve([] as TitleRow[]) : topRated("tv").catch(() => [] as TitleRow[]),
-    Promise.all(genreRows.map(async ({ kind, g }) => ({ name: g.name, items: await byGenre(kind, g).catch(() => [] as TitleRow[]) }))),
+    // Each genre row also carries a few African productions
+    Promise.all(
+      genreRows.map(async ({ kind, g }) => {
+        const [base, african] = await Promise.all([byGenre(kind, g).catch(() => [] as TitleRow[]), byCountry(kind, AFRICA, { genre: g.id, limit: 6 })]);
+        return { name: g.name, items: interleave(base, african) };
+      }),
+    ),
+    Promise.all(COUNTRY_ROWS.map(async (c) => ({ name: c.name, items: await byCountry(rowKind, c.codes) }))),
+    k === "tv" ? none : classics("movie").catch(() => [] as TitleRow[]),
+    k === "tv" ? none : cinephile(user, 18).catch(() => [] as TitleRow[]),
+    neverTitleIds(user.id),
   ]);
-  const topReady = await readyTitleIds([...topMovies, ...topShows, ...recos, ...genres.flatMap((r) => r.items)].map((t) => t.id));
+  // Titles the member refuses to watch never show up in a row
+  const keep = (rows: TitleRow[]) => rows.filter((t) => !never.has(t.id));
+  const topReady = await readyTitleIds(
+    [...topMovies, ...topShows, ...recos, ...old, ...mine, ...genres.flatMap((r) => r.items), ...countries.flatMap((r) => r.items)].map((t) => t.id),
+  );
   const latest = fresh.sort((a, b) => (b.readyAt?.getTime() ?? 0) - (a.readyAt?.getTime() ?? 0)).slice(0, 16);
 
   return (
@@ -73,8 +89,8 @@ export default async function Page(props: PageProps<"/">) {
         <KindTabs current={k} />
 
         {grants.length > 0 && (
-          <section className="mt-10 px-4 md:px-10">
-            <div className="scrollbar-none -mx-4 flex snap-x gap-3 overflow-x-auto px-4 md:mx-0 md:px-0">
+          <section className="mx-4 mt-10 md:mx-10">
+            <div className="scrollbar-none flex snap-x gap-3 overflow-x-auto">
               {grants.map(({ grant, title }) => (
                 <Link
                   key={grant.id}
@@ -104,16 +120,16 @@ export default async function Page(props: PageProps<"/">) {
 
         {recos.length > 0 && (
           <Row title="Pour toi">
-            {recos.map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} size="lg" />
+            {keep(recos).map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} size="lg" hideNever />
             ))}
           </Row>
         )}
 
         {latest.length > 0 && (
           <Row title="Arrivés" count={latest.length}>
-            {latest.map(({ title }, i) => (
-              <Poster key={title.id} t={toPoster(title, true)} i={i} />
+            {latest.filter(({ title }) => !never.has(title.id)).map(({ title }, i) => (
+              <Poster key={title.id} t={toPoster(title, true)} i={i} hideNever />
             ))}
           </Row>
         )}
@@ -144,30 +160,54 @@ export default async function Page(props: PageProps<"/">) {
           </div>
         )}
 
-        <VoiceStrip />
+        {mine.length > 0 && (
+          <Row title="Ta cinéphilie">
+            {keep(mine).map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+            ))}
+          </Row>
+        )}
+
+        {old.length > 0 && (
+          <Row title="Grands classiques">
+            {keep(old).map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+            ))}
+          </Row>
+        )}
 
         {topMovies.length > 0 && (
           <Row title="Top films">
-            {topMovies.map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} />
+            {keep(topMovies).map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
             ))}
           </Row>
         )}
 
         {topShows.length > 0 && (
           <Row title="Top séries">
-            {topShows.map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} />
+            {keep(topShows).map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
             ))}
           </Row>
         )}
+
+        {countries
+          .filter((r) => r.items.length > 0)
+          .map((r) => (
+            <Row key={`c-${r.name}`} title={r.name}>
+              {keep(r.items).map((t, i) => (
+                <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+              ))}
+            </Row>
+          ))}
 
         {genres
           .filter((r) => r.items.length > 0)
           .map((r) => (
             <Row key={r.name} title={r.name}>
-              {r.items.map((t, i) => (
-                <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} />
+              {keep(r.items).map((t, i) => (
+                <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
               ))}
             </Row>
           ))}

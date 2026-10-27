@@ -60,16 +60,19 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
             </Link>
           ))}
         </nav>
-        <button
-          type="button"
-          onClick={openSearch}
-          className="ml-auto flex h-10 w-72 items-center gap-3 border border-line px-3 text-sm text-bone/40 transition-colors hover:border-lime hover:text-bone lg:w-96"
-        >
-          <Search size={16} className="text-lime" />
-          Un film, une série
-          <kbd className="ml-auto font-mono text-[11px] text-dim">/</kbd>
-        </button>
-        <span className="ml-6 font-mono text-xs text-dim">@{handle}</span>
+        {/* The home page already has its big search bar */}
+        {path !== "/" && (
+          <button
+            type="button"
+            onClick={openSearch}
+            className="ml-auto flex h-10 w-72 items-center gap-3 border border-line px-3 text-sm text-bone/40 transition-colors hover:border-lime hover:text-bone lg:w-96"
+          >
+            <Search size={16} className="text-lime" />
+            Un film, une série, @membre
+            <kbd className="ml-auto font-mono text-[11px] text-dim">/</kbd>
+          </button>
+        )}
+        <span className={`${path === "/" ? "ml-auto" : "ml-6"} font-mono text-xs text-dim`}>@{handle}</span>
         <form action={logout} className="ml-5">
           <button aria-label="Déconnexion" title="Déconnexion" className="grid size-9 place-items-center text-dim transition-colors hover:text-coral">
             <LogOut size={17} />

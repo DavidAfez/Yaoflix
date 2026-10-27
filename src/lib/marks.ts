@@ -1,15 +1,16 @@
 import "server-only";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { DEEP_UNLOCK } from "./deep";
 import { db, schema } from "@/db";
 
 export type MarkKey = `${string}:${number}`;
 export const markKey = (kind: string, tmdbId: number): MarkKey => `${kind}:${tmdbId}`;
 
-export type Marks = { liked: MarkKey[]; disliked: MarkKey[]; seen: MarkKey[]; reviewed: MarkKey[]; ratings: Record<MarkKey, number> };
+export type Marks = { liked: MarkKey[]; disliked: MarkKey[]; seen: MarkKey[]; reviewed: MarkKey[]; never: MarkKey[]; ratings: Record<MarkKey, number> };
 
 /** Everything the member has liked, seen or reviewed, keyed by kind:tmdbId so any poster can show it. */
 export async function getMarks(userId: string): Promise<Marks> {
-  const [likeRows, seenRows, reviewRows, rateRows] = await Promise.all([
+  const [likeRows, seenRows, reviewRows, rateRows, neverRows] = await Promise.all([
     db
       .select({ kind: schema.titles.kind, tmdbId: schema.titles.tmdbId, value: schema.likes.value })
       .from(schema.likes)
@@ -30,12 +31,18 @@ export async function getMarks(userId: string): Promise<Marks> {
       .from(schema.ratings)
       .innerJoin(schema.titles, eq(schema.titles.id, schema.ratings.titleId))
       .where(eq(schema.ratings.userId, userId)),
+    db
+      .select({ kind: schema.titles.kind, tmdbId: schema.titles.tmdbId })
+      .from(schema.nevers)
+      .innerJoin(schema.titles, eq(schema.titles.id, schema.nevers.titleId))
+      .where(eq(schema.nevers.userId, userId)),
   ]);
   return {
     liked: likeRows.filter((r) => r.value > 0).map((r) => markKey(r.kind, r.tmdbId)),
     disliked: likeRows.filter((r) => r.value < 0).map((r) => markKey(r.kind, r.tmdbId)),
     seen: seenRows.map((r) => markKey(r.kind, r.tmdbId)),
     reviewed: reviewRows.map((r) => markKey(r.kind, r.tmdbId)),
+    never: neverRows.map((r) => markKey(r.kind, r.tmdbId)),
     ratings: Object.fromEntries(rateRows.map((r) => [markKey(r.kind, r.tmdbId), r.score])),
   };
 }
@@ -60,3 +67,23 @@ export async function seenTitleIds(userId: string, ids?: number[]): Promise<Set<
   return new Set(rows.map((r) => r.id));
 }
 
+
+/** Titles the member refuses to watch, to drop them from the home rows. */
+export async function neverTitleIds(userId: string): Promise<Set<number>> {
+  const rows = await db.select({ id: schema.nevers.titleId }).from(schema.nevers).where(eq(schema.nevers.userId, userId));
+  return new Set(rows.map((r) => r.id));
+}
+
+/** Detailed reviews: granted by staff, or earned with enough reviews. */
+export async function deepState(userId: string): Promise<{ allowed: boolean; count: number }> {
+  const [r] = await db
+    .select({
+      flag: schema.users.deepReview,
+      n: sql<number>`(select count(*)::int from feedback f where f.user_id = "users"."id")`,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId));
+  return { allowed: Boolean(r && (r.flag || r.n >= DEEP_UNLOCK)), count: r?.n ?? 0 };
+}
+
+export const deepAllowed = async (userId: string) => (await deepState(userId)).allowed;

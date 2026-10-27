@@ -2,11 +2,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Search as Icon, X, History } from "lucide-react";
 import { Poster, type PosterData } from "./poster";
 import { Dots } from "./ui";
 
+type Person = { handle: string; seen: number; reviews: number };
 type Filter = "all" | "movie" | "tv" | "ready";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "Tout" },
@@ -37,6 +39,7 @@ function pushRecent(term: string) {
 function useTitleSearch() {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<PosterData[] | null>(null);
+  const [people, setPeople] = useState<Person[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [recent, setRecent] = useState<string[]>([]);
@@ -45,8 +48,9 @@ function useTitleSearch() {
 
   useEffect(() => {
     const term = q.trim();
-    if (term.length < 2) {
+    if (term.length < 2 && term !== "@") {
       setResults(null);
+      setPeople(null);
       return;
     }
     // A stale flag instead of AbortController: aborting an in-flight fetch surfaces as a runtime error in dev
@@ -55,9 +59,10 @@ function useTitleSearch() {
       setLoading(true);
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
-        const data = (await res.json()) as { results: PosterData[] };
+        const data = (await res.json()) as { results: PosterData[]; people?: Person[] };
         if (stale) return;
         setResults(data.results ?? []);
+        setPeople(data.people ?? null);
         setFilter("all");
         if (data.results?.length) setRecent(pushRecent(term));
       } catch {
@@ -83,7 +88,7 @@ function useTitleSearch() {
     [sorted],
   );
   const shown = sorted.filter((r) => filter === "all" || (filter === "ready" ? r.ready : r.kind === filter));
-  return { q, setQ, results, loading, filter, setFilter, recent, counts, shown };
+  return { q, setQ, results, people, loading, filter, setFilter, recent, counts, shown };
 }
 
 type S = ReturnType<typeof useTitleSearch>;
@@ -106,7 +111,7 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
           onChange={(e) => s.setQ(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
-          placeholder="Un film, une série"
+          placeholder="Un film, une série, @membre"
           className={`w-full bg-transparent font-display font-semibold tracking-tight outline-none placeholder:text-bone/25 focus-visible:outline-none ${big ? "text-2xl md:text-4xl" : "text-xl md:text-3xl"}`}
           enterKeyHint="search"
           autoComplete="off"
@@ -169,6 +174,7 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
 
 function Results({ s }: { s: S }) {
   if (!s.results) return null;
+  if (s.people) return <People people={s.people} q={s.q} />;
   return (
     <div className="px-4 py-8 md:px-10">
       {s.results.length === 0 ? (
@@ -181,6 +187,31 @@ function Results({ s }: { s: S }) {
             <Poster key={`${r.kind}${r.tmdbId}`} t={r} i={i} />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Members found with "@": pseudonym and two counters, nothing else. */
+function People({ people, q }: { people: Person[]; q: string }) {
+  return (
+    <div className="px-4 py-8 md:px-10">
+      {people.length === 0 ? (
+        <p className="py-20 text-center font-display text-4xl font-extrabold text-bone/15 md:text-6xl">Personne pour « {q.trim()} ».</p>
+      ) : (
+        <ul className="grid gap-px bg-line sm:grid-cols-2 lg:grid-cols-3">
+          {people.map((p, i) => (
+            <motion.li key={p.handle} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 10) * 0.03 }} className="bg-ink">
+              <Link href={`/u/${p.handle}`} className="group flex items-center gap-4 p-4 transition-colors hover:bg-ink-2">
+                <span className="grid size-11 shrink-0 place-items-center bg-lime font-display text-lg font-extrabold uppercase text-ink">{p.handle.charAt(0)}</span>
+                <span className="min-w-0 flex-1 truncate font-mono group-hover:text-lime">@{p.handle}</span>
+                <span className="shrink-0 font-mono text-[11px] text-dim">
+                  {p.seen} vus · {p.reviews} avis
+                </span>
+              </Link>
+            </motion.li>
+          ))}
+        </ul>
       )}
     </div>
   );

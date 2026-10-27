@@ -1,11 +1,14 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
-import { motion } from "motion/react";
-import { Ban, Search, ShieldCheck } from "lucide-react";
+import { Fragment, useActionState, useEffect, useState, useTransition } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { Ban, Pencil, Plus, Search, ShieldCheck, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
+import { Choice, Field, FormError, Submit } from "@/components/ui";
 import { can, roleLabel } from "@/lib/rbac";
-import { setBan, setRole } from "../actions";
+import { ageBrackets, sexes } from "@/lib/labels";
+import { DEEP_UNLOCK } from "@/lib/deep";
+import { createMember, deleteMember, setBan, setDeepReview, setRole, updateMember } from "../actions";
 import type { Role } from "@/db/schema";
 
 type Row = {
@@ -21,6 +24,8 @@ type Row = {
   verified: boolean;
   requests: number;
   watched: number;
+  reviews: number;
+  deep: boolean;
 };
 
 const ROLES: Role[] = ["USER", "UPLOADER", "MODERATOR", "DEV"];
@@ -36,6 +41,10 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
   const router = useRouter();
   const [term, setTerm] = useState(q);
   const [, start] = useTransition();
+  const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const roleChoices = ROLES.filter((x) => x === "USER" || can.setRole(me.role, "USER", x)).map((x) => ({ value: x, label: roleLabel[x] }));
 
   return (
     <div>
@@ -44,6 +53,12 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
           <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">Membres</h1>
           <span className="font-mono text-lime">{total}</span>
           <span className="font-mono text-xs text-dim">staff {staff}</span>
+          <button
+            onClick={() => setCreating(!creating)}
+            className={`ml-2 flex h-10 items-center gap-2 px-4 text-sm font-semibold transition-colors ${creating ? "border border-line text-bone" : "notch bg-lime text-ink"}`}
+          >
+            {creating ? <X size={16} /> : <Plus size={16} />} {creating ? "Fermer" : "Nouveau"}
+          </button>
         </div>
         <form
           onSubmit={(e) => {
@@ -57,6 +72,14 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
         </form>
       </div>
 
+      <AnimatePresence>
+        {creating && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            <CreateForm roles={roleChoices} onDone={() => setCreating(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] text-sm">
           <thead>
@@ -68,6 +91,7 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
               <th className="font-normal">Pays</th>
               <th className="text-right font-normal">Dem.</th>
               <th className="text-right font-normal">Vus</th>
+              <th className="text-right font-normal">Avis</th>
               <th className="text-right font-normal">Vu</th>
               <th />
             </tr>
@@ -78,8 +102,8 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
               const roleOpts = ROLES.filter((x) => x !== r.role && can.setRole(me.role, r.role, x)).map((x) => ({ value: x, label: roleLabel[x] }));
               const banned = Boolean(r.bannedAt);
               return (
+                <Fragment key={r.id}>
                 <motion.tr
-                  key={r.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: Math.min(i, 20) * 0.015 }}
@@ -97,10 +121,24 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
                   <td>{flag(r.country)} <span className="font-mono text-xs text-dim">{r.country}</span></td>
                   <td className="text-right font-mono tabular-nums">{r.requests}</td>
                   <td className="text-right font-mono tabular-nums">{r.watched}</td>
+                  <td className="text-right font-mono tabular-nums">{r.reviews}</td>
                   <td className="text-right font-mono text-xs text-dim">{since(r.lastSeenAt)}</td>
                   <td className="py-2 pl-4">
+                    <div className="flex justify-end gap-2">
+                      <IconBtn
+                        label={r.deep ? "Analyse : retirer" : r.reviews >= DEEP_UNLOCK ? "Analyse : débloquée" : "Analyse : activer"}
+                        on={r.deep || r.reviews >= DEEP_UNLOCK}
+                        onClick={() => start(() => setDeepReview(r.id, !r.deep))}
+                      >
+                        <SlidersHorizontal size={15} />
+                      </IconBtn>
+                      {(self || can.moderate(me.role, r.role)) && (
+                        <IconBtn label="Modifier" on={editing === r.id} onClick={() => setEditing(editing === r.id ? null : r.id)}>
+                          <Pencil size={15} />
+                        </IconBtn>
+                      )}
                     {!self && (
-                      <div className="flex justify-end gap-2">
+                      <>
                         {roleOpts.length > 0 && <Dropdown label="Rôle" options={roleOpts} onPick={(v) => start(() => setRole(r.id, v))} />}
                         {can.moderate(me.role, r.role) && (
                           <button
@@ -112,15 +150,105 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
                             <Ban size={15} />
                           </button>
                         )}
-                      </div>
+                        {can.moderate(me.role, r.role) &&
+                          (confirm === r.id ? (
+                            <button
+                              onClick={() => start(() => deleteMember(r.id))}
+                              onBlur={() => setConfirm(null)}
+                              autoFocus
+                              className="flex h-10 items-center gap-2 bg-coral px-3 text-sm font-semibold text-ink"
+                            >
+                              <Trash2 size={15} /> Supprimer
+                            </button>
+                          ) : (
+                            <IconBtn label="Supprimer" on={false} tone="coral" onClick={() => setConfirm(r.id)}>
+                              <Trash2 size={15} />
+                            </IconBtn>
+                          ))}
+                      </>
                     )}
+                    </div>
                   </td>
                 </motion.tr>
+                {editing === r.id && (
+                  <tr className="border-b border-line bg-ink-2">
+                    <td colSpan={10} className="p-5">
+                      <EditForm row={r} onDone={() => setEditing(null)} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function IconBtn({ label, on, onClick, children, tone = "lime" }: { label: string; on: boolean; onClick: () => void; children: React.ReactNode; tone?: "lime" | "coral" }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-pressed={on}
+      className={`grid size-10 place-items-center border transition-colors ${
+        on ? "border-lime text-lime" : tone === "coral" ? "border-line hover:border-coral hover:text-coral" : "border-line hover:border-bone/40"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+const ageOptions = [{ value: "", label: "?" }, ...ageBrackets.map((x) => ({ value: x as string, label: x as string }))];
+const sexOptions = [...sexes, { value: "", label: "Passer" }];
+
+function CreateForm({ roles, onDone }: { roles: { value: Role; label: string }[]; onDone: () => void }) {
+  const [state, action] = useActionState(createMember, undefined);
+  const [role, setRoleV] = useState<Role>("USER");
+  const [age, setAge] = useState("");
+  const [sex, setSex] = useState("");
+  useEffect(() => {
+    if (state?.ok) onDone();
+  }, [state, onDone]);
+  return (
+    <form action={action} className="mb-10 grid gap-7 border-l-2 border-lime bg-ink-2 p-5 md:grid-cols-3 md:p-8">
+      <Field label="Pseudo" name="handle" required minLength={3} maxLength={20} autoComplete="off" />
+      <Field label="Email" name="email" type="email" required autoComplete="off" />
+      <Field label="Mot de passe" name="password" type="password" required minLength={10} autoComplete="new-password" />
+      <Choice name="role" label="Rôle" value={role} onChange={setRoleV} options={roles} />
+      <Choice name="age" label="Âge" value={age} onChange={setAge} options={ageOptions} />
+      <Choice name="sex" label="Genre" value={sex} onChange={setSex} options={sexOptions} />
+      <div className="flex items-center gap-6 md:col-span-3">
+        <Submit>Créer</Submit>
+        <FormError message={state?.error} />
+      </div>
+    </form>
+  );
+}
+
+function EditForm({ row, onDone }: { row: Row; onDone: () => void }) {
+  const [state, action] = useActionState(updateMember, undefined);
+  const [age, setAge] = useState(row.age ?? "");
+  const [sex, setSex] = useState(row.sex ?? "");
+  useEffect(() => {
+    if (state?.ok) onDone();
+  }, [state, onDone]);
+  return (
+    <form action={action} className="grid gap-7 md:grid-cols-[1fr_1.4fr_1fr_auto] md:items-end">
+      <input type="hidden" name="id" value={row.id} />
+      <Field label="Pseudo" name="handle" defaultValue={row.handle} required minLength={3} maxLength={20} autoComplete="off" />
+      <Choice name="age" label="Âge" value={age} onChange={setAge} options={ageOptions} />
+      <Choice name="sex" label="Genre" value={sex} onChange={setSex} options={sexOptions} />
+      <div className="flex items-center gap-4">
+        <Submit>Enregistrer</Submit>
+      </div>
+      <div className="md:col-span-4">
+        <FormError message={state?.error} />
+      </div>
+    </form>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
+import { useRef, useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Eye, EyeOff, Heart, MessageSquare } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, Eye, EyeOff, Heart, MessageSquare } from "lucide-react";
 import { useMark } from "./marks";
 
 export type PosterData = {
@@ -13,15 +14,18 @@ export type PosterData = {
   ready?: boolean;
 };
 
-export function Poster({ t, i = 0, size = "md" }: { t: PosterData; i?: number; size?: "md" | "lg" }) {
+export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: PosterData; i?: number; size?: "md" | "lg"; hideNever?: boolean }) {
   const mark = useMark(t);
   const seen = Boolean(mark?.seen);
+  const never = Boolean(mark?.never);
+  // Rows of suggestions drop refused titles at once; search and profile keep them, marked
+  if (hideNever && never) return null;
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ delay: Math.min(i, 10) * 0.045, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      layout="position"
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(i, 8) * 0.03, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className={`group relative ${size === "lg" ? "w-44 shrink-0 snap-start md:w-56" : "w-32 shrink-0 snap-start md:w-44"}`}
     >
       <Link href={`/t/${t.kind}/${t.tmdbId}`} className="block">
@@ -33,7 +37,7 @@ export function Poster({ t, i = 0, size = "md" }: { t: PosterData; i?: number; s
               alt=""
               loading="lazy"
               className={`size-full object-cover transition-[transform,filter,opacity] duration-700 ease-[cubic-bezier(.22,1,.36,1)] group-hover:scale-[1.06] ${
-                seen ? "opacity-45 grayscale group-hover:opacity-80 group-hover:grayscale-0" : ""
+                never ? "opacity-20 grayscale" : seen ? "opacity-45 grayscale group-hover:opacity-80 group-hover:grayscale-0" : ""
               }`}
             />
           ) : (
@@ -69,13 +73,21 @@ export function Poster({ t, i = 0, size = "md" }: { t: PosterData; i?: number; s
           <QuickAction on={mark.reviewed} label="Avis" onClick={mark.review}>
             <MessageSquare className="size-3 md:size-[15px]" fill={mark.reviewed ? "currentColor" : "none"} />
           </QuickAction>
+          <QuickAction on={never} label="Jamais" onClick={mark.toggleNever} tone="coral">
+            <Ban className="size-3 md:size-[15px]" />
+          </QuickAction>
         </div>
       )}
-      {/* Visible markers when the action buttons are hidden (desktop, not hovered) */}
-      {mark && (mark.liked || seen) && (
-        <div className="pointer-events-none absolute right-1.5 top-1.5 flex gap-1 [@media(hover:hover)]:group-hover:opacity-0 [@media(hover:none)]:hidden">
-          {mark.liked && <Heart size={14} className="text-coral" fill="currentColor" />}
-          {seen && !mark.liked && <Eye size={14} className="text-bone/80" />}
+      {/* Visible markers when the action buttons are hidden (desktop, neither hovered nor focused) */}
+      {mark && (mark.liked || seen || never) && (
+        <div className="pointer-events-none absolute right-1.5 top-1.5 flex gap-1 transition-opacity [@media(hover:hover)]:group-hover:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-0 [@media(hover:none)]:hidden">
+          {never ? (
+            <Ban size={14} className="text-coral" />
+          ) : mark.liked ? (
+            <Heart size={14} className="text-coral" fill="currentColor" />
+          ) : (
+            <Eye size={14} className="text-bone/80" />
+          )}
         </div>
       )}
     </motion.div>
@@ -106,14 +118,53 @@ function QuickAction({ on, label, onClick, children, tone = "lime" }: { on: bool
   );
 }
 
+/**
+ * A horizontal row, Netflix style: the posters scroll inside side gutters and never touch the screen edge.
+ * Arrows page through it on desktop.
+ */
 export function Row({ title, children, count }: { title: string; children: React.ReactNode; count?: number }) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
+  const update = () => {
+    const el = scroller.current;
+    if (!el) return;
+    setEdge({ start: el.scrollLeft < 8, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 8 });
+  };
+  useEffect(update, [children]);
+  const page = (dir: 1 | -1) => {
+    const el = scroller.current;
+    if (el) el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
+  };
+
   return (
-    <section className="mt-12">
+    <section className="group/row mt-10 md:mt-12">
       <div className="mb-4 flex items-baseline gap-3 px-4 md:px-10">
         <h2 className="font-display text-xl font-semibold tracking-tight md:text-2xl">{title}</h2>
         {count != null && <span className="font-mono text-xs text-lime">{String(count).padStart(2, "0")}</span>}
       </div>
-      <div className="scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:gap-5 md:px-10">{children}</div>
+      <div className="relative mx-4 md:mx-10">
+        <div ref={scroller} onScroll={update} className="scrollbar-none flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 md:gap-5">
+          {children}
+        </div>
+        {!edge.start && <RowArrow side="left" onClick={() => page(-1)} />}
+        {!edge.end && <RowArrow side="right" onClick={() => page(1)} />}
+      </div>
     </section>
+  );
+}
+
+function RowArrow({ side, onClick }: { side: "left" | "right"; onClick: () => void }) {
+  const Icon = side === "left" ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={side === "left" ? "Précédents" : "Suivants"}
+      className={`absolute inset-y-0 z-10 hidden w-10 -translate-y-1 items-center justify-center bg-ink/80 text-bone opacity-0 backdrop-blur transition-opacity hover:text-lime group-hover/row:opacity-100 md:flex ${
+        side === "left" ? "-left-10" : "-right-10"
+      }`}
+    >
+      <Icon size={28} />
+    </button>
   );
 }

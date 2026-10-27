@@ -269,3 +269,80 @@ export async function byGenre(kind: "movie" | "tv", genre: { id: number; local: 
     .orderBy(desc(schema.titles.popularity))
     .limit(limit);
 }
+
+/** Africa as a whole: TMDB filters by country of origin, several at once with "|". */
+export const AFRICA = ["NG", "ZA", "SN", "CI", "CM", "GA", "CG", "CD", "GH", "KE", "BF", "ML", "BJ", "TG", "MA", "DZ", "TN", "EG", "ET", "RW", "TZ", "UG", "AO", "MZ"];
+
+export const COUNTRY_ROWS: { name: string; codes: string[] }[] = [
+  { name: "Afrique", codes: AFRICA },
+  { name: "France", codes: ["FR"] },
+  { name: "Corée du Sud", codes: ["KR"] },
+  { name: "Japon", codes: ["JP"] },
+  { name: "Inde", codes: ["IN"] },
+  { name: "Espagne", codes: ["ES"] },
+  { name: "Royaume-Uni", codes: ["GB"] },
+];
+
+/** Popular titles made in one or several countries. Offline: nothing, the cache does not keep the country. */
+export async function byCountry(kind: "movie" | "tv", codes: string[], opts: { genre?: number; limit?: number } = {}): Promise<TitleRow[]> {
+  if (!hasTmdb()) return [];
+  const african = codes.some((c) => AFRICA.includes(c));
+  try {
+    const data = await tmdb<{ results: TmdbItem[] }>(`/discover/${kind}`, {
+      with_origin_country: codes.join("|"),
+      sort_by: "popularity.desc",
+      // African productions are far less rated on TMDB: a low bar keeps the row full
+      "vote_count.gte": african ? "5" : "100",
+      include_adult: "false",
+      ...(opts.genre ? { with_genres: String(opts.genre) } : {}),
+    });
+    return await upsert(data.results.filter((it) => it.poster_path).slice(0, opts.limit ?? 20).map((it) => toRow(it, kind)));
+  } catch (e) {
+    const { logError } = await import("./errors");
+    await logError("server", e, { where: "tmdb.byCountry", kind, codes: codes.join("|") });
+    return [];
+  }
+}
+
+/**
+ * The great classics: at least 25 years old, widely seen and highly rated.
+ * Offline: the oldest best rated titles of the local cache.
+ */
+export async function classics(kind: "movie" | "tv" = "movie", limit = 40): Promise<TitleRow[]> {
+  const before = new Date().getFullYear() - 25;
+  if (hasTmdb()) {
+    try {
+      const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
+      const pages = await Promise.all(
+        ["1", "2", "3"].map((page) =>
+          tmdb<{ results: TmdbItem[] }>(`/discover/${kind}`, {
+            [dateKey]: `${before}-12-31`,
+            sort_by: "vote_average.desc",
+            "vote_count.gte": kind === "movie" ? "3000" : "500",
+            include_adult: "false",
+            page,
+          }),
+        ),
+      );
+      return await upsert(pages.flatMap((p) => p.results).slice(0, limit).map((it) => toRow(it, kind)));
+    } catch (e) {
+      const { logError } = await import("./errors");
+      await logError("server", e, { where: "tmdb.classics", kind });
+    }
+  }
+  return db
+    .select()
+    .from(schema.titles)
+    .where(and(eq(schema.titles.kind, kind), sql`${schema.titles.year} <= ${before}`))
+    .orderBy(desc(schema.titles.voteAverage))
+    .limit(limit);
+}
+
+/** Slips a few titles into a row at regular intervals, without duplicates. */
+export function interleave(base: TitleRow[], extra: TitleRow[], every = 4, max = 4): TitleRow[] {
+  const ids = new Set(base.map((t) => t.id));
+  const add = extra.filter((t) => !ids.has(t.id)).slice(0, max);
+  const out = [...base];
+  add.forEach((t, i) => out.splice(Math.min(out.length, 1 + i * every), 0, t));
+  return out;
+}

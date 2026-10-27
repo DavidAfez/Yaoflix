@@ -18,7 +18,7 @@ async function ensureDev() {
   const emailHash = blindIndex(normalizeEmail(email), "email");
   const [existing] = await db.select().from(schema.users).where(eq(schema.users.emailHash, emailHash));
   if (existing) {
-    await db.update(schema.users).set({ role: "DEV" }).where(eq(schema.users.id, existing.id));
+    await db.update(schema.users).set({ role: "DEV", deepReview: true }).where(eq(schema.users.id, existing.id));
     console.log(`@${existing.handle} is DEV`);
     return existing.id;
   }
@@ -31,6 +31,7 @@ async function ensureDev() {
       emailVerifiedAt: new Date(),
       passwordHash: await hash(password, ARGON),
       role: "DEV",
+      deepReview: true,
       ageBracket: "25-34",
     })
     .returning();
