@@ -11,11 +11,13 @@ import { paths, safeJoin } from "@/lib/storage";
 const TTL = 60_000;
 const authCache = new Map<string, { mediaId: string; until: number }>();
 
-const ALLOWED = /^(master\.m3u8|s\d{1,2}\/(index\.m3u8|\d{5}\.ts)|subs\/[\w.-]{1,64}\.vtt)$/;
+const ALLOWED = /^(master\.m3u8|s\d{1,2}\/(index\.m3u8|\d{5}\.ts)|subs\/[\w.-]{1,64}\.vtt|thumbs\.json|thumbs\/\d{3}\.jpg)$/;
 const TYPES: Record<string, string> = {
   m3u8: "application/vnd.apple.mpegurl",
   ts: "video/mp2t",
   vtt: "text/vtt; charset=utf-8",
+  json: "application/json",
+  jpg: "image/jpeg",
 };
 
 async function authorize(grantId: string): Promise<string | null> {

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import { resolveGrant } from "@/lib/access";
-import { img } from "@/lib/tmdb";
+import { img, localize } from "@/lib/tmdb";
 import { Player } from "@/components/player/player";
 import { getT } from "@/lib/i18n/server";
 
@@ -40,11 +41,12 @@ export default async function Page(props: PageProps<"/w/[key]">) {
         grantId={g.grant.id}
         grantKey={key}
         titleId={g.title.id}
-        title={g.title.name}
+        title={(await localize([g.title]))[0].name}
         backdrop={img(g.title.backdropPath, "w1280")}
         resumeAt={resume}
         prefs={g.grant.prefs}
         subtitles={g.media.subtitles.filter((s) => s.file)}
+        canCapture={can.capture(user.role)}
       />
     </main>
   );

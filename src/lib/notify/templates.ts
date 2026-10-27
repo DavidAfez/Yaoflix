@@ -10,12 +10,12 @@ const esc = (s: unknown) =>
 
 function frame(heading: string, body: string, cta?: { label: string; href: string }) {
   const button = cta
-    ? `<a href="${esc(cta.href)}" style="display:inline-block;background:#b4a2ff;color:#0a0a0c;padding:14px 26px;font-weight:700;text-decoration:none;letter-spacing:.02em">${esc(cta.label)}</a>`
+    ? `<a href="${esc(cta.href)}" style="display:inline-block;background:#e2626b;color:#0a0a0c;padding:14px 26px;font-weight:700;text-decoration:none;letter-spacing:.02em">${esc(cta.label)}</a>`
     : "";
   return `<!doctype html><html><body style="margin:0;background:#0a0a0c;color:#f4f1ea;font-family:Helvetica,Arial,sans-serif">
 <table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:48px 20px">
 <table width="100%" style="max-width:520px" cellpadding="0" cellspacing="0">
-<tr><td style="font-size:13px;letter-spacing:.3em;color:#b4a2ff;font-weight:700;padding-bottom:36px">GABAOFLIX</td></tr>
+<tr><td style="font-size:13px;letter-spacing:.3em;color:#e2626b;font-weight:700;padding-bottom:36px">GABAOFLIX</td></tr>
 <tr><td style="font-size:30px;line-height:1.1;font-weight:800;padding-bottom:20px">${heading}</td></tr>
 <tr><td style="font-size:16px;line-height:1.6;color:#d8d4cb;padding-bottom:32px">${body}</td></tr>
 <tr><td>${button}</td></tr>

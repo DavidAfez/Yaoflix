@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type Hls from "hls.js";
 import type { ErrorData } from "hls.js";
-import { ArrowLeft, Maximize, Minimize, Pause, Play, PictureInPicture2, RotateCcw, RotateCw, Volume2, VolumeX, Settings2, Captions } from "lucide-react";
+import { ArrowLeft, Maximize, Minimize, Pause, Play, PictureInPicture2, RotateCcw, RotateCw, Volume2, VolumeX, Volume1, Settings2, Captions, Scissors, Camera, Check } from "lucide-react";
+import { ClipSheet } from "./clip-sheet";
 import Link from "next/link";
 import { report } from "../error-reporter";
 import { useTelemetry } from "./telemetry";
@@ -20,7 +21,11 @@ type Props = {
   resumeAt: number;
   prefs: RequestPrefs | null;
   subtitles: Track[];
+  canCapture?: boolean;
 };
+
+type Thumbs = { every: number; w: number; h: number; grid: number; count: number };
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 type Level = { index: number; height: number };
 type AudioOpt = { index: number; label: string; lang: string };
@@ -35,7 +40,7 @@ const fmt = (s: number) => {
 
 const qLabel = (h: number) => (h >= 2000 ? "4K" : `${h}p`);
 
-export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, prefs, subtitles }: Props) {
+export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, prefs, subtitles, canCapture = false }: Props) {
   const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -52,6 +57,13 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
   const [ui, setUi] = useState(true);
   const [full, setFull] = useState(false);
   const [menu, setMenu] = useState<null | "quality" | "tracks">(null);
+  const [volume, setVolume] = useState(1);
+  const [speed, setSpeed] = useState(1);
+  const [remaining, setRemaining] = useState(false);
+  const [hover, setHover] = useState<number | null>(null);
+  const [thumbs, setThumbs] = useState<Thumbs | null>(null);
+  const [clipping, setClipping] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
   const [autoHeight, setAutoHeight] = useState<number | null>(null);
@@ -232,7 +244,10 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
     const onWait = () => setWaiting(true);
     const onReady = () => setWaiting(false);
     const onMeta = () => setDuration(v.duration);
-    const onVol = () => setMuted(v.muted);
+    const onVol = () => {
+      setMuted(v.muted);
+      setVolume(v.volume);
+    };
     const onFs = () => setFull(Boolean(document.fullscreenElement));
     const onErr = () => v.error && report("player", `video:${v.error.code}:${v.error.message}`, { grant: grantId });
 
@@ -276,6 +291,28 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
     if (!tracks) return;
     for (let i = 0; i < tracks.length; i++) tracks[i].mode = i === sub ? "showing" : "disabled";
   }, [sub]);
+
+  // Seek-bar previews, when the worker made them
+  useEffect(() => {
+    let stale = false;
+    fetch(`/api/stream/${grantId}/thumbs.json`)
+      .then((r) => (r.ok ? (r.json() as Promise<Thumbs>) : null))
+      .then((d) => !stale && setThumbs(d))
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [grantId]);
+
+  useEffect(() => {
+    if (video.current) video.current.playbackRate = speed;
+  }, [speed]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3200);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // ---- Actions ------------------------------------------------------------
   const toggle = useCallback(() => {
@@ -376,6 +413,15 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
     hls.currentLevel = i;
     setLevel(i);
     setMenu(null);
+  };
+
+  const capture = async () => {
+    const res = await fetch("/api/clips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ grantId, kind: "image", start: video.current?.currentTime ?? 0 }),
+    }).catch(() => null);
+    setToast(res?.ok ? t("Capture enregistrée") : t("Capture impossible"));
   };
 
   const pickAudio = (i: number) => {
@@ -482,7 +528,20 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
             </div>
 
             <div className="pointer-events-auto absolute inset-x-0 bottom-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-8 md:pb-8">
-              <div className="group relative h-6 cursor-pointer touch-none" onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); scrub(e); }} onPointerMove={(e) => e.buttons && scrub(e)}>
+              <div
+                className="group relative h-6 cursor-pointer touch-none"
+                onPointerDown={(e) => {
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  scrub(e);
+                }}
+                onPointerMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setHover(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+                  if (e.buttons) scrub(e);
+                }}
+                onPointerLeave={() => setHover(null)}
+              >
+                {hover !== null && duration > 0 && <Preview ratio={hover} duration={duration} thumbs={thumbs} grantId={grantId} />}
                 <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-bone/15 transition-all group-hover:h-1.5">
                   <div className="absolute inset-y-0 left-0 bg-bone/30" style={{ width: `${bufPct}%` }} />
                   <div className="absolute inset-y-0 left-0 bg-lime" style={{ width: `${pct}%` }} />
@@ -490,23 +549,45 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
                 <div className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 bg-lime" style={{ left: `${pct}%` }} />
               </div>
               <div className="mt-2 flex items-center gap-1 md:gap-3">
-                <span className="font-mono text-xs tabular-nums text-bone/80">
-                  {fmt(time)} <span className="text-bone/40">/ {fmt(duration)}</span>
-                </span>
+                <button onClick={() => setRemaining(!remaining)} className="font-mono text-xs tabular-nums text-bone/80 hover:text-bone" title={t("Temps restant")}>
+                  {remaining ? `-${fmt(duration - time)}` : fmt(time)} <span className="text-bone/40">/ {fmt(duration)}</span>
+                </button>
                 <div className="ml-auto flex items-center">
-                  <CtrlBtn label="Son" onClick={() => (video.current!.muted = !muted)}>
-                    {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                  <CtrlBtn label="Clip" onClick={() => { video.current?.pause(); setClipping(true); setMenu(null); }}>
+                    <Scissors size={19} />
                   </CtrlBtn>
+                  {canCapture && (
+                    <CtrlBtn label="Capture" onClick={() => void capture()}>
+                      <Camera size={19} />
+                    </CtrlBtn>
+                  )}
+                  <div className="group/vol flex items-center">
+                    <CtrlBtn label="Son" onClick={() => (video.current!.muted = !muted)}>
+                      {muted || volume === 0 ? <VolumeX size={20} /> : volume < 0.5 ? <Volume1 size={20} /> : <Volume2 size={20} />}
+                    </CtrlBtn>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={muted ? 0 : volume}
+                      onChange={(e) => {
+                        const v = video.current!;
+                        v.volume = Number(e.target.value);
+                        v.muted = v.volume === 0;
+                      }}
+                      aria-label={t("Volume")}
+                      className="hidden w-0 accent-[var(--color-lime)] transition-all duration-300 group-hover/vol:w-24 md:block"
+                    />
+                  </div>
                   {(audios.length > 1 || subtitles.length > 0) && (
                     <CtrlBtn label="Pistes" on={menu === "tracks"} onClick={() => setMenu(menu === "tracks" ? null : "tracks")}>
                       <Captions size={20} />
                     </CtrlBtn>
                   )}
-                  {levels.length > 1 && (
-                    <CtrlBtn label="Qualité" on={menu === "quality"} onClick={() => setMenu(menu === "quality" ? null : "quality")}>
-                      <Settings2 size={20} />
-                    </CtrlBtn>
-                  )}
+                  <CtrlBtn label="Réglages" on={menu === "quality"} onClick={() => setMenu(menu === "quality" ? null : "quality")}>
+                    <Settings2 size={20} />
+                  </CtrlBtn>
                   <CtrlBtn label="PiP" onClick={() => void video.current?.requestPictureInPicture?.().catch(() => {})} className="hidden md:grid">
                     <PictureInPicture2 size={20} />
                   </CtrlBtn>
@@ -527,10 +608,23 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
                 >
                   {menu === "quality" ? (
                     <>
-                      <MenuItem on={level === -1} onClick={() => pickLevel(-1)}>
+                      <p className="px-4 pb-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-dim">{t("Vitesse")}</p>
+                      <div className="flex flex-wrap gap-1 px-3 pb-2">
+                        {SPEEDS.map((x) => (
+                          <button
+                            key={x}
+                            onClick={() => setSpeed(x)}
+                            className={`px-2 py-1 font-mono text-xs transition-colors ${speed === x ? "bg-lime text-ink" : "text-bone hover:bg-bone/10"}`}
+                          >
+                            {x}×
+                          </button>
+                        ))}
+                      </div>
+                      {levels.length > 1 && <p className="px-4 pb-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-dim">{t("Qualité")}</p>}
+                      {levels.length > 1 && <MenuItem on={level === -1} onClick={() => pickLevel(-1)}>
                         Auto {level === -1 && autoHeight ? <span className="font-mono text-xs text-dim">{qLabel(autoHeight)}</span> : null}
-                      </MenuItem>
-                      {levels.map((l) => (
+                      </MenuItem>}
+                      {levels.length > 1 && levels.map((l) => (
                         <MenuItem key={l.index} on={level === l.index} onClick={() => pickLevel(l.index)}>
                           {qLabel(l.height)}
                         </MenuItem>
@@ -566,6 +660,33 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {clipping && (
+          <ClipSheet
+            grantId={grantId}
+            video={video}
+            title={title}
+            onClose={() => setClipping(false)}
+            onDone={() => {
+              setClipping(false);
+              setToast(t("Clip en préparation, il arrive dans le feed."));
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {toast && (
+          <motion.p
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute left-1/2 top-6 z-30 flex -translate-x-1/2 items-center gap-2 bg-ink/90 px-4 py-2 text-sm backdrop-blur"
+          >
+            <Check size={15} className="text-lime" /> {toast}
+          </motion.p>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>{ended && <EndCard titleId={titleId} title={title} onReplay={() => { setEnded(false); video.current!.currentTime = 0; void video.current!.play(); }} />}</AnimatePresence>
     </div>
   );
@@ -586,5 +707,30 @@ function MenuItem({ children, on, onClick }: { children: React.ReactNode; on: bo
     <button onClick={onClick} className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors hover:bg-bone/5 ${on ? "text-lime" : "text-bone"}`}>
       {children}
     </button>
+  );
+}
+
+/** Hover card above the seek bar: the frame at that moment (when previews exist) and the time. */
+function Preview({ ratio, duration, thumbs, grantId }: { ratio: number; duration: number; thumbs: Thumbs | null; grantId: string }) {
+  const at = ratio * duration;
+  const per = thumbs ? thumbs.grid * thumbs.grid : 1;
+  const n = thumbs ? Math.min(thumbs.count - 1, Math.floor(at / thumbs.every)) : 0;
+  const sheet = Math.floor(n / per) + 1;
+  const cell = n % per;
+  return (
+    <div className="pointer-events-none absolute bottom-7 -translate-x-1/2" style={{ left: `clamp(${thumbs ? thumbs.w / 2 : 30}px, ${ratio * 100}%, calc(100% - ${thumbs ? thumbs.w / 2 : 30}px))` }}>
+      {thumbs && (
+        <div
+          className="border border-bone/20 bg-black shadow-2xl"
+          style={{
+            width: thumbs.w,
+            height: thumbs.h,
+            backgroundImage: `url(/api/stream/${grantId}/thumbs/${String(sheet).padStart(3, "0")}.jpg)`,
+            backgroundPosition: `-${(cell % thumbs.grid) * thumbs.w}px -${Math.floor(cell / thumbs.grid) * thumbs.h}px`,
+          }}
+        />
+      )}
+      <p className="mt-1 text-center font-mono text-xs tabular-nums">{fmt(at)}</p>
+    </div>
   );
 }

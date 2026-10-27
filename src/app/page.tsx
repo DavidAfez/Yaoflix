@@ -4,7 +4,7 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getUser } from "@/lib/auth";
 import { cinephile, recommend } from "@/lib/recos";
-import { trending, topRated, byGenre, byCountry, classics, interleave, AFRICA, COUNTRY_ROWS, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
+import { trending, topRated, byGenre, byCountry, classics, interleave, localize, AFRICA, COUNTRY_ROWS, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
 import { neverTitleIds } from "@/lib/marks";
 import { getT } from "@/lib/i18n/server";
 import { KindTabs } from "@/components/kind-tabs";
@@ -21,6 +21,7 @@ export default async function Page(props: PageProps<"/">) {
   if (!user) {
     let rows = await trending().catch(() => []);
     if (rows.length < 8) rows = [...rows, ...(await topRated("movie").catch(() => []))];
+    rows = await localize(rows);
     const tiles = rows.slice(0, 16).map((t) => ({ name: t.name, poster: img(t.posterPath, "w342") }));
     return <Landing tiles={tiles} />;
   }
@@ -35,7 +36,8 @@ export default async function Page(props: PageProps<"/">) {
 
   const rowKind: "movie" | "tv" = k === "tv" ? "tv" : "movie";
   const none = Promise.resolve([] as TitleRow[]);
-  const [grants, myRequests, fresh, recos, topMovies, topShows, genres, countries, old, mine, never, [pref], listed] = await Promise.all([
+  // eslint-disable-next-line prefer-const
+  let [grants, myRequests, fresh, recos, topMovies, topShows, genres, countries, old, mine, never, [pref], listed] = await Promise.all([
     db
       .select({ grant: schema.accessGrants, title: schema.titles })
       .from(schema.accessGrants)
@@ -86,6 +88,23 @@ export default async function Page(props: PageProps<"/">) {
   const t = await getT();
   // Titles the member refuses to watch never show up in a row
   const keep = (rows: TitleRow[]) => rows.filter((t) => !never.has(t.id));
+  // Names and synopses in the member's language, fetched in one batch
+  const lang = new Map(
+    (
+      await localize([
+        ...recos, ...topMovies, ...topShows, ...old, ...mine,
+        ...genres.flatMap((r) => r.items), ...countries.flatMap((r) => r.items),
+        ...fresh.map((f) => f.title), ...grants.map((g) => g.title), ...myRequests.map((r) => r.title),
+      ])
+    ).map((t) => [t.id, t]),
+  );
+  const loc = <T extends TitleRow>(t: T): T => (lang.get(t.id) as T | undefined) ?? t;
+  [recos, topMovies, topShows, old, mine] = [recos, topMovies, topShows, old, mine].map((l) => l.map(loc));
+  genres = genres.map((r) => ({ ...r, items: r.items.map(loc) }));
+  countries = countries.map((r) => ({ ...r, items: r.items.map(loc) }));
+  fresh = fresh.map((f) => ({ ...f, title: loc(f.title) }));
+  grants = grants.map((g) => ({ ...g, title: loc(g.title) }));
+  myRequests = myRequests.map((r) => ({ ...r, title: loc(r.title) }));
   const topReady = await readyTitleIds(
     [...topMovies, ...topShows, ...recos, ...old, ...mine, ...genres.flatMap((r) => r.items), ...countries.flatMap((r) => r.items)].map((t) => t.id),
   );

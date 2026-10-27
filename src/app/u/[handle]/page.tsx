@@ -6,9 +6,10 @@ import { readyTitleIds } from "@/lib/recos";
 import { userReviews } from "@/lib/reviews";
 import { hoursSeen } from "@/lib/marks";
 import { toPoster } from "@/lib/view";
+import { localizer } from "@/lib/tmdb";
 import { Poster, Row } from "@/components/poster";
 import { ReviewList } from "@/components/reviews";
-import { followState, postsBy } from "@/lib/feed";
+import { followState, pinnedPost, postsBy } from "@/lib/feed";
 import { FollowButton, PostCard } from "@/components/feed";
 import { Stat } from "@/app/me/stat";
 import { getLocale, getT } from "@/lib/i18n/server";
@@ -29,7 +30,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     .where(and(eq(schema.users.handle, handle), isNull(schema.users.bannedAt)));
   if (!member) notFound();
 
-  const [reviews, liked, seen, [counts], posts, fol, hours] = await Promise.all([
+  const [reviews, liked, seen, [counts], posts, fol, hours, pinned] = await Promise.all([
     userReviews(member.id),
     db
       .select({ title: schema.titles })
@@ -54,8 +55,10 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     postsBy(me.id, member.id),
     followState(me.id, member.id),
     hoursSeen(member.id),
+    pinnedPost(me.id, member.id),
   ]);
   const ready = await readyTitleIds([...liked, ...seen].map((r) => r.title.id));
+  const L = await localizer([...liked, ...seen].map((r) => r.title));
   const split = (rows: typeof liked) => ({
     movie: rows.filter((r) => r.title.kind === "movie"),
     tv: rows.filter((r) => r.title.kind === "tv"),
@@ -81,13 +84,19 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
         </dl>
       </header>
 
-      {l.movie.length > 0 && <Row title="Films aimés">{l.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(r.title, ready.has(r.title.id))} i={i} />)}</Row>}
-      {l.tv.length > 0 && <Row title="Séries aimées">{l.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(r.title, ready.has(r.title.id))} i={i} />)}</Row>}
+      {pinned && (
+        <section className="mx-4 mt-10 max-w-2xl border-l-2 border-lime md:mx-10">
+          <PostCard p={pinned} />
+        </section>
+      )}
+
+      {l.movie.length > 0 && <Row title="Films aimés">{l.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+      {l.tv.length > 0 && <Row title="Séries aimées">{l.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
 
       {posts.length > 0 && (
         <section className="mx-4 mt-12 max-w-2xl border-t border-line md:mx-10">
           <h2 className="mb-2 mt-8 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
-            {t("Posts")} <span className="font-mono text-xs text-lime">{String(posts.length).padStart(2, "0")}</span>
+            {t("Bobines")} <span className="font-mono text-xs text-lime">{String(posts.length).padStart(2, "0")}</span>
           </h2>
           {posts.map((p, i) => (
             <PostCard key={p.id} p={p} i={i} />
@@ -104,8 +113,8 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
         </section>
       )}
 
-      {s.movie.length > 0 && <Row title="Films vus">{s.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(r.title, ready.has(r.title.id))} i={i} />)}</Row>}
-      {s.tv.length > 0 && <Row title="Séries vues">{s.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(r.title, ready.has(r.title.id))} i={i} />)}</Row>}
+      {s.movie.length > 0 && <Row title="Films vus">{s.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+      {s.tv.length > 0 && <Row title="Séries vues">{s.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
       <div className="h-16" />
     </main>
   );

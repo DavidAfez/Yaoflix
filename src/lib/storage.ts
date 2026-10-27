@@ -7,6 +7,8 @@ export const paths = {
   hlsDir: (mediaId: string) => path.join(MEDIA_ROOT, "hls", mediaId),
   voiceDir: path.join(MEDIA_ROOT, "voice"),
   voice: (file: string) => path.join(MEDIA_ROOT, "voice", file),
+  clipsDir: path.join(MEDIA_ROOT, "clips"),
+  clip: (id: string, kind: string) => path.join(MEDIA_ROOT, "clips", `${id}.${kind === "image" ? "jpg" : "mp4"}`),
 };
 
 /** Resolve a path inside root, refusing traversal. */

@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { getT } from "@/lib/i18n/server";
 import { readyTitleIds } from "@/lib/recos";
 import { toPoster } from "@/lib/view";
+import { localizer } from "@/lib/tmdb";
 import { Poster } from "@/components/poster";
 import { Kinetic } from "@/components/kinetic";
 
@@ -22,6 +23,7 @@ export default async function Page() {
     .where(eq(schema.watchlist.userId, user.id))
     .orderBy(desc(schema.watchlist.createdAt));
   const ready = await readyTitleIds(rows.map((r) => r.title.id));
+  const L = await localizer(rows.map((r) => r.title));
 
   return (
     <main className="px-4 py-10 md:px-10">
@@ -34,7 +36,7 @@ export default async function Page() {
       ) : (
         <div className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 md:gap-x-5 xl:grid-cols-8 [&>*]:w-auto">
           {rows.map(({ title }, i) => (
-            <Poster key={title.id} t={toPoster(title, ready.has(title.id))} i={i} />
+            <Poster key={title.id} t={toPoster(L(title), ready.has(title.id))} i={i} />
           ))}
         </div>
       )}

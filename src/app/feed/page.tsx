@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { following, forYou } from "@/lib/feed";
 import { Composer, PostCard } from "@/components/feed";
 import { getT } from "@/lib/i18n/server";
+import { can } from "@/lib/rbac";
 
 export async function generateMetadata() {
   const t = await getT();
@@ -30,7 +31,7 @@ export default async function Page(props: PageProps<"/feed">) {
           </Link>
         ))}
       </nav>
-      <Composer />
+      <Composer canCapture={can.capture(user.role)} />
       {posts.length ? (
         posts.map((p, i) => <PostCard key={`${p.id}${p.repostedBy ?? ""}`} p={p} i={i} />)
       ) : (

@@ -10,7 +10,7 @@ import { useT } from "@/components/i18n";
 
 /** Categorical slots validated against the #131316 surface (CVD + normal vision + contrast). */
 const S = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9"];
-const LIME = "#b4a2ff";
+const LIME = "#e2626b";
 const GRID = "rgb(243 240 232 / 0.06)";
 const AXIS = { fill: "#8c8a84", fontSize: 11, fontFamily: "var(--font-geist-mono)" };
 

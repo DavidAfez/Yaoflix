@@ -64,6 +64,20 @@
       "when": 1793127617353,
       "tag": "0008_locale",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793140361832,
+      "tag": "0009_titles_en",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793140534161,
+      "tag": "0010_clips_posts_kinds",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
-import { credits, getTitle, img, localized, similar } from "@/lib/tmdb";
+import { credits, getTitle, img, localize, localized, similar } from "@/lib/tmdb";
 import { CreditsPanel } from "./credits";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { readyTitleIds } from "@/lib/recos";
@@ -51,6 +51,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
     credits(kind, title.tmdbId),
   ]);
   const moreReady = await readyTitleIds(more.map((m) => m.id));
+  const moreL = await localize(more);
   const [tr, locale] = await Promise.all([getT(), getLocale()]);
   // English speakers get the English name and synopsis, the cache stays in French
   const en = locale === "en" ? await localized(kind, title.tmdbId, "en-US") : null;
@@ -94,7 +95,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
       )}
       {more.length > 0 && (
         <Row title={tr("Dans la même veine")}>
-          {more.map((t, i) => (
+          {moreL.map((t, i) => (
             <Poster key={t.id} t={toPoster(t, moreReady.has(t.id))} i={i} size="sm" />
           ))}
         </Row>

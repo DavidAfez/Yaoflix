@@ -2,7 +2,7 @@ import { and, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { recommend, topLiked, readyTitleIds } from "@/lib/recos";
-import { similar, img } from "@/lib/tmdb";
+import { similar, img, localizer } from "@/lib/tmdb";
 import { toPoster } from "@/lib/view";
 import { roleLabel } from "@/lib/rbac";
 import { hoursSeen } from "@/lib/marks";
@@ -12,6 +12,8 @@ import { logout } from "../(auth)/actions";
 import { Bug, LogOut } from "lucide-react";
 import Link from "next/link";
 import { Stat } from "./stat";
+import { pinnedPost, postsBy } from "@/lib/feed";
+import { can } from "@/lib/rbac";
 import { getT } from "@/lib/i18n/server";
 
 export async function generateMetadata() {
@@ -94,12 +96,14 @@ export default async function Page() {
   ]);
 
   const t = await getT();
+  const [posts, pinned] = await Promise.all([postsBy(uid, uid), pinnedPost(uid, uid)]);
   const [pref] = await db.select({ ms: schema.users.billboardMs }).from(schema.users).where(eq(schema.users.id, uid));
   const toAsk = (await Promise.all(seeds.map((s) => similar(s.kind as "movie" | "tv", s.tmdbId)))).flat();
   const askReady = await readyTitleIds(toAsk.map((t) => t.id));
   const likedReady = await readyTitleIds(liked.map((l) => l.title.id));
   const listReady = await readyTitleIds(listed.map((l) => l.title.id));
   const seenReady = await readyTitleIds(seenRows.map((l) => l.title.id));
+  const L = await localizer([...recos, ...liked.map((l) => l.title), ...listed.map((l) => l.title), ...toAsk, ...watching.map((w) => w.title), ...seenRows.map((l) => l.title), ...reqs.map((r) => r.title)]);
   const uniqueAsk = [...new Map(toAsk.filter((t) => !askReady.has(t.id)).map((t) => [t.id, t])).values()].slice(0, 18);
 
   const tasteTotal = tasteRows.reduce((s, r) => s + r.w, 0) || 1;
@@ -152,26 +156,29 @@ export default async function Page() {
         overview={{
           watching: watching.map((w) => ({
             grantId: w.grantId,
-            name: w.title.name,
+            name: L(w.title).name,
             backdrop: img(w.title.backdropPath, "w780"),
             progress: w.dur ? Math.min(1, w.pos / w.dur) : 0,
             daysLeft: Math.max(0, Math.ceil((w.exp.getTime() - Date.now()) / 86400_000)),
           })),
           taste,
           recency: recencyRows.length ? recency : [],
-          recos: recos.map((t) => toPoster(t, true)),
-          listed: listed.map((l) => toPoster(l.title, listReady.has(l.title.id))),
-          toAsk: uniqueAsk.map((t) => toPoster(t)),
+          recos: recos.map((t) => toPoster(L(t), true)),
+          listed: listed.map((l) => toPoster(L(l.title), listReady.has(l.title.id))),
+          toAsk: uniqueAsk.map((t) => toPoster(L(t))),
         }}
-        liked={liked.map((l) => toPoster(l.title, likedReady.has(l.title.id)))}
-        seen={seenRows.map((l) => toPoster(l.title, seenReady.has(l.title.id)))}
+        posts={posts}
+        pinned={pinned}
+        canCapture={can.capture(user.role)}
+        liked={liked.map((l) => toPoster(L(l.title), likedReady.has(l.title.id)))}
+        seen={seenRows.map((l) => toPoster(L(l.title), seenReady.has(l.title.id)))}
         requests={reqs.map(({ req, title }) => ({
           id: req.id,
           status: req.status,
           reason: req.rejectReason,
           at: req.createdAt.toISOString(),
           prefs: req.prefs,
-          poster: toPoster(title),
+          poster: toPoster(L(title)),
         }))}
         profile={{ handle: user.handle, age: user.ageBracket ?? "", sex: user.sex ?? "", hasPhone: user.hasPhone, optIn: user.whatsappOptIn, billboardMs: pref?.ms ?? 3000 }}
       />

@@ -5,7 +5,8 @@ import { decrypt } from "@/lib/crypto";
 import { logError } from "@/lib/errors";
 import { renderMail, renderWhatsApp } from "@/lib/notify/templates";
 import { sendWhatsApp, whatsappEnabled } from "@/lib/notify/whatsapp";
-import { transcode } from "./transcode";
+import { backfillThumbnails, transcode } from "./transcode";
+import { renderClip } from "./clip";
 import { useEnvProxy } from "@/lib/net";
 
 useEnvProxy();
@@ -56,6 +57,10 @@ async function handle(job: Job) {
   switch (job.type) {
     case "transcode":
       return transcode(String(p.mediaId));
+    case "clip":
+      return renderClip(String(p.clipId));
+    case "thumbs":
+      return backfillThumbnails(String(p.mediaId));
     case "transcribe":
       return transcribe(String(p.feedbackId));
     case "mail": {
@@ -121,6 +126,20 @@ async function recoverStale() {
     )`);
 }
 
+/** Media encoded before seek-bar previews existed get them in the background. */
+async function queueMissingThumbnails() {
+  const { existsSync } = await import("node:fs");
+  const path = await import("node:path");
+  const { paths } = await import("@/lib/storage");
+  const ready = await db.select({ id: schema.media.id }).from(schema.media).where(eq(schema.media.status, "READY"));
+  for (const m of ready) {
+    const dir = paths.hlsDir(m.id);
+    if (existsSync(path.join(dir, "thumbs.json")) || !existsSync(path.join(dir, "s0", "index.m3u8"))) continue;
+    const [already] = (await db.execute(sql`select 1 from jobs where type = 'thumbs' and status in ('queued','running') and payload->>'mediaId' = ${m.id} limit 1`)).rows;
+    if (!already) await db.insert(schema.jobs).values({ type: "thumbs", payload: { mediaId: m.id } });
+  }
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let stopping = false;
 
@@ -161,9 +180,10 @@ async function main() {
     }
   }
   setInterval(() => void recoverStale().catch(() => {}), 5 * 60_000);
+  await queueMissingThumbnails().catch((e) => console.error("thumbs scan", e));
   const heavy = Number(process.env.TRANSCODE_CONCURRENCY ?? 1);
   await Promise.all([
-    ...Array.from({ length: heavy }, (_, i) => lane(`transcode-${i}`, ["transcode"])),
+    ...Array.from({ length: heavy }, (_, i) => lane(`transcode-${i}`, ["transcode", "thumbs", "clip"])),
     lane("notify", ["mail", "whatsapp", "transcribe"]),
   ]);
 }

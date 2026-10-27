@@ -3,8 +3,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Clapperboard, Heart, MessageCircle, Mic, Repeat2, Trash2, X } from "lucide-react";
-import { createPost, deletePost, setFollow, toggleFav, toggleRepost } from "@/app/feed/actions";
+import { BarChart3, Clapperboard, Heart, ListOrdered, MessageCircle, Mic, Pin, Repeat2, Rows3, Trash2, X } from "lucide-react";
+import { createPost, createRichPost, deletePost, pinPost, setFollow, toggleFav, toggleRepost } from "@/app/feed/actions";
+import { ClipView, PollBuilder, PollView, TIERS, Top5Builder, Top5View, TierBuilder, TierView, type PollDraft } from "./post-kinds";
+import type { TierItem, TitleRef } from "@/db/schema";
 import { StarShape, Stars, useMark } from "./marks";
 import { Dots } from "./ui";
 import { fmtRating } from "@/lib/rating";
@@ -60,6 +62,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
   const [liked, setLiked] = useState(p.liked);
   const [reposted, setReposted] = useState(p.reposted);
   const [gone, setGone] = useState(false);
+  const [pinned, setPinned] = useState(Boolean(p.pinned));
   const [, start] = useTransition();
   useEffect(() => {
     setLiked(p.liked);
@@ -96,7 +99,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
         </Link>
       </header>
 
-      {p.title && !p.replyTo && (
+      {p.title && !p.replyTo && (p.kind === "text" || p.kind === "clip") && (
         <div className="mb-3">
           <TitleBlock t={p.title} rating={p.rating} />
         </div>
@@ -116,6 +119,27 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
           )
         )}
       </Link>
+
+      {p.kind === "clip" && p.clip && (
+        <div className="mt-3">
+          <ClipView clip={p.clip} />
+        </div>
+      )}
+      {p.kind === "top5" && p.data && "items" in p.data && (
+        <div className="mt-3">
+          <Top5View data={p.data} />
+        </div>
+      )}
+      {p.kind === "tier" && p.data && "tiers" in p.data && (
+        <div className="mt-3">
+          <TierView data={p.data} />
+        </div>
+      )}
+      {p.kind === "poll" && p.data && "question" in p.data && (
+        <div className="mt-3">
+          <PollView p={p} />
+        </div>
+      )}
 
       <footer className="mt-4 flex items-center gap-8 text-dim">
         <Link href={`/p/${p.id}`} className="flex items-center gap-2 text-sm transition-colors hover:text-ice" aria-label={t("Répondre")}>
@@ -148,6 +172,19 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
           </motion.span>
           <span className="font-mono text-xs tabular-nums">{likes || ""}</span>
         </motion.button>
+        {p.mine && p.kind === "top5" && (
+          <button
+            onClick={() => {
+              setPinned(!pinned);
+              start(() => pinPost(p.id, !pinned));
+            }}
+            aria-label={t(pinned ? "Désépingler" : "Épingler sur mon profil")}
+            title={t(pinned ? "Désépingler" : "Épingler sur mon profil")}
+            className={`ml-auto transition-colors ${pinned ? "text-lime" : "hover:text-lime"}`}
+          >
+            <Pin size={15} fill={pinned ? "currentColor" : "none"} />
+          </button>
+        )}
         {p.mine && (
           <button
             onClick={() => {
@@ -159,7 +196,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
             }}
             aria-label={t("Supprimer")}
             title={t("Supprimer")}
-            className="ml-auto transition-colors hover:text-coral"
+            className={`${p.kind === "top5" ? "" : "ml-auto "}transition-colors hover:text-coral`}
           >
             <Trash2 size={15} />
           </button>
@@ -170,9 +207,17 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
 }
 
 /** Writes a post, optionally about a title (picked with the search) and with stars. With parentId, a reply. */
-export function Composer({ parentId, placeholder }: { parentId?: string; placeholder?: string }) {
+type Mode = "text" | "top5" | "tier" | "poll";
+const emptyTier = () => ({ title: "", tiers: TIERS.map((label) => ({ label, items: [] as TierItem[] })) });
+const emptyPoll = (): PollDraft => ({ question: "", options: [{ label: "" }, { label: "" }], answer: null, frameId: null, ref: null });
+
+export function Composer({ parentId, placeholder, canCapture = false }: { parentId?: string; placeholder?: string; canCapture?: boolean }) {
   const router = useRouter();
   const t = useT();
+  const [mode, setMode] = useState<Mode>("text");
+  const [top5, setTop5] = useState<{ title: string; items: TitleRef[] }>({ title: "", items: [] });
+  const [tier, setTier] = useState(emptyTier);
+  const [poll, setPoll] = useState<PollDraft>(emptyPoll);
   const [body, setBody] = useState("");
   const [title, setTitle] = useState<PosterData | null>(null);
   const [picking, setPicking] = useState(false);
@@ -190,42 +235,89 @@ export function Composer({ parentId, placeholder }: { parentId?: string; placeho
   const send = () =>
     start(async () => {
       setError(null);
-      const res = await createPost({ body, parentId, kind: title?.kind as "movie" | "tv" | undefined, tmdbId: title?.tmdbId });
+      const res =
+        mode === "top5"
+          ? await createRichPost({ kind: "top5", body, data: top5 })
+          : mode === "tier"
+            ? await createRichPost({ kind: "tier", body, data: tier })
+            : mode === "poll"
+              ? await createRichPost({ kind: "poll", body, data: { ...poll, options: poll.options.filter((o) => o.label.trim()) } })
+              : await createPost({ body, parentId, kind: title?.kind as "movie" | "tv" | undefined, tmdbId: title?.tmdbId });
       if (!res.ok) return setError(t(res.error ?? "Oups"));
       setBody("");
       setTitle(null);
+      setTop5({ title: "", items: [] });
+      setTier(emptyTier());
+      setPoll(emptyPoll());
+      setMode("text");
       router.refresh();
     });
+  const ready =
+    mode === "text"
+      ? Boolean(body.trim())
+      : mode === "top5"
+        ? Boolean(top5.title.trim() && top5.items.length)
+        : mode === "tier"
+          ? Boolean(tier.title.trim() && tier.tiers.some((x) => x.items.length))
+          : Boolean(poll.question.trim() && poll.options.filter((o) => o.label.trim()).length >= 2);
+  const tools: { m: Mode; label: string; icon: React.ReactNode }[] = [
+    { m: "top5", label: "Top 5", icon: <ListOrdered size={16} /> },
+    { m: "tier", label: "Tier list", icon: <Rows3 size={16} /> },
+    { m: "poll", label: "Sondage", icon: <BarChart3 size={16} /> },
+  ];
 
   return (
     <div className="border-b border-line px-4 py-5 md:px-6">
-      {title && <PickedTitle t={title} onClear={() => setTitle(null)} />}
+      {mode === "top5" && <Top5Builder value={top5} onChange={setTop5} Picker={TitlePicker} />}
+      {mode === "tier" && <TierBuilder value={tier} onChange={setTier} Picker={TitlePicker} frames={canCapture} />}
+      {mode === "poll" && <PollBuilder value={poll} onChange={setPoll} Picker={TitlePicker} frames={canCapture} />}
+      {mode === "text" && title && <PickedTitle t={title} onClear={() => setTitle(null)} />}
       <textarea
         ref={area}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         maxLength={1000}
         rows={2}
-        placeholder={placeholder ?? t("Ton avis, ta théorie, ta reco")}
+        placeholder={mode === "text" ? (placeholder ?? t("Ton avis, ta théorie, ta reco")) : t("Un mot pour accompagner (facultatif)")}
         className="w-full resize-none bg-transparent text-lg outline-none placeholder:text-bone/30"
       />
-      <AnimatePresence>{picking && <TitlePicker onPick={(t) => (setTitle(t), setPicking(false))} onClose={() => setPicking(false)} />}</AnimatePresence>
+      <AnimatePresence>{mode === "text" && picking && <TitlePicker onPick={(t) => (setTitle(t), setPicking(false))} onClose={() => setPicking(false)} />}</AnimatePresence>
       {error && <p className="mt-2 text-sm text-coral">{error}</p>}
       <div className="mt-3 flex items-center justify-between gap-4">
         {!parentId ? (
-          <button
-            type="button"
-            onClick={() => setPicking(!picking)}
-            className={`flex h-10 items-center gap-2 border px-3 text-sm transition-colors ${picking || title ? "border-lime text-lime" : "border-line text-bone/70 hover:border-bone/40"}`}
-          >
-            <Clapperboard size={16} /> {t("Film ou série")}
-          </button>
+          <div className="scrollbar-none flex min-w-0 items-center gap-1.5 overflow-x-auto">
+            {mode === "text" && (
+              <button
+                type="button"
+                onClick={() => setPicking(!picking)}
+                aria-label={t("Film ou série")}
+                title={t("Film ou série")}
+                className={`flex h-10 shrink-0 items-center gap-2 border px-3 text-sm transition-colors ${picking || title ? "border-lime text-lime" : "border-line text-bone/70 hover:border-bone/40"}`}
+              >
+                <Clapperboard size={16} /> <span className="hidden sm:inline">{t("Film ou série")}</span>
+              </button>
+            )}
+            {tools.map((x) => (
+              <button
+                key={x.m}
+                type="button"
+                onClick={() => {
+                  setMode(mode === x.m ? "text" : x.m);
+                  setPicking(false);
+                }}
+                title={t(x.label)}
+                className={`flex h-10 shrink-0 items-center gap-2 border px-3 text-sm transition-colors ${mode === x.m ? "border-lime text-lime" : "border-line text-bone/70 hover:border-bone/40"}`}
+              >
+                {x.icon} <span className="hidden sm:inline">{t(x.label)}</span>
+              </button>
+            ))}
+          </div>
         ) : (
           <span />
         )}
         <div className="flex items-center gap-4">
           {body.length > 800 && <span className="font-mono text-xs text-dim">{1000 - body.length}</span>}
-          <button onClick={send} disabled={!body.trim() || pending} className="notch flex h-10 min-w-24 items-center justify-center bg-lime px-5 text-sm font-semibold text-ink disabled:opacity-40">
+          <button onClick={send} disabled={!ready || pending} className="notch flex h-10 min-w-24 shrink-0 items-center justify-center bg-lime px-5 text-sm font-semibold text-ink disabled:opacity-40">
             {pending ? <Dots /> : t(parentId ? "Répondre" : "Publier")}
           </button>
         </div>
@@ -256,7 +348,7 @@ function PickedTitle({ t, onClear }: { t: PosterData; onClear: () => void }) {
   );
 }
 
-function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => void; onClose: () => void }) {
+export function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => void; onClose: () => void }) {
   const tr = useT();
   const [q, setQ] = useState("");
   const [items, setItems] = useState<PosterData[]>([]);

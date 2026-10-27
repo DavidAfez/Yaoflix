@@ -59,6 +59,8 @@ export const users = pgTable(
     billboardMs: integer("billboard_ms").notNull().default(3000),
     // Language of the interface and of the mails
     locale: text("locale").notNull().default("fr"),
+    // A top 5 post shown at the top of the profile
+    pinnedPostId: uuid("pinned_post_id"),
     country: text("country"),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -109,6 +111,9 @@ export const titles = pgTable(
     runtime: integer("runtime"),
     // Series only: number of episodes aired, to estimate the time spent on a whole series
     episodes: integer("episodes"),
+    // English name and synopsis, filled the first time an English-speaking member sees the title
+    nameEn: text("name_en"),
+    overviewEn: text("overview_en"),
     voteAverage: real("vote_average"),
     popularity: real("popularity"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -381,6 +386,10 @@ export const posts = pgTable(
     parentId: uuid("parent_id").references((): AnyPgColumn => posts.id, { onDelete: "cascade" }),
     repostOf: uuid("repost_of").references((): AnyPgColumn => posts.id, { onDelete: "cascade" }),
     body: text("body"),
+    // text | clip | top5 | tier | poll, the structured part lives in data
+    kind: text("kind").notNull().default("text"),
+    data: jsonb("data").$type<PostData>(),
+    clipId: uuid("clip_id").references((): AnyPgColumn => clips.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -410,4 +419,43 @@ export const follows = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.followerId, t.followeeId] }), index("follows_followee_idx").on(t.followeeId)],
+);
+
+/** A title as posts store it: enough to draw the poster without a lookup. */
+export type TitleRef = { kind: string; tmdbId: number; name: string; year: number | null; poster: string | null };
+export type TierItem = ({ type: "title" } & TitleRef) | { type: "frame"; clipId: string; label?: string };
+export type PostData =
+  | { title: string; items: TitleRef[] }
+  | { title: string; tiers: { label: string; items: TierItem[] }[] }
+  | { question: string; options: { label: string; ref?: TitleRef }[]; answer?: number | null; frameId?: string | null; ref?: TitleRef | null };
+
+/**
+ * Pieces cut from a film while watching it: a short video (15 s max) or a still frame.
+ * Rendered by the worker from the HLS files, served to signed-in members only.
+ */
+export const clips = pgTable(
+  "clips",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    mediaId: uuid("media_id").notNull().references(() => media.id, { onDelete: "cascade" }),
+    titleId: integer("title_id").notNull().references(() => titles.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // video | image
+    startSec: real("start_sec").notNull(),
+    durationSec: real("duration_sec").notNull().default(0),
+    status: text("status").notNull().default("QUEUED"), // QUEUED | READY | FAILED
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("clips_user_idx").on(t.userId)],
+);
+
+export const pollVotes = pgTable(
+  "poll_votes",
+  {
+    postId: uuid("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    option: smallint("option").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.postId, t.userId] })],
 );

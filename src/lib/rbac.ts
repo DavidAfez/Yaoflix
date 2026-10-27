@@ -15,6 +15,8 @@ export const can = {
     actor === "DEV" || (actor === "MODERATOR" && rank[target] < rank.MODERATOR && rank[next] < rank.MODERATOR),
   moderate: (actor: Role, target: Role) => actor === "DEV" || (actor === "MODERATOR" && rank[target] < rank.MODERATOR),
   isStaff: (r: Role) => rank[r] >= rank.UPLOADER,
+  /** Still frames grabbed from the player, for tier lists and quizzes. Kept for the dev for now. */
+  capture: (r: Role) => r === "DEV",
 };
 
 export const roleLabel: Record<Role, string> = {

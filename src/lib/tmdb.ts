@@ -415,3 +415,40 @@ export async function localized(kind: "movie" | "tv", tmdbId: number, language: 
     return null;
   }
 }
+
+/**
+ * Titles in the member's language. The cache is French; English names and synopses are fetched
+ * once per title from TMDB, stored, then reused.
+ */
+export async function localize<T extends TitleRow>(rows: T[]): Promise<T[]> {
+  const { getLocale } = await import("./i18n/server");
+  if ((await getLocale()) !== "en") return rows;
+  const missing = [...new Map(rows.filter((r) => r.nameEn == null).map((r) => [r.id, r])).values()].slice(0, 120);
+  const found = new Map<number, { name: string | null; overview: string | null }>();
+  if (hasTmdb() && missing.length) {
+    for (let i = 0; i < missing.length; i += 20) {
+      await Promise.all(
+        missing.slice(i, i + 20).map(async (r) => {
+          const en = await localized(r.kind as "movie" | "tv", r.tmdbId, "en-US");
+          if (!en) return;
+          found.set(r.id, en);
+          await db
+            .update(schema.titles)
+            .set({ nameEn: en.name ?? r.name, overviewEn: en.overview })
+            .where(eq(schema.titles.id, r.id))
+            .catch(() => undefined);
+        }),
+      );
+    }
+  }
+  return rows.map((r) => {
+    const en = found.get(r.id) ?? (r.nameEn != null ? { name: r.nameEn, overview: r.overviewEn } : null);
+    return en ? { ...r, name: en.name ?? r.name, overview: en.overview ?? r.overview } : r;
+  });
+}
+
+/** localize() for pages that render many lists: one batch, then a lookup per title. */
+export async function localizer(rows: TitleRow[]) {
+  const map = new Map((await localize(rows)).map((t) => [t.id, t]));
+  return <T extends TitleRow>(t: T): T => (map.get(t.id) as T | undefined) ?? t;
+}

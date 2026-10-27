@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { and, asc, ilike, isNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { apiUser } from "@/lib/auth";
-import { searchTitles } from "@/lib/tmdb";
+import { localize, searchTitles } from "@/lib/tmdb";
 import { readyTitleIds } from "@/lib/recos";
 import { toPoster } from "@/lib/view";
 import { rateLimit } from "@/lib/ratelimit";
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ results: [], people });
   }
 
-  const rows = await searchTitles(q);
+  const rows = await localize(await searchTitles(q));
   const ready = await readyTitleIds(rows.map((r) => r.id));
   return NextResponse.json({ results: rows.map((r) => toPoster(r, ready.has(r.id))) });
 }

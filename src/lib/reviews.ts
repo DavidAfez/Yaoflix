@@ -1,6 +1,7 @@
 import "server-only";
 import { sql } from "drizzle-orm";
 import { db } from "@/db";
+import { getLocale } from "./i18n/server";
 
 export type PublicReview = {
   handle: string;
@@ -18,6 +19,7 @@ export type PublicReview = {
  * Only the pseudonym is shown. Voice recordings stay private: a voice can identify someone.
  */
 async function reviews(filter: ReturnType<typeof sql>, limit: number): Promise<PublicReview[]> {
+  const name = (await getLocale()) === "en" ? sql`coalesce(t.name_en, t.name)` : sql`t.name`;
   const rows = await db.execute<{
     handle: string;
     rating: number | null;
@@ -39,7 +41,7 @@ async function reviews(filter: ReturnType<typeof sql>, limit: number): Promise<P
       select user_id, title_id, max(at) as at from who group by 1, 2
     )
     select u.handle, r.score as rating, d.scores, d.tags, p.at,
-      t.kind, t.tmdb_id, t.name, t.poster_path,
+      t.kind, t.tmdb_id, ${name} as name, t.poster_path,
       (select coalesce(nullif(f.text, ''), f.transcript) from feedback f
         where f.user_id = p.user_id and f.title_id = p.title_id and coalesce(nullif(f.text, ''), f.transcript) is not null
         order by f.created_at desc limit 1) as body,

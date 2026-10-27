@@ -6,6 +6,8 @@ import { ArrowRight, Play, Search } from "lucide-react";
 import { Poster, type PosterData } from "@/components/poster";
 import { useMarkSets } from "@/components/marks";
 import { LangSwitch, useT, useTag } from "@/components/i18n";
+import { Composer, PostCard } from "@/components/feed";
+import type { FeedPost } from "@/lib/feed";
 import { Choice, Field, Submit, FormError } from "@/components/ui";
 import { StatusMark } from "@/components/status";
 import { ageBrackets, sexes } from "@/lib/labels";
@@ -18,10 +20,13 @@ type Watching = { grantId: string; name: string; backdrop: string | null; progre
 type Share = { label: string; share: number };
 type Overview = { watching: Watching[]; taste: Share[]; recency: Share[]; recos: PosterData[]; listed: PosterData[]; toAsk: PosterData[] };
 
-const TABS = ["Moi", "Aimés", "Vus", "Demandes", "Réglages"] as const;
+const TABS = ["Moi", "Bobines", "Aimés", "Vus", "Demandes", "Réglages"] as const;
 
 export function MeTabs(props: {
   overview: Overview;
+  posts: FeedPost[];
+  pinned: FeedPost | null;
+  canCapture: boolean;
   liked: PosterData[];
   seen: PosterData[];
   requests: Req[];
@@ -44,6 +49,7 @@ export function MeTabs(props: {
           <button key={t} onClick={() => setTab(t)} className={`relative shrink-0 py-5 text-sm ${tab === t ? "text-bone" : "text-dim hover:text-bone"}`}>
             {tr(t)}
             {t === "Aimés" && liked.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{liked.length}</span>}
+            {t === "Bobines" && props.posts.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.posts.length}</span>}
             {t === "Vus" && seen.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{seen.length}</span>}
             {t === "Demandes" && props.requests.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.requests.length}</span>}
             {tab === t && <motion.span layoutId="me-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" />}
@@ -52,7 +58,24 @@ export function MeTabs(props: {
       </nav>
       <AnimatePresence mode="wait">
         <motion.section key={tab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }} className="pt-8">
-          {tab === "Moi" && <OverviewTab {...props.overview} />}
+          {tab === "Moi" && (
+            <>
+              {props.pinned && (
+                <div className="mb-12 max-w-2xl border-l-2 border-lime">
+                  <PostCard p={props.pinned} />
+                </div>
+              )}
+              <OverviewTab {...props.overview} />
+            </>
+          )}
+          {tab === "Bobines" && (
+            <div className="-mx-4 max-w-2xl md:mx-0 md:border-x md:border-line">
+              <Composer canCapture={props.canCapture} />
+              {props.posts.map((p, i) => (
+                <PostCard key={p.id} p={{ ...p, pinned: p.id === props.pinned?.id }} i={i} />
+              ))}
+            </div>
+          )}
           {tab === "Aimés" && (liked.length ? <ByKind items={liked} /> : <Empty word="Aucun coup de cœur." />)}
           {tab === "Vus" && (seen.length ? <ByKind items={seen} /> : <Empty word="Rien de vu encore." />)}
           {tab === "Demandes" && <Requests items={props.requests} />}

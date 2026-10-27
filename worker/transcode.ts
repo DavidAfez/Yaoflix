@@ -27,6 +27,7 @@ type Probe = {
     codec_type: string;
     codec_name: string;
     height?: number;
+    width?: number;
     tags?: { language?: string; title?: string };
   }[];
   format: { duration?: string };
@@ -153,6 +154,8 @@ export async function transcode(mediaId: string) {
     }
   }
 
+  await thumbnails(src, out, duration, video.height!, video.width).catch(() => undefined);
+
   const renditions: Rendition[] = ladder.map((r) => ({ height: r.height, bandwidth: r.kbps * 1000 }));
   const audioTracks: Track[] = audios.map((a, j) => ({ lang: langCode(a.tags?.language), label: langLabel(a.tags?.language, j) }));
   await writeFile(path.join(out, "ready"), new Date().toISOString());
@@ -172,4 +175,38 @@ export async function transcode(mediaId: string) {
 
   if (!process.env.KEEP_SOURCES) await rm(src, { force: true });
   await fulfillTitle(mediaId, m.titleId);
+}
+
+const THUMB_EVERY = 10;
+const THUMB_W = 192;
+const GRID = 10;
+
+/**
+ * Preview images for the seek bar: one frame every 10 s, packed 100 per sprite sheet,
+ * described in thumbs.json so the player can show the right tile under the cursor.
+ */
+export async function thumbnails(input: string, out: string, duration: number, height: number, width?: number) {
+  const dir = path.join(out, "thumbs");
+  await rm(dir, { recursive: true, force: true });
+  await mkdir(dir, { recursive: true });
+  const ratio = width && height ? height / width : 9 / 16;
+  const h = Math.max(2, Math.round((THUMB_W * ratio) / 2) * 2);
+  await run("ffmpeg", [
+    "-y", "-v", "error", "-i", input,
+    "-vf", `fps=1/${THUMB_EVERY},scale=${THUMB_W}:${h},tile=${GRID}x${GRID}`,
+    "-q:v", "5",
+    path.join(dir, "%03d.jpg"),
+  ]);
+  const count = Math.max(1, Math.ceil(duration / THUMB_EVERY));
+  await writeFile(path.join(out, "thumbs.json"), JSON.stringify({ every: THUMB_EVERY, w: THUMB_W, h, grid: GRID, count }));
+}
+
+/** Older media got no preview images: build them from the lowest HLS rendition. */
+export async function backfillThumbnails(mediaId: string) {
+  const [m] = await db.select().from(schema.media).where(eq(schema.media.id, mediaId));
+  if (!m || m.status !== "READY") return;
+  const out = paths.hlsDir(mediaId);
+  const { existsSync } = await import("node:fs");
+  if (!existsSync(path.join(out, "s0", "index.m3u8"))) return;
+  await thumbnails(path.join(out, "s0", "index.m3u8"), out, m.durationSec ?? 0, 9, 16);
 }
