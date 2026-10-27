@@ -2,12 +2,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Mic, Square, X, RotateCcw } from "lucide-react";
-import { likeByRef, setSeenByRef } from "@/app/t/actions";
+import { useRouter } from "next/navigation";
+import { Check, Mic, Square, X, RotateCcw, Star } from "lucide-react";
+import { likeByRef, rateByRef, setSeenByRef } from "@/app/t/actions";
 import { Dots } from "./ui";
 
 type Key = string;
-type Initial = { liked: Key[]; disliked: Key[]; seen: Key[]; reviewed: Key[] };
+type Initial = { liked: Key[]; disliked: Key[]; seen: Key[]; reviewed: Key[]; ratings: Record<Key, number> };
 type Target = { kind: string; tmdbId: number; name: string };
 
 type Ctx = {
@@ -15,7 +16,9 @@ type Ctx = {
   disliked: Set<Key>;
   seen: Set<Key>;
   reviewed: Set<Key>;
+  ratings: Map<Key, number>;
   setLike: (t: Target, v: 1 | -1 | 0) => void;
+  setRating: (t: Target, score: number) => void;
   setSeen: (t: Target, on: boolean) => void;
   review: (t: Target) => void;
 };
@@ -35,6 +38,7 @@ export function MarksProvider({ initial, children }: { initial: Initial; childre
   const [disliked, setDisliked] = useState(() => new Set(initial.disliked));
   const [seen, setSeenSet] = useState(() => new Set(initial.seen));
   const [reviewed, setReviewed] = useState(() => new Set(initial.reviewed));
+  const [ratings, setRatings] = useState(() => new Map(Object.entries(initial.ratings)));
   const [target, setTarget] = useState<Target | null>(null);
   const [, start] = useTransition();
 
@@ -52,8 +56,25 @@ export function MarksProvider({ initial, children }: { initial: Initial; childre
     if (!on) {
       setLiked((s) => withKey(s, k, false));
       setDisliked((s) => withKey(s, k, false));
+      setRatings((m) => {
+        const n = new Map(m);
+        n.delete(k);
+        return n;
+      });
     }
     start(() => setSeenByRef(t.kind, t.tmdbId, on));
+  }, []);
+
+  const setRating = useCallback((t: Target, score: number) => {
+    const k = keyOf(t);
+    setRatings((m) => {
+      const n = new Map(m);
+      if (score > 0) n.set(k, score);
+      else n.delete(k);
+      return n;
+    });
+    if (score > 0) setSeenSet((s) => withKey(s, k, true));
+    start(() => rateByRef(t.kind, t.tmdbId, score));
   }, []);
 
   const onReviewed = useCallback((t: Target) => {
@@ -62,14 +83,29 @@ export function MarksProvider({ initial, children }: { initial: Initial; childre
     setSeenSet((s) => withKey(s, k, true));
   }, []);
 
-  const value = useMemo(() => ({ liked, disliked, seen, reviewed, setLike, setSeen, review: setTarget }), [liked, disliked, seen, reviewed, setLike, setSeen]);
+  const value = useMemo(
+    () => ({ liked, disliked, seen, reviewed, ratings, setLike, setSeen, setRating, review: setTarget }),
+    [liked, disliked, seen, reviewed, ratings, setLike, setSeen, setRating],
+  );
 
   return (
     <MarksCtx.Provider value={value}>
       {children}
-      <ReviewSheet target={target} onClose={() => setTarget(null)} onDone={onReviewed} />
+      <ReviewSheet
+        target={target}
+        rating={target ? ratings.get(keyOf(target)) ?? 0 : 0}
+        onRate={(n) => target && setRating(target, n)}
+        onClose={() => setTarget(null)}
+        onDone={onReviewed}
+      />
     </MarksCtx.Provider>
   );
+}
+
+/** Raw sets, for lists that follow the marks live (profile tabs). */
+export function useMarkSets() {
+  const ctx = useContext(MarksCtx);
+  return { liked: ctx?.liked ?? new Set<Key>(), seen: ctx?.seen ?? new Set<Key>(), has: (s: Set<Key>, t: { kind: string; tmdbId: number }) => s.has(keyOf(t)) };
 }
 
 /** Marks for one title, or null outside the provider (signed-out pages). */
@@ -82,6 +118,8 @@ export function useMark(t: { kind: string; tmdbId: number; name: string }) {
     disliked: ctx.disliked.has(k),
     seen: ctx.seen.has(k),
     reviewed: ctx.reviewed.has(k),
+    rating: ctx.ratings.get(k) ?? 0,
+    rate: (n: number) => ctx.setRating(t, ctx.ratings.get(k) === n ? 0 : n),
     toggleLike: () => ctx.setLike(t, ctx.liked.has(k) ? 0 : 1),
     toggleDislike: () => ctx.setLike(t, ctx.disliked.has(k) ? 0 : -1),
     toggleSeen: () => ctx.setSeen(t, !ctx.seen.has(k)),
@@ -94,8 +132,48 @@ function pickMime() {
   return types.find((x) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(x)) ?? "";
 }
 
+/** Five stars. Hover previews, clicking the current score clears it. */
+export function Stars({ value, onChange, size = 22 }: { value: number; onChange: (n: number) => void; size?: number }) {
+  const [hover, setHover] = useState(0);
+  const shown = hover || value;
+  return (
+    <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)} role="radiogroup" aria-label="Note">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <motion.button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={value === n}
+          aria-label={`${n} sur 5`}
+          whileTap={{ scale: 0.8 }}
+          onMouseEnter={() => setHover(n)}
+          onClick={() => onChange(n)}
+          className="p-0.5"
+        >
+          <motion.span animate={{ scale: n <= shown ? 1 : 0.85 }} transition={{ type: "spring", stiffness: 500, damping: 20 }} className="block">
+            <Star size={size} className={n <= shown ? "text-lime" : "text-bone/25"} fill={n <= shown ? "currentColor" : "none"} />
+          </motion.span>
+        </motion.button>
+      ))}
+    </div>
+  );
+}
+
 /** Quick review from anywhere: a voice note, a few words, or both. */
-function ReviewSheet({ target, onClose, onDone }: { target: Target | null; onClose: () => void; onDone: (t: Target) => void }) {
+function ReviewSheet({
+  target,
+  rating,
+  onRate,
+  onClose,
+  onDone,
+}: {
+  target: Target | null;
+  rating: number;
+  onRate: (n: number) => void;
+  onClose: () => void;
+  onDone: (t: Target) => void;
+}) {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"idle" | "rec" | "ready" | "sending" | "sent">("idle");
@@ -170,6 +248,7 @@ function ReviewSheet({ target, onClose, onDone }: { target: Target | null; onClo
     }
     setPhase("sent");
     onDone(target);
+    router.refresh();
     setTimeout(onClose, 1100);
   };
 
@@ -203,6 +282,7 @@ function ReviewSheet({ target, onClose, onDone }: { target: Target | null; onClo
               </motion.div>
             ) : (
               <div className="space-y-6">
+                <Stars value={rating} onChange={(n) => onRate(rating === n ? 0 : n)} size={28} />
                 <div className="flex items-center gap-4">
                   {phase === "rec" ? (
                     <motion.button whileTap={{ scale: 0.9 }} onClick={() => rec.current?.stop()} aria-label="Stop" className="grid size-16 shrink-0 place-items-center rounded-full bg-coral text-ink">

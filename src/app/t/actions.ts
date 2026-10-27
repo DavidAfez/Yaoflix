@@ -132,6 +132,26 @@ export async function setLike(titleId: number, value: 1 | -1 | 0, path?: string)
 export async function likeByRef(kind: string, tmdbId: number, value: 1 | -1 | 0) {
   const titleId = await titleIdFor(kind, tmdbId);
   if (titleId) await setLike(titleId, value);
+  // Refresh whatever page is open (profile lists, home rows) without a reload
+  revalidatePath("/", "layout");
+}
+
+/** Score from 1 to 5, 0 removes it. A score means the title was seen. */
+export async function rateByRef(kind: string, tmdbId: number, score: number) {
+  const user = await requireUser();
+  const titleId = await titleIdFor(kind, tmdbId);
+  if (!titleId) return;
+  const s = Math.max(0, Math.min(5, Math.round(score)));
+  const where = and(eq(schema.ratings.userId, user.id), eq(schema.ratings.titleId, titleId));
+  if (s === 0) await db.delete(schema.ratings).where(where);
+  else {
+    await db
+      .insert(schema.ratings)
+      .values({ userId: user.id, titleId, score: s })
+      .onConflictDoUpdate({ target: [schema.ratings.userId, schema.ratings.titleId], set: { score: s, updatedAt: new Date() } });
+    await markSeen(user.id, titleId, "rating");
+  }
+  revalidatePath("/", "layout");
 }
 
 /** Toggle "seen". Removing it also removes a like or dislike, which only made sense if seen. */
@@ -143,5 +163,7 @@ export async function setSeenByRef(kind: string, tmdbId: number, on: boolean) {
   else {
     await db.delete(schema.seen).where(and(eq(schema.seen.userId, user.id), eq(schema.seen.titleId, titleId)));
     await db.delete(schema.likes).where(and(eq(schema.likes.userId, user.id), eq(schema.likes.titleId, titleId)));
+    await db.delete(schema.ratings).where(and(eq(schema.ratings.userId, user.id), eq(schema.ratings.titleId, titleId)));
   }
+  revalidatePath("/", "layout");
 }

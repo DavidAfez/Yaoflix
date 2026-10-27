@@ -197,6 +197,18 @@ export const likes = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
 );
 
+/** How much the member liked a title, 1 to 5. Rating a title means it was seen. */
+export const ratings = pgTable(
+  "ratings",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    titleId: integer("title_id").notNull().references(() => titles.id, { onDelete: "cascade" }),
+    score: smallint("score").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
+);
+
 /**
  * Titles the member has seen. Set by hand, or implied by a like, a review or a finished viewing.
  * source keeps why, so an explicit "seen" survives removing a like.

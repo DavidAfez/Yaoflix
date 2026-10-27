@@ -1,10 +1,11 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
-import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare } from "lucide-react";
-import { useMark } from "@/components/marks";
+import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare, ArrowLeft } from "lucide-react";
+import { Stars, useMark } from "@/components/marks";
 import { requestTitle, toggleWatchlist, watchNow } from "../../actions";
 import { Button, Choice, Dots } from "@/components/ui";
 import { StatusMark } from "@/components/status";
@@ -111,7 +112,14 @@ export function TitlePanel({ path, title, state }: Props) {
         <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/70 to-ink/10" />
         <div className="absolute inset-0 bg-gradient-to-r from-ink/80 to-transparent" />
 
-        <div className="relative flex min-h-[88svh] flex-col justify-end gap-8 px-4 pb-10 md:min-h-[86vh] md:flex-row md:items-end md:px-10 md:pb-14">
+        <Link
+          href="/"
+          className="absolute left-4 top-4 z-10 flex h-10 items-center gap-2 border border-bone/20 bg-ink/50 px-3 text-sm backdrop-blur transition-colors hover:border-lime hover:text-lime md:left-10 md:top-8"
+        >
+          <ArrowLeft size={16} /> Accueil
+        </Link>
+
+        <div className="relative flex min-h-[88svh] flex-col justify-end gap-8 px-4 pb-10 md:min-h-[86vh] md:flex-row md:items-end md:justify-start md:px-10 md:pb-14">
           {title.poster && (
             <motion.img
               initial={{ opacity: 0, y: 40, rotate: -3 }}
@@ -173,6 +181,12 @@ export function TitlePanel({ path, title, state }: Props) {
                 </>
               )}
             </motion.div>
+            {mark && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="flex items-center gap-4">
+                <Stars value={mark.rating} onChange={mark.rate} size={26} />
+                {mark.rating > 0 && <span className="font-mono text-xs text-lime">{mark.rating}/5</span>}
+              </motion.div>
+            )}
           </div>
         </div>
       </div>

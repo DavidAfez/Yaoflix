@@ -49,7 +49,11 @@ export function Poster({ t, i = 0, size = "md" }: { t: PosterData; i?: number; s
         </div>
         <div className="mt-2 flex items-baseline justify-between gap-2">
           <span className={`truncate text-sm ${seen ? "text-bone/50" : ""}`}>{t.name}</span>
-          {t.year && <span className="shrink-0 font-mono text-[11px] text-dim">{t.year}</span>}
+          {mark?.rating ? (
+            <span className="shrink-0 font-mono text-[11px] text-lime">★{mark.rating}</span>
+          ) : (
+            t.year && <span className="shrink-0 font-mono text-[11px] text-dim">{t.year}</span>
+          )}
         </div>
       </Link>
 

@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Play, Search } from "lucide-react";
 import { Poster, type PosterData } from "@/components/poster";
+import { useMarkSets } from "@/components/marks";
 import { Choice, Field, Submit, FormError } from "@/components/ui";
 import { StatusMark } from "@/components/status";
 import { ageBrackets, sexes } from "@/lib/labels";
@@ -26,14 +27,22 @@ export function MeTabs(props: {
   profile: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean };
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]>("Moi");
+  // Every poster the page knows about, so a like or a seen mark shows up in its tab right away
+  const marks = useMarkSets();
+  const pool = useMemo(() => {
+    const all = [...props.liked, ...props.seen, ...props.overview.recos, ...props.overview.listed, ...props.overview.toAsk, ...props.requests.map((r) => r.poster)];
+    return [...new Map(all.map((p) => [`${p.kind}:${p.tmdbId}`, p])).values()];
+  }, [props]);
+  const liked = pool.filter((p) => marks.has(marks.liked, p));
+  const seen = pool.filter((p) => marks.has(marks.seen, p));
   return (
     <>
       <nav className="scrollbar-none sticky top-0 z-20 -mx-4 flex gap-8 overflow-x-auto border-b border-line bg-ink/90 px-4 backdrop-blur md:top-16 md:-mx-10 md:px-10">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`relative shrink-0 py-5 text-sm ${tab === t ? "text-bone" : "text-dim hover:text-bone"}`}>
             {t}
-            {t === "Aimés" && props.liked.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.liked.length}</span>}
-            {t === "Vus" && props.seen.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.seen.length}</span>}
+            {t === "Aimés" && liked.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{liked.length}</span>}
+            {t === "Vus" && seen.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{seen.length}</span>}
             {t === "Demandes" && props.requests.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.requests.length}</span>}
             {tab === t && <motion.span layoutId="me-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" />}
           </button>
@@ -42,8 +51,8 @@ export function MeTabs(props: {
       <AnimatePresence mode="wait">
         <motion.section key={tab} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }} className="pt-8">
           {tab === "Moi" && <OverviewTab {...props.overview} />}
-          {tab === "Aimés" && (props.liked.length ? <Grid items={props.liked} /> : <Empty word="Aucun coup de cœur." />)}
-          {tab === "Vus" && (props.seen.length ? <Grid items={props.seen} /> : <Empty word="Rien de vu encore." />)}
+          {tab === "Aimés" && (liked.length ? <ByKind items={liked} /> : <Empty word="Aucun coup de cœur." />)}
+          {tab === "Vus" && (seen.length ? <ByKind items={seen} /> : <Empty word="Rien de vu encore." />)}
           {tab === "Demandes" && <Requests items={props.requests} />}
           {tab === "Réglages" && <Settings {...props.profile} />}
         </motion.section>
@@ -192,6 +201,27 @@ function Grid({ items }: { items: PosterData[] }) {
         <Poster key={`${p.kind}${p.tmdbId}`} t={p} i={i} />
       ))}
     </div>
+  );
+}
+
+/** Films first, then series, each with its own count. */
+function ByKind({ items }: { items: PosterData[] }) {
+  const groups = [
+    { label: "Films", items: items.filter((p) => p.kind === "movie") },
+    { label: "Séries", items: items.filter((p) => p.kind === "tv") },
+  ].filter((g) => g.items.length);
+  return (
+    <>
+      {groups.map((g) => (
+        <section key={g.label} className="mb-12">
+          <h2 className="mb-5 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
+            {g.label}
+            <span className="font-mono text-xs text-lime">{String(g.items.length).padStart(2, "0")}</span>
+          </h2>
+          <Grid items={g.items} />
+        </section>
+      ))}
+    </>
   );
 }
 

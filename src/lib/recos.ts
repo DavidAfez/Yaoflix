@@ -8,7 +8,7 @@ import { recencyBucket } from "./labels";
  * Hybrid recommender, in four steps.
  *
  * 1. Taste profile. Each genre gets a weight from what the member did:
- *    like +3, dislike -3, finished viewing +2, marked seen +1, review +1, request +1, watchlist +1.
+ *    like +3, dislike -3, rating (stars - 3) x 1.5, finished viewing +2, marked seen +1, review +1, request +1, watchlist +1.
  *    Same for eras (less than a year, 1 to 5 years, 5 to 15, classics).
  * 2. Candidates. Titles already online, TMDB "recommendations" of the last liked titles,
  *    and top rated titles of the requested kind. Seen and disliked titles are removed.
@@ -34,7 +34,7 @@ async function profile(userId: string): Promise<Profile> {
     if (b !== "Inconnu") eras.set(b, (eras.get(b) ?? 0) + w);
   };
 
-  const [likes, seen, watches, reviews, asked, listed] = await Promise.all([
+  const [likes, seen, watches, reviews, asked, listed, rated] = await Promise.all([
     db
       .select({ id: schema.titles.id, kind: schema.titles.kind, tmdbId: schema.titles.tmdbId, genres: schema.titles.genres, year: schema.titles.year, v: schema.likes.value })
       .from(schema.likes)
@@ -66,7 +66,18 @@ async function profile(userId: string): Promise<Profile> {
       .from(schema.watchlist)
       .innerJoin(schema.titles, eq(schema.titles.id, schema.watchlist.titleId))
       .where(eq(schema.watchlist.userId, userId)),
+    db
+      .select({ id: schema.titles.id, genres: schema.titles.genres, year: schema.titles.year, score: schema.ratings.score })
+      .from(schema.ratings)
+      .innerJoin(schema.titles, eq(schema.titles.id, schema.ratings.titleId))
+      .where(eq(schema.ratings.userId, userId)),
   ]);
+
+  for (const r of rated) {
+    add(r.genres, (r.score - 3) * 1.5);
+    if (r.score >= 4) era(r.year, 1);
+    excluded.add(r.id);
+  }
 
   for (const l of likes) {
     add(l.genres, l.v * 3);

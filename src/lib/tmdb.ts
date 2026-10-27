@@ -73,8 +73,26 @@ function toRow(it: TmdbItem, kind: "movie" | "tv"): typeof schema.titles.$inferI
   };
 }
 
-async function upsert(rows: (typeof schema.titles.$inferInsert)[]): Promise<TitleRow[]> {
+// Upserts run one at a time: several rows of the home page (genres, top rated) often carry the same
+// titles, and parallel "insert ... on conflict do update" on overlapping rows can deadlock
+let upsertChain: Promise<unknown> = Promise.resolve();
+
+async function upsert(input: (typeof schema.titles.$inferInsert)[]): Promise<TitleRow[]> {
+  // The same title twice in one statement makes Postgres refuse the whole insert
+  const seenKeys = new Set<string>();
+  const rows = input.filter((r) => {
+    const k = `${r.kind}:${r.tmdbId}`;
+    if (seenKeys.has(k)) return false;
+    seenKeys.add(k);
+    return true;
+  });
   if (!rows.length) return [];
+  const run = upsertChain.then(() => upsertNow(rows));
+  upsertChain = run.catch(() => undefined);
+  return run;
+}
+
+async function upsertNow(rows: (typeof schema.titles.$inferInsert)[]): Promise<TitleRow[]> {
   return db
     .insert(schema.titles)
     .values(rows)
@@ -136,7 +154,7 @@ export async function trending(): Promise<TitleRow[]> {
   if (hasTmdb()) {
     try {
       const data = await tmdb<{ results: TmdbItem[] }>("/trending/all/week");
-      return upsert(
+      return await upsert(
         data.results
           .map((it) => {
             const kind = pickKind(it);
@@ -177,7 +195,7 @@ export async function similar(kind: "movie" | "tv", tmdbId: number): Promise<Tit
   if (!hasTmdb()) return [];
   try {
     const data = await tmdb<{ results: TmdbItem[] }>(`/${kind}/${tmdbId}/recommendations`);
-    return upsert(data.results.slice(0, 12).map((it) => toRow(it, kind)));
+    return await upsert(data.results.slice(0, 12).map((it) => toRow(it, kind)));
   } catch {
     return [];
   }
@@ -188,7 +206,7 @@ export async function topRated(kind: "movie" | "tv"): Promise<TitleRow[]> {
   if (hasTmdb()) {
     try {
       const pages = await Promise.all(["1", "2"].map((page) => tmdb<{ results: TmdbItem[] }>(`/${kind}/top_rated`, { page })));
-      return upsert(pages.flatMap((p) => p.results).slice(0, 30).map((it) => toRow(it, kind)));
+      return await upsert(pages.flatMap((p) => p.results).slice(0, 30).map((it) => toRow(it, kind)));
     } catch (e) {
       const { logError } = await import("./errors");
       await logError("server", e, { where: "tmdb.topRated", kind });
@@ -238,7 +256,7 @@ export async function byGenre(kind: "movie" | "tv", genre: { id: number; local: 
         "vote_count.gte": "300",
         include_adult: "false",
       });
-      return upsert(data.results.slice(0, limit).map((it) => toRow(it, kind)));
+      return await upsert(data.results.slice(0, limit).map((it) => toRow(it, kind)));
     } catch (e) {
       const { logError } = await import("./errors");
       await logError("server", e, { where: "tmdb.byGenre", kind, genre: genre.id });
