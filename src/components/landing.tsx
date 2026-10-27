@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useRef, useState } from "react";
-import { motion, useMotionValue, useScroll, useSpring, useTransform } from "motion/react";
+import { useState } from "react";
+import { motion, useMotionValue, useSpring } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import { Kinetic, Glow } from "./kinetic";
 import { VoiceStrip } from "./voice-strip";
@@ -55,25 +55,34 @@ function WallTile({ t }: { t: Tile }) {
   );
 }
 
-function Wall({ tiles }: { tiles: Tile[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const shiftA = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
-  const shiftB = useTransform(scrollYProgress, [0, 1], ["-18%", "0%"]);
-  // The scroll target must always be mounted, even with nothing to show
-  if (!tiles.length) return <div ref={ref} className="my-16" />;
-  const rowA = [...tiles, ...tiles].slice(0, 20);
-  const rowB = [...tiles.slice().reverse(), ...tiles].slice(0, 20);
-  const tile = (t: Tile, i: number) => <WallTile key={i} t={t} />;
+// Shown when neither TMDB nor the local cache has anything yet (fresh install, blocked network)
+const CLASSICS: Tile[] = [
+  "Le Parrain", "Pulp Fiction", "Le Voyage de Chihiro", "La Haine", "Interstellar", "Parasite",
+  "Intouchables", "Amélie Poulain", "Matrix", "Fight Club", "Inception", "Le Roi Lion",
+  "Breaking Bad", "Arcane", "Lupin", "The Wire",
+].map((name) => ({ name, poster: null }));
 
+/** One endless row. The list is doubled and slid by half its width, so the loop has no seam. */
+function Marquee({ items, reverse = false, seconds }: { items: Tile[]; reverse?: boolean; seconds: number }) {
+  let half = items;
+  while (half.length < 12) half = [...half, ...items];
   return (
-    <div ref={ref} className="relative -mx-[10vw] my-24 -rotate-6 space-y-3 overflow-hidden py-6 md:my-32">
-      <motion.div style={{ x: shiftA }} className="flex gap-3">
-        {rowA.map(tile)}
-      </motion.div>
-      <motion.div style={{ x: shiftB }} className="flex gap-3">
-        {rowB.map(tile)}
-      </motion.div>
+    <div className="flex w-max gap-3 hover:[animation-play-state:paused] motion-safe:animate-marquee" style={{ animationDuration: `${seconds}s`, animationDirection: reverse ? "reverse" : "normal" }}>
+      {[...half, ...half].map((t, i) => (
+        <WallTile key={i} t={t} />
+      ))}
+    </div>
+  );
+}
+
+function Wall({ tiles }: { tiles: Tile[] }) {
+  const list = tiles.length ? tiles : CLASSICS;
+  const rowA = list;
+  const rowB = [...list].reverse();
+  return (
+    <div className="relative -mx-[10vw] my-24 -rotate-6 space-y-3 overflow-hidden py-6 md:my-32">
+      <Marquee items={rowA} seconds={70} />
+      <Marquee items={rowB} seconds={85} reverse />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink via-transparent to-ink" />
     </div>
   );
