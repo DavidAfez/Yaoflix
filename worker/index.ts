@@ -148,7 +148,18 @@ async function lane(name: string, types: string[]) {
 
 async function main() {
   console.log("GabaoFlix worker up");
-  await recoverStale();
+  // The database may still be starting: wait for it instead of crashing
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await recoverStale();
+      break;
+    } catch (e) {
+      const code = (e as { cause?: { code?: string } }).cause?.code ?? "";
+      const wait = Math.min(30, 5 * attempt);
+      console.log(`base injoignable (${code || "erreur"}), nouvel essai dans ${wait} s`);
+      await sleep(wait * 1000);
+    }
+  }
   setInterval(() => void recoverStale().catch(() => {}), 5 * 60_000);
   const heavy = Number(process.env.TRANSCODE_CONCURRENCY ?? 1);
   await Promise.all([
