@@ -99,6 +99,12 @@ button {
   font: inherit;
 }
 
+/* Edge and IE add their own reveal and clear buttons: the site has its own */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 /* iOS zooms into any field under 16px on focus: keep fields readable at the reduced scale */
 @media (max-width: 767px) {
   input,

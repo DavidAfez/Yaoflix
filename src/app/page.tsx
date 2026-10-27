@@ -127,6 +127,12 @@ export default async function Page() {
           </section>
         )}
 
+        {!grants.length && !recos.length && !latest.length && !myRequests.length && !topMovies.length && !topShows.length && (
+          <div className="grid min-h-[40vh] place-items-center px-6 text-center">
+            <p className="font-display text-5xl font-extrabold leading-none text-bone/15 md:text-8xl">Cherche.<br />Demande.<br />Regarde.</p>
+          </div>
+        )}
+
         <VoiceStrip />
 
         {topMovies.length > 0 && (

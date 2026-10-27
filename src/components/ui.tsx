@@ -1,7 +1,8 @@
 "use client";
 import { motion, type HTMLMotionProps } from "motion/react";
 import { useFormStatus } from "react-dom";
-import { forwardRef, useId } from "react";
+import { forwardRef, useId, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 type BtnProps = HTMLMotionProps<"button"> & { tone?: "lime" | "ghost" | "coral" | "bone"; size?: "md" | "lg" };
 
@@ -59,17 +60,32 @@ export function Dots() {
 export function Field({
   label,
   className = "",
+  type,
   ...rest
 }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   const id = useId();
+  const secret = type === "password";
+  const [shown, setShown] = useState(false);
   return (
     <label htmlFor={id} className={`group relative block pt-5 ${className}`}>
       <input
         id={id}
         placeholder=" "
-        className="peer w-full border-b border-line bg-transparent pb-2 pt-1 text-lg outline-none transition-colors focus:border-lime"
+        type={secret && shown ? "text" : type}
+        className={`peer w-full border-b border-line bg-transparent pb-2 pt-1 text-lg outline-none transition-colors focus:border-lime ${secret ? "pr-10" : ""}`}
         {...rest}
       />
+      {secret && (
+        <button
+          type="button"
+          onClick={() => setShown(!shown)}
+          aria-label={shown ? "Masquer" : "Afficher"}
+          title={shown ? "Masquer" : "Afficher"}
+          className="absolute bottom-2 right-0 grid size-8 place-items-center text-dim transition-colors hover:text-lime"
+        >
+          {shown ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      )}
       <span className="pointer-events-none absolute left-0 top-6 text-lg text-dim transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)] peer-focus:top-0 peer-focus:text-xs peer-focus:text-lime peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs">
         {label}
       </span>
