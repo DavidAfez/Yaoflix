@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, useMotionValue, useScroll, useSpring, useTransform } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import { Kinetic, Glow } from "./kinetic";
@@ -36,23 +36,34 @@ function Magnetic({ children, href }: { children: React.ReactNode; href: string 
   );
 }
 
-function Wall({ posters }: { posters: string[] }) {
+type Tile = { name: string; poster: string | null };
+
+/** A poster, or the title set in type when there is no image (no TMDB key, blocked network, broken link). */
+function WallTile({ t }: { t: Tile }) {
+  const [broken, setBroken] = useState(false);
+  return (
+    <div className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden bg-ink-3 md:w-40">
+      {t.poster && !broken ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={t.poster} alt="" className="size-full object-cover" loading="lazy" onError={() => setBroken(true)} />
+      ) : (
+        <div className="flex size-full flex-col justify-end bg-gradient-to-br from-ink-3 to-ink p-3">
+          <span className="line-clamp-4 break-words font-display text-sm font-extrabold leading-tight text-bone/80 [hyphens:auto] md:text-lg" lang="fr">{t.name}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Wall({ tiles }: { tiles: Tile[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const shiftA = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
   const shiftB = useTransform(scrollYProgress, [0, 1], ["-18%", "0%"]);
-  const fill = posters.length ? posters : Array.from({ length: 12 }, () => "");
-  const rowA = [...fill, ...fill].slice(0, 20);
-  const rowB = [...fill.slice().reverse(), ...fill].slice(0, 20);
-
-  const tile = (src: string, i: number) => (
-    <div key={i} className="aspect-[2/3] w-36 shrink-0 overflow-hidden bg-ink-3 md:w-52">
-      {src && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="size-full object-cover" loading="lazy" />
-      )}
-    </div>
-  );
+  if (!tiles.length) return <div className="my-16" />;
+  const rowA = [...tiles, ...tiles].slice(0, 20);
+  const rowB = [...tiles.slice().reverse(), ...tiles].slice(0, 20);
+  const tile = (t: Tile, i: number) => <WallTile key={i} t={t} />;
 
   return (
     <div ref={ref} className="relative -mx-[10vw] my-24 -rotate-6 space-y-3 overflow-hidden py-6 md:my-32">
@@ -104,13 +115,13 @@ function Countdown() {
   );
 }
 
-export function Landing({ posters }: { posters: string[] }) {
+export function Landing({ tiles }: { tiles: Tile[] }) {
   return (
     <main className="relative overflow-x-clip">
       <Glow />
       <header className="relative z-10 flex items-center justify-between p-5 md:p-10">
         <span className="font-display text-xl font-extrabold">
-          GABAO<span className="text-lime">.</span>
+          GABAOFLIX<span className="text-lime">.</span>
         </span>
         <Link href="/login" className="text-sm tracking-wide text-bone/70 underline-offset-8 hover:text-bone hover:underline">
           Connexion
@@ -118,23 +129,27 @@ export function Landing({ posters }: { posters: string[] }) {
       </header>
 
       <section className="relative z-10 px-5 pt-[8vh] md:px-10">
-        <h1 className="font-display text-[11vw] font-extrabold leading-[0.9] tracking-tighter md:text-[9.5vw]">
-          <Kinetic text="Tu demandes." className="block" />
-          <Kinetic text="On upload." className="block text-bone/25" delay={0.35} />
-          <Kinetic text="Tu regardes." className="block text-lime" delay={0.7} />
+        <h1 className="font-display text-[15vw] font-extrabold leading-[0.85] tracking-tighter md:text-[11vw]">
+          <Kinetic text="Gabao" />
+          <Kinetic text="Flix" className="text-lime" delay={0.18} />
         </h1>
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3 }} className="mt-12">
+        <p className="mt-6 font-display text-[6vw] font-extrabold leading-[0.95] tracking-tight md:text-[3.2vw]">
+          <span className="block"><Kinetic text="Tu demandes." delay={0.5} /></span>
+          <span className="block"><Kinetic text="On upload." className="text-bone/30" delay={0.7} /></span>
+          <span className="block"><Kinetic text="Tu regardes." className="text-lime" delay={0.9} /></span>
+        </p>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3 }} className="mt-10">
           <Magnetic href="/join">Entrer</Magnetic>
         </motion.div>
       </section>
 
-      <Wall posters={posters} />
+      <Wall tiles={tiles} />
 
       <section className="relative z-10 px-5 md:px-10">
         <div className="space-y-2">
-          <Line className="text-[17vw] md:text-[8vw]">0 nom.</Line>
-          <Line className="text-[17vw] text-bone/25 md:text-[8vw]">0 IP.</Line>
-          <Line className="text-[17vw] text-lime md:text-[8vw]">Mail chiffré.</Line>
+          <Line className="text-[13.5vw] md:text-[6.4vw]">0 nom.</Line>
+          <Line className="text-[13.5vw] text-bone/25 md:text-[6.4vw]">0 IP.</Line>
+          <Line className="text-[13.5vw] text-lime md:text-[6.4vw]">Mail chiffré.</Line>
         </div>
       </section>
 

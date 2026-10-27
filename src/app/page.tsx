@@ -15,11 +15,10 @@ import { StatusMark } from "@/components/status";
 export default async function Page() {
   const user = await getUser();
   if (!user) {
-    const posters = (await trending().catch(() => []))
-      .map((t) => img(t.posterPath, "w342"))
-      .filter((p): p is string => Boolean(p))
-      .slice(0, 16);
-    return <Landing posters={posters} />;
+    let rows = await trending().catch(() => []);
+    if (rows.length < 8) rows = [...rows, ...(await topRated("movie").catch(() => []))];
+    const tiles = rows.slice(0, 16).map((t) => ({ name: t.name, poster: img(t.posterPath, "w342") }));
+    return <Landing tiles={tiles} />;
   }
 
   const [grants, myRequests, fresh, recos, topMovies, topShows] = await Promise.all([

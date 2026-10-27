@@ -38,6 +38,8 @@
 
 :root {
   color-scheme: dark;
+  /* Whole interface at 80%: Tailwind sizes are in rem, so they all scale from here */
+  font-size: 80%;
   --notch: 12px;
 }
 
@@ -95,6 +97,15 @@ select,
 textarea,
 button {
   font: inherit;
+}
+
+/* iOS zooms into any field under 16px on focus: keep fields readable at the reduced scale */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
 }
 
 /* In the base layer so utilities like outline-none can still override it */
