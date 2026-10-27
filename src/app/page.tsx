@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getUser } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { cinephile, recommend } from "@/lib/recos";
 import { trending, topRated, byGenre, byCountry, classics, interleave, AFRICA, COUNTRY_ROWS, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
 import { neverTitleIds } from "@/lib/marks";
 import { KindTabs } from "@/components/kind-tabs";
+import { Billboard, type Slide } from "@/components/billboard";
 import { readyTitleIds } from "@/lib/recos";
 import { toPoster, daysLeft } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
@@ -21,6 +23,7 @@ export default async function Page(props: PageProps<"/">) {
     const tiles = rows.slice(0, 16).map((t) => ({ name: t.name, poster: img(t.posterPath, "w342") }));
     return <Landing tiles={tiles} />;
   }
+  if (!user.approved) redirect("/pending");
 
   const sp = await props.searchParams;
   const k: "all" | "movie" | "tv" = sp.k === "movie" || sp.k === "tv" ? sp.k : "all";
@@ -81,11 +84,26 @@ export default async function Page(props: PageProps<"/">) {
   const topReady = await readyTitleIds(
     [...topMovies, ...topShows, ...recos, ...old, ...mine, ...genres.flatMap((r) => r.items), ...countries.flatMap((r) => r.items)].map((t) => t.id),
   );
+  // Billboard: the best recommendations that have a backdrop, then classics picked for this member
+  const slides: Slide[] = [...new Map([...keep(recos), ...keep(mine), ...keep(topMovies)].filter((t) => t.backdropPath).map((t) => [t.id, t])).values()]
+    .slice(0, 6)
+    .map((t) => ({
+      kind: t.kind,
+      tmdbId: t.tmdbId,
+      name: t.name,
+      year: t.year,
+      overview: t.overview,
+      backdrop: img(t.backdropPath, "w1280")!,
+      genres: t.genres,
+      ready: topReady.has(t.id),
+      vote: t.voteAverage,
+    }));
   const latest = fresh.sort((a, b) => (b.readyAt?.getTime() ?? 0) - (a.readyAt?.getTime() ?? 0)).slice(0, 16);
 
   return (
     <main>
       <SearchHero>
+        <Billboard slides={slides} />
         <KindTabs current={k} />
 
         {grants.length > 0 && (

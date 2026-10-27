@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, Mic, Square, X, RotateCcw, Star, Lock, SlidersHorizontal } from "lucide-react";
 import { getDeepReview, likeByRef, rateByRef, saveDeepReview, setNeverByRef, setSeenByRef } from "@/app/t/actions";
 import { CRITERIA, DEEP_UNLOCK, TAGS } from "@/lib/deep";
+import { fmtRating } from "@/lib/rating";
 import { Dots } from "./ui";
 
 type Key = string;
@@ -160,28 +161,51 @@ function pickMime() {
   return types.find((x) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(x)) ?? "";
 }
 
-/** Five stars. Hover previews, clicking the current score clears it. */
+/** One star filled from 0 to 1, by halves. */
+export function StarShape({ fill, size }: { fill: number; size: number }) {
+  return (
+    <span className="relative block" style={{ width: size, height: size }}>
+      <Star size={size} className="absolute inset-0 text-bone/25" />
+      <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+        <Star size={size} className="text-lime" fill="currentColor" />
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Five stars with halves, Letterboxd style: the left half of a star gives x.5, the right half a full point.
+ * Hover previews, clicking the current score clears it.
+ */
 export function Stars({ value, onChange, size = 22 }: { value: number; onChange: (n: number) => void; size?: number }) {
   const [hover, setHover] = useState(0);
   const shown = hover || value;
   return (
     <div className="flex items-center gap-1" onMouseLeave={() => setHover(0)} role="radiogroup" aria-label="Note">
       {[1, 2, 3, 4, 5].map((n) => (
-        <motion.button
+        <motion.span
           key={n}
-          type="button"
-          role="radio"
-          aria-checked={value === n}
-          aria-label={`${n} sur 5`}
-          whileTap={{ scale: 0.8 }}
-          onMouseEnter={() => setHover(n)}
-          onClick={() => onChange(n)}
-          className="p-0.5"
+          whileTap={{ scale: 0.85 }}
+          animate={{ scale: n - 0.5 <= shown ? 1 : 0.88 }}
+          transition={{ type: "spring", stiffness: 500, damping: 20 }}
+          className="relative block p-0.5"
         >
-          <motion.span animate={{ scale: n <= shown ? 1 : 0.85 }} transition={{ type: "spring", stiffness: 500, damping: 20 }} className="block">
-            <Star size={size} className={n <= shown ? "text-lime" : "text-bone/25"} fill={n <= shown ? "currentColor" : "none"} />
-          </motion.span>
-        </motion.button>
+          <StarShape fill={Math.max(0, Math.min(1, shown - (n - 1)))} size={size} />
+          {[n - 0.5, n].map((v, half) => (
+            <button
+              key={v}
+              type="button"
+              role="radio"
+              aria-checked={value === v}
+              aria-label={`${fmtRating(v)} sur 5`}
+              onMouseEnter={() => setHover(v)}
+              onFocus={() => setHover(v)}
+              onBlur={() => setHover(0)}
+              onClick={() => onChange(v)}
+              className={`absolute inset-y-0 w-1/2 ${half ? "right-0" : "left-0"}`}
+            />
+          ))}
+        </motion.span>
       ))}
     </div>
   );

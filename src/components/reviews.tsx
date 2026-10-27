@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Mic, Star } from "lucide-react";
+import { Mic } from "lucide-react";
+import { StarShape } from "./marks";
+import { fmtRating } from "@/lib/rating";
 import { CRITERIA } from "@/lib/deep";
 import { img } from "@/lib/tmdb";
 import type { PublicReview } from "@/lib/reviews";
@@ -9,9 +11,9 @@ const when = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "
 
 function StaticStars({ value }: { value: number }) {
   return (
-    <span className="flex gap-0.5" aria-label={`${value} sur 5`}>
+    <span className="flex gap-0.5" aria-label={`${fmtRating(value)} sur 5`}>
       {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} size={13} className={n <= value ? "text-lime" : "text-bone/20"} fill={n <= value ? "currentColor" : "none"} />
+        <StarShape key={n} fill={Math.max(0, Math.min(1, value - (n - 1)))} size={13} />
       ))}
     </span>
   );

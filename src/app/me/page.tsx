@@ -8,7 +8,8 @@ import { roleLabel } from "@/lib/rbac";
 import { recencyBucket, recencyOrder } from "@/lib/labels";
 import { MeTabs } from "./tabs";
 import { logout } from "../(auth)/actions";
-import { LogOut } from "lucide-react";
+import { Bug, LogOut } from "lucide-react";
+import Link from "next/link";
 import { Stat } from "./stat";
 
 export const metadata = { title: "Moi" };
@@ -109,6 +110,15 @@ export default async function Page() {
       <header className="border-b border-line pb-8">
         <div className="flex items-center justify-between gap-4">
           <p className="font-mono text-xs uppercase tracking-widest text-lime">{roleLabel[user.role]}</p>
+          <div className="flex gap-2">
+          <Link
+            href="/bug?from=/me"
+            aria-label="Signaler un bug"
+            className="flex h-10 items-center gap-2 border border-line px-3 text-sm transition-colors hover:border-lime hover:text-lime"
+          >
+            <Bug size={15} />
+            <span className="hidden sm:inline">Un souci ?</span>
+          </Link>
           <form action={logout}>
             <button
               aria-label="Déconnexion"
@@ -118,6 +128,7 @@ export default async function Page() {
               <span className="hidden sm:inline">Déconnexion</span>
             </button>
           </form>
+          </div>
         </div>
         <h1 className="mt-3 break-all font-display text-5xl font-extrabold tracking-tighter md:text-8xl">@{user.handle}</h1>
 

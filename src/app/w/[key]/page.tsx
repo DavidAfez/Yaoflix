@@ -11,6 +11,7 @@ export default async function Page(props: PageProps<"/w/[key]">) {
   const { key } = await props.params;
   const user = await getUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(`/w/${key}`)}`);
+  if (!user.approved) redirect("/pending");
   const g = await resolveGrant(key, user.id);
   if (!g) {
     return (

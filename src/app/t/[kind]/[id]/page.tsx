@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
-import { getTitle, img, similar } from "@/lib/tmdb";
+import { credits, getTitle, img, similar } from "@/lib/tmdb";
+import { CreditsPanel } from "./credits";
 import { readyTitleIds } from "@/lib/recos";
 import { toPoster } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
@@ -24,7 +25,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
   const title = await getTitle(kind, Number(id));
   if (!title) notFound();
 
-  const [[ready], [request], [listed], [like], [grant], more, reviews, deep] = await Promise.all([
+  const [[ready], [request], [listed], [like], [grant], more, reviews, deep, cred] = await Promise.all([
     db.select({ id: schema.media.id }).from(schema.media).where(and(eq(schema.media.titleId, title.id), eq(schema.media.status, "READY"))).limit(1),
     db.select().from(schema.requests).where(and(eq(schema.requests.userId, user.id), eq(schema.requests.titleId, title.id))).orderBy(desc(schema.requests.createdAt)).limit(1),
     db.select().from(schema.watchlist).where(and(eq(schema.watchlist.userId, user.id), eq(schema.watchlist.titleId, title.id))),
@@ -46,6 +47,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
     similar(kind, title.tmdbId),
     titleReviews(title.id),
     deepSummary(title.id),
+    credits(kind, title.tmdbId),
   ]);
   const moreReady = await readyTitleIds(more.map((m) => m.id));
 
@@ -65,6 +67,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           backdrop: img(title.backdropPath, "w1280"),
           vote: title.voteAverage,
           kind: title.kind,
+          release: title.releaseDate,
         }}
         state={{
           ready: Boolean(ready),
@@ -75,6 +78,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           verified: Boolean(user.emailVerifiedAt),
         }}
       />
+      {cred && (cred.crew.length > 0 || cred.cast.length > 0) && <CreditsPanel data={cred} />}
       {reviews.length > 0 && (
         <section className="mt-12 px-4 md:px-10">
           <h2 className="mb-6 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">

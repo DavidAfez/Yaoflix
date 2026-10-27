@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, ne, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { hashPassword, requireRole } from "@/lib/auth";
@@ -132,6 +132,7 @@ export async function createMember(_: MemberState, form: FormData): Promise<Memb
       emailEnc: encrypt(normalizeEmail(email)),
       emailHash,
       emailVerifiedAt: new Date(),
+      approvedAt: new Date(),
       passwordHash: await hashPassword(password),
       role,
       ageBracket: age || null,
@@ -173,5 +174,20 @@ export async function deleteMember(userId: string) {
   if (!target || userId === actor.id || !can.moderate(actor.role, target.role)) throw new Error("Forbidden");
   await db.delete(schema.users).where(eq(schema.users.id, userId));
   await audit(actor.id, "user.delete", userId);
+  revalidatePath("/studio/members");
+}
+
+/** Lets in a member who confirmed the email. */
+export async function approveMember(userId: string) {
+  const actor = await requireRole(can.manageUsers);
+  const [u] = await db
+    .update(schema.users)
+    .set({ approvedAt: new Date() })
+    .where(and(eq(schema.users.id, userId), isNull(schema.users.approvedAt)))
+    .returning({ id: schema.users.id });
+  if (u) {
+    await queueMail(u.id, "approved", {});
+    await audit(actor.id, "user.approve", userId);
+  }
   revalidatePath("/studio/members");
 }

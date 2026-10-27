@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Home, Bookmark, User, Clapperboard, LogOut, Search } from "lucide-react";
+import { Home, Bookmark, User, Clapperboard, LogOut, Search, Bug, MessagesSquare } from "lucide-react";
 import { SearchOverlay } from "./search";
 import { logout } from "@/app/(auth)/actions";
 import type { Role } from "@/db/schema";
@@ -38,11 +38,13 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
 
   const items = [
     { href: "/", label: "Accueil", icon: Home },
+    { href: "/feed", label: "Feed", icon: MessagesSquare },
     { href: "/list", label: "Liste", icon: Bookmark },
     { href: "/me", label: "Moi", icon: User },
     ...(isStaff(role) ? [{ href: "/studio", label: "Studio", icon: Clapperboard }] : []),
   ];
-  const active = (href: string) => (href === "/" ? path === "/" || path.startsWith("/t/") : path.startsWith(href));
+  const active = (href: string) =>
+    href === "/" ? path === "/" || path.startsWith("/t/") : href === "/feed" ? path.startsWith("/feed") || path.startsWith("/p/") || path.startsWith("/u/") : path.startsWith(href);
 
   return (
     <>
@@ -73,7 +75,15 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
           </button>
         )}
         <span className={`${path === "/" ? "ml-auto" : "ml-6"} font-mono text-xs text-dim`}>@{handle}</span>
-        <form action={logout} className="ml-5">
+        <Link
+          href={`/bug?from=${encodeURIComponent(path)}`}
+          aria-label="Signaler un bug"
+          title="Signaler un bug"
+          className="ml-4 grid size-9 place-items-center text-dim transition-colors hover:text-lime"
+        >
+          <Bug size={17} />
+        </Link>
+        <form action={logout} className="ml-1">
           <button aria-label="Déconnexion" title="Déconnexion" className="grid size-9 place-items-center text-dim transition-colors hover:text-coral">
             <LogOut size={17} />
           </button>

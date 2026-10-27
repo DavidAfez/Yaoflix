@@ -138,12 +138,13 @@ export async function likeByRef(kind: string, tmdbId: number, value: 1 | -1 | 0)
   revalidatePath("/", "layout");
 }
 
-/** Score from 1 to 5, 0 removes it. A score means the title was seen. */
+/** Score from 0.5 to 5 by halves, 0 removes it. A score means the title was seen. */
 export async function rateByRef(kind: string, tmdbId: number, score: number) {
   const user = await requireUser();
   const titleId = await titleIdFor(kind, tmdbId);
   if (!titleId) return;
-  const s = Math.max(0, Math.min(5, Math.round(score)));
+  const s = Math.max(0, Math.min(5, Math.round(Number(score) * 2) / 2));
+  if (!Number.isFinite(s)) return;
   const where = and(eq(schema.ratings.userId, user.id), eq(schema.ratings.titleId, titleId));
   if (s === 0) await db.delete(schema.ratings).where(where);
   else {

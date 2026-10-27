@@ -62,6 +62,12 @@ export function renderMail(template: string, d: Data): Mail {
           href: `${process.env.APP_URL ?? ""}/me`,
         }),
       };
+    case "approved":
+      return {
+        subject: "Bienvenue sur GabaoFlix",
+        text: `Ton compte est validé : ${process.env.APP_URL ?? ""}`,
+        html: frame("Tu es dedans.", "", { label: "Entrer", href: process.env.APP_URL ?? "/" }),
+      };
     default:
       throw new Error(`Unknown mail template ${template}`);
   }

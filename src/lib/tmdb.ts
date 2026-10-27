@@ -346,3 +346,58 @@ export function interleave(base: TitleRow[], extra: TitleRow[], every = 4, max =
   add.forEach((t, i) => out.splice(Math.min(out.length, 1 + i * every), 0, t));
   return out;
 }
+
+export type Credits = {
+  companies: string[];
+  networks: string[];
+  crew: { job: string; names: string[] }[];
+  cast: { name: string; role: string | null; photo: string | null }[];
+};
+
+type Person = { name: string; job?: string; character?: string; profile_path?: string | null; roles?: { character: string }[]; jobs?: { job: string }[] };
+
+const JOBS: [string, string][] = [
+  ["Director", "Réalisation"],
+  ["Screenplay", "Scénario"],
+  ["Writer", "Scénario"],
+  ["Novel", "D'après"],
+  ["Producer", "Production"],
+  ["Executive Producer", "Production exécutive"],
+  ["Original Music Composer", "Musique"],
+  ["Director of Photography", "Image"],
+  ["Editor", "Montage"],
+];
+
+/** Studios, crew and cast. Null when TMDB is out of reach: the section then stays hidden. */
+export async function credits(kind: "movie" | "tv", tmdbId: number): Promise<Credits | null> {
+  if (!hasTmdb()) return null;
+  try {
+    const extra = kind === "movie" ? "credits" : "aggregate_credits";
+    const d = await tmdb<{
+      production_companies?: { name: string }[];
+      networks?: { name: string }[];
+      created_by?: { name: string }[];
+      credits?: { cast: Person[]; crew: Person[] };
+      aggregate_credits?: { cast: Person[]; crew: Person[] };
+    }>(`/${kind}/${tmdbId}`, { append_to_response: extra });
+    const c = d.credits ?? d.aggregate_credits ?? { cast: [], crew: [] };
+    const byJob = new Map<string, string[]>();
+    if (d.created_by?.length) byJob.set("Création", d.created_by.map((p) => p.name));
+    for (const [job, label] of JOBS) {
+      const names = c.crew.filter((p) => p.job === job || p.jobs?.some((j) => j.job === job)).map((p) => p.name);
+      if (names.length) byJob.set(label, [...new Set([...(byJob.get(label) ?? []), ...names])].slice(0, 6));
+    }
+    return {
+      companies: (d.production_companies ?? []).map((x) => x.name).slice(0, 8),
+      networks: (d.networks ?? []).map((x) => x.name),
+      crew: [...byJob].map(([job, names]) => ({ job, names })),
+      cast: c.cast.slice(0, 20).map((p) => ({
+        name: p.name,
+        role: p.character ?? p.roles?.[0]?.character ?? null,
+        photo: p.profile_path ? `https://image.tmdb.org/t/p/w185${p.profile_path}` : null,
+      })),
+    };
+  } catch {
+    return null;
+  }
+}

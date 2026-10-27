@@ -49,5 +49,7 @@ export async function POST(req: Request) {
     .returning({ id: schema.feedback.id });
   if (file) await enqueue("transcribe", { feedbackId: fb.id });
   if (titleId) await markSeen(user.id, titleId, "review");
+  // Every review is also a post in the feed. A voice note shows its transcript once the worker has it
+  await db.insert(schema.posts).values({ userId: user.id, titleId, feedbackId: fb.id, body: text || null });
   return NextResponse.json({ ok: true });
 }

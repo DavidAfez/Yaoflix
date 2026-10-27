@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare, ArrowLeft, Ban, SlidersHorizontal } from "lucide-react";
 import { Stars, useMark } from "@/components/marks";
+import { fmtRating } from "@/lib/rating";
 import { requestTitle, toggleWatchlist, watchNow } from "../../actions";
 import { Button, Choice, Dots } from "@/components/ui";
 import { StatusMark } from "@/components/status";
@@ -26,6 +27,7 @@ type Props = {
     backdrop: string | null;
     vote: number | null;
     kind: string;
+    release: string | null;
   };
   state: {
     ready: boolean;
@@ -55,6 +57,11 @@ export function TitlePanel({ path, title, state }: Props) {
   const { scrollYProgress } = useScroll({ target: hero, offset: ["start start", "end start"] });
   const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   const bgO = useTransform(scrollYProgress, [0, 1], [1, 0.2]);
+
+  // Brand new titles rarely have a source yet: say it before the member asks
+  const age = title.release ? (Date.now() - new Date(title.release).getTime()) / 86400_000 : null;
+  const fresh = !state.ready && !state.grant && age !== null && age < 31;
+  const freshNote = fresh ? (age! < 0 ? "Pas encore sorti." : "Sorti il y a moins d'un mois : peut-être pas encore dispo.") : null;
 
   const open = state.request && (state.request.status === "PENDING" || state.request.status === "IN_PROGRESS");
   const meta = [title.year, fmtRuntime(title.runtime), title.kind === "tv" ? "Série" : null, ...title.genres.slice(0, 3)].filter(Boolean);
@@ -151,6 +158,11 @@ export function TitlePanel({ path, title, state }: Props) {
               </motion.p>
             )}
             {state.request?.status === "REJECTED" && !state.ready && <StatusMark status="REJECTED" reason={state.request.reason} />}
+            {freshNote && (
+              <motion.p initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45 }} className="border-l-2 border-coral pl-3 text-sm text-bone">
+                {freshNote}
+              </motion.p>
+            )}
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex flex-wrap items-center gap-2 pt-2">
               {primary}
@@ -192,7 +204,7 @@ export function TitlePanel({ path, title, state }: Props) {
             {mark && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="flex items-center gap-4">
                 <Stars value={mark.rating} onChange={mark.rate} size={26} />
-                {mark.rating > 0 && <span className="font-mono text-xs text-lime">{mark.rating}/5</span>}
+                {mark.rating > 0 && <span className="font-mono text-xs text-lime">{fmtRating(mark.rating)}/5</span>}
               </motion.div>
             )}
           </div>
@@ -236,6 +248,7 @@ export function TitlePanel({ path, title, state }: Props) {
                     <Choice name="quality" label="Qualité" value={prefs.quality} options={qualityOptions} onChange={(quality) => setPrefs({ ...prefs, quality })} />
                     <Choice name="audio" label="Audio" value={prefs.audio} options={audioOptions} onChange={(audio) => setPrefs({ ...prefs, audio })} />
                     <Choice name="subs" label="Sous-titres" value={prefs.subs} options={subsOptions} onChange={(subs) => setPrefs({ ...prefs, subs })} />
+                    {freshNote && <p className="border-l-2 border-coral pl-3 text-sm">{freshNote}</p>}
                     {error && <p className="text-sm text-coral">{error}</p>}
                     <Button size="lg" className="w-full" onClick={send} disabled={pending}>
                       {pending ? <Dots /> : "Envoyer"}

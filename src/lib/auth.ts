@@ -44,7 +44,7 @@ export async function destroySession() {
 export type SessionUser = Pick<
   User,
   "id" | "handle" | "role" | "ageBracket" | "sex" | "country" | "emailVerifiedAt" | "whatsappOptIn"
-> & { hasPhone: boolean };
+> & { hasPhone: boolean; approved: boolean };
 
 /** Resolve the current user once per request. */
 export const getUser = cache(async (): Promise<SessionUser | null> => {
@@ -62,19 +62,22 @@ export const getUser = cache(async (): Promise<SessionUser | null> => {
       whatsappOptIn: schema.users.whatsappOptIn,
       phoneHash: schema.users.phoneHash,
       bannedAt: schema.users.bannedAt,
+      approvedAt: schema.users.approvedAt,
     })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.users.id, schema.sessions.userId))
     .where(and(eq(schema.sessions.id, sha256(token)), gt(schema.sessions.expiresAt, new Date())))
     .limit(1);
   if (!row || row.bannedAt) return null;
-  const { phoneHash, bannedAt: _b, ...user } = row;
-  return { ...user, hasPhone: Boolean(phoneHash) };
+  const { phoneHash, bannedAt: _b, approvedAt, ...user } = row;
+  return { ...user, hasPhone: Boolean(phoneHash), approved: Boolean(approvedAt) };
 });
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await getUser();
   if (!user) redirect("/login");
+  // Confirmed email but not yet let in by staff
+  if (!user.approved) redirect("/pending");
   return user;
 }
 
@@ -87,7 +90,7 @@ export async function requireRole(check: (r: Role) => boolean): Promise<SessionU
 /** For route handlers: returns null instead of redirecting. */
 export async function apiUser(check?: (r: Role) => boolean): Promise<SessionUser | null> {
   const user = await getUser();
-  if (!user) return null;
+  if (!user || !user.approved) return null;
   if (check && !check(user.role)) return null;
   return user;
 }

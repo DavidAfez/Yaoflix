@@ -17,7 +17,7 @@ type Row = {
   resolved: boolean;
 };
 
-const SOURCES = ["server", "client", "player", "worker", "mail", "whatsapp"];
+const SOURCES = ["user", "server", "client", "player", "worker", "mail", "whatsapp"];
 const tone: Record<string, string> = {
   server: "bg-coral",
   worker: "bg-coral",

@@ -15,6 +15,7 @@ import {
   primaryKey,
   uniqueIndex,
   index,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["USER", "UPLOADER", "MODERATOR", "DEV"]);
@@ -43,6 +44,8 @@ export const users = pgTable(
     emailEnc: text("email_enc").notNull(),
     emailHash: text("email_hash").notNull(),
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    // Staff lets the member in once the email is confirmed
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
     passwordHash: text("password_hash").notNull(),
     role: roleEnum("role").notNull().default("USER"),
     ageBracket: text("age_bracket"),
@@ -199,13 +202,13 @@ export const likes = pgTable(
   (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
 );
 
-/** How much the member liked a title, 1 to 5. Rating a title means it was seen. */
+/** How much the member liked a title, 0.5 to 5 by halves. Rating a title means it was seen. */
 export const ratings = pgTable(
   "ratings",
   {
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     titleId: integer("title_id").notNull().references(() => titles.id, { onDelete: "cascade" }),
-    score: smallint("score").notNull(),
+    score: real("score").notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.titleId] })],
@@ -357,3 +360,48 @@ export const auditLog = pgTable("audit_log", {
 export type User = typeof users.$inferSelect;
 export type Role = (typeof roleEnum.enumValues)[number];
 export type RejectReason = (typeof rejectReasonEnum.enumValues)[number];
+
+/**
+ * The feed. A post talks about a title (or not), may come from a review, may answer another post
+ * (parentId) or share it again (repostOf, no body).
+ */
+export const posts = pgTable(
+  "posts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    titleId: integer("title_id").references(() => titles.id, { onDelete: "set null" }),
+    feedbackId: uuid("feedback_id").references(() => feedback.id, { onDelete: "cascade" }),
+    parentId: uuid("parent_id").references((): AnyPgColumn => posts.id, { onDelete: "cascade" }),
+    repostOf: uuid("repost_of").references((): AnyPgColumn => posts.id, { onDelete: "cascade" }),
+    body: text("body"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("posts_created_idx").on(t.createdAt),
+    index("posts_user_idx").on(t.userId),
+    index("posts_parent_idx").on(t.parentId),
+    index("posts_repost_idx").on(t.repostOf),
+    uniqueIndex("posts_feedback_idx").on(t.feedbackId),
+  ],
+);
+
+export const postLikes = pgTable(
+  "post_likes",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    postId: uuid("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.postId] }), index("post_likes_post_idx").on(t.postId)],
+);
+
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: uuid("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    followeeId: uuid("followee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.followerId, t.followeeId] }), index("follows_followee_idx").on(t.followeeId)],
+);

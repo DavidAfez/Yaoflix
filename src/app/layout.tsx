@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="fr" className={`${unbounded.variable} ${geist.variable} ${geistMono.variable}`}>
       <body className="min-h-dvh">
-        {user ? (
+        {user?.approved ? (
           <MarksProvider initial={await getMarks(user.id)} deep={await deepState(user.id)}>
             <Nav role={user.role} handle={user.handle} />
             <div className="pb-24 md:pb-0 md:pt-16">{children}</div>
@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         ) : (
           children
         )}
-        {user && <Presence />}
+        {user?.approved && <Presence />}
         <ErrorReporter />
       </body>
     </html>

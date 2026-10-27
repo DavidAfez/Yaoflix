@@ -2,13 +2,13 @@
 import { useRouter } from "next/navigation";
 import { Fragment, useActionState, useEffect, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Ban, Pencil, Plus, Search, ShieldCheck, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Ban, Check, Pencil, Plus, Search, ShieldCheck, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { Choice, Field, FormError, Submit } from "@/components/ui";
 import { can, roleLabel } from "@/lib/rbac";
 import { ageBrackets, sexes } from "@/lib/labels";
 import { DEEP_UNLOCK } from "@/lib/deep";
-import { createMember, deleteMember, setBan, setDeepReview, setRole, updateMember } from "../actions";
+import { approveMember, createMember, deleteMember, setBan, setDeepReview, setRole, updateMember } from "../actions";
 import type { Role } from "@/db/schema";
 
 type Row = {
@@ -26,6 +26,7 @@ type Row = {
   watched: number;
   reviews: number;
   deep: boolean;
+  approved: boolean;
 };
 
 const ROLES: Role[] = ["USER", "UPLOADER", "MODERATOR", "DEV"];
@@ -53,6 +54,9 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
           <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">Membres</h1>
           <span className="font-mono text-lime">{total}</span>
           <span className="font-mono text-xs text-dim">staff {staff}</span>
+          {rows.some((r) => !r.approved) && (
+            <span className="font-mono text-xs text-coral">à valider {rows.filter((r) => r.verified && !r.approved).length}</span>
+          )}
           <button
             onClick={() => setCreating(!creating)}
             className={`ml-2 flex h-10 items-center gap-2 px-4 text-sm font-semibold transition-colors ${creating ? "border border-line text-bone" : "notch bg-lime text-ink"}`}
@@ -125,6 +129,19 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
                   <td className="text-right font-mono text-xs text-dim">{since(r.lastSeenAt)}</td>
                   <td className="py-2 pl-4">
                     <div className="flex justify-end gap-2">
+                      {!r.approved &&
+                        (r.verified ? (
+                          <button
+                            onClick={() => start(() => approveMember(r.id))}
+                            className="notch flex h-10 items-center gap-2 bg-lime px-4 text-sm font-semibold text-ink"
+                          >
+                            <Check size={15} /> Valider
+                          </button>
+                        ) : (
+                          <span className="flex h-10 items-center px-2 font-mono text-[11px] uppercase text-dim" title="Mail pas encore confirmé">
+                            mail
+                          </span>
+                        ))}
                       <IconBtn
                         label={r.deep ? "Analyse : retirer" : r.reviews >= DEEP_UNLOCK ? "Analyse : débloquée" : "Analyse : activer"}
                         on={r.deep || r.reviews >= DEEP_UNLOCK}
