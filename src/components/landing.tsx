@@ -60,7 +60,8 @@ function Wall({ tiles }: { tiles: Tile[] }) {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const shiftA = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
   const shiftB = useTransform(scrollYProgress, [0, 1], ["-18%", "0%"]);
-  if (!tiles.length) return <div className="my-16" />;
+  // The scroll target must always be mounted, even with nothing to show
+  if (!tiles.length) return <div ref={ref} className="my-16" />;
   const rowA = [...tiles, ...tiles].slice(0, 20);
   const rowB = [...tiles.slice().reverse(), ...tiles].slice(0, 20);
   const tile = (t: Tile, i: number) => <WallTile key={i} t={t} />;
