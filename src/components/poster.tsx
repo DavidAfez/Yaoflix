@@ -15,7 +15,7 @@ export type PosterData = {
   ready?: boolean;
 };
 
-export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: PosterData; i?: number; size?: "md" | "lg"; hideNever?: boolean }) {
+export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: PosterData; i?: number; size?: "sm" | "md" | "lg"; hideNever?: boolean }) {
   const mark = useMark(t);
   const seen = Boolean(mark?.seen);
   const never = Boolean(mark?.never);
@@ -27,7 +27,7 @@ export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: Poster
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(i, 8) * 0.03, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className={`group relative ${size === "lg" ? "w-44 shrink-0 snap-start md:w-56" : "w-32 shrink-0 snap-start md:w-44"}`}
+      className={`group relative shrink-0 snap-start ${size === "lg" ? "w-40 md:w-52" : size === "sm" ? "w-28 md:w-36" : "w-32 md:w-44"}`}
     >
       <Link href={`/t/${t.kind}/${t.tmdbId}`} className="block">
         <div className="relative aspect-[2/3] overflow-hidden bg-ink-3">

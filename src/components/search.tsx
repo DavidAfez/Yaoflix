@@ -98,13 +98,13 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
   return (
     <>
       <form
-        className={`flex items-center gap-4 ${big ? "h-20 md:h-24" : "h-16 md:h-20"}`}
+        className={`my-3 flex items-center gap-3 border border-line bg-ink-2/60 px-4 transition-colors focus-within:border-lime ${big ? "h-12 md:h-14" : "h-12 md:h-14"}`}
         onSubmit={(e) => {
           e.preventDefault();
           input.current?.blur();
         }}
       >
-        <Icon size={big ? 26 : 22} className="shrink-0 text-lime" />
+        <Icon size={20} className="shrink-0 text-lime" />
         <input
           ref={input}
           value={s.q}
@@ -112,7 +112,7 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
           placeholder="Un film, une série, @membre"
-          className={`w-full bg-transparent font-display font-semibold tracking-tight outline-none placeholder:text-bone/25 focus-visible:outline-none ${big ? "text-2xl md:text-4xl" : "text-xl md:text-3xl"}`}
+          className={`w-full bg-transparent font-display font-semibold tracking-tight outline-none placeholder:text-bone/25 focus-visible:outline-none text-lg md:text-xl`}
           enterKeyHint="search"
           autoComplete="off"
           aria-label="Rechercher"
@@ -120,7 +120,7 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
         {s.loading && <Dots />}
         {s.q && !s.loading && (
           <motion.button type="button" initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => s.setQ("")} aria-label="Effacer" className="text-dim hover:text-bone">
-            <X size={22} />
+            <X size={20} />
           </motion.button>
         )}
         {onClose && (
@@ -243,7 +243,7 @@ export function SearchHero({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="sticky top-0 z-30 border-b border-line bg-ink/85 px-4 backdrop-blur-xl md:top-16 md:px-10">
+      <div className="sticky top-0 z-30 bg-ink/85 px-4 backdrop-blur-xl md:top-12 md:px-10">
         <SearchBar s={s} input={input} focused={focused} setFocused={setFocused} />
       </div>
       <AnimatePresence mode="wait">

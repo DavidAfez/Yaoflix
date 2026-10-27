@@ -91,7 +91,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
       {more.length > 0 && (
         <Row title="Dans la même veine">
           {more.map((t, i) => (
-            <Poster key={t.id} t={toPoster(t, moreReady.has(t.id))} i={i} />
+            <Poster key={t.id} t={toPoster(t, moreReady.has(t.id))} i={i} size="sm" />
           ))}
         </Row>
       )}

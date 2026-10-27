@@ -108,7 +108,7 @@ export default async function Page(props: PageProps<"/">) {
   return (
     <main>
       <SearchHero>
-        <Billboard slides={slides} delay={pref?.ms ?? 1500} />
+        <Billboard slides={slides} delay={pref?.ms ?? 3000} />
         <KindTabs current={k} />
 
         {grants.length > 0 && (

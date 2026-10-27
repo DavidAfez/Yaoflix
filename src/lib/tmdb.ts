@@ -30,6 +30,8 @@ type TmdbItem = {
   genres?: { id: number; name: string }[];
   runtime?: number;
   episode_run_time?: number[];
+  number_of_episodes?: number;
+  last_episode_to_air?: { runtime?: number | null } | null;
   vote_average?: number;
   popularity?: number;
 };
@@ -66,7 +68,9 @@ function toRow(it: TmdbItem, kind: "movie" | "tv"): typeof schema.titles.$inferI
     releaseDate: release || null,
     year: release ? Number(release.slice(0, 4)) : null,
     genres: [...new Set(genres)],
-    runtime: it.runtime ?? it.episode_run_time?.[0] ?? null,
+    // Recent series often leave episode_run_time empty: the last aired episode gives a duration
+    runtime: it.runtime ?? it.episode_run_time?.[0] ?? it.last_episode_to_air?.runtime ?? null,
+    episodes: it.number_of_episodes ?? null,
     voteAverage: it.vote_average ?? null,
     popularity: it.popularity ?? null,
     updatedAt: new Date(),
@@ -107,6 +111,7 @@ async function upsertNow(rows: (typeof schema.titles.$inferInsert)[]): Promise<T
         year: sql`excluded.year`,
         genres: sql`case when cardinality(excluded.genres) > 0 then excluded.genres else titles.genres end`,
         runtime: sql`coalesce(excluded.runtime, titles.runtime)`,
+        episodes: sql`coalesce(excluded.episodes, titles.episodes)`,
         voteAverage: sql`excluded.vote_average`,
         popularity: sql`excluded.popularity`,
         updatedAt: sql`now()`,

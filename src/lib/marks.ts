@@ -89,26 +89,30 @@ export async function deepState(userId: string): Promise<{ allowed: boolean; cou
 export const deepAllowed = async (userId: string) => (await deepState(userId)).allowed;
 
 /**
- * Hours spent on titles: streamed time here, plus the runtime of films marked seen and never streamed.
- * Series marked seen are left out, nobody knows how many episodes were watched.
+ * Hours spent on titles: streamed time here, plus, for titles marked seen and never streamed,
+ * the runtime of a film or every aired episode of a series (seen means seen in full).
  */
 export async function hoursSeen(userId: string): Promise<number> {
-  // Films found through lists have no runtime yet: fetch the details once, TMDB answers are cached
-  const missing = await db.execute<{ tmdb_id: number }>(sql`
-    select t.tmdb_id from seen s join titles t on t.id = s.title_id
-    where s.user_id = ${userId} and t.kind = 'movie' and t.runtime is null limit 40
+  // Titles found through lists lack runtime and episode count: fetch details once, they stay in the cache
+  const missing = await db.execute<{ kind: "movie" | "tv"; tmdb_id: number }>(sql`
+    select t.kind, t.tmdb_id from seen s join titles t on t.id = s.title_id
+    where s.user_id = ${userId} and (t.runtime is null or (t.kind = 'tv' and t.episodes is null))
+    limit 150
   `);
   if (missing.rows.length) {
     const { getTitle } = await import("./tmdb");
-    await Promise.all(missing.rows.map((r) => getTitle("movie", r.tmdb_id).catch(() => null)));
+    for (let i = 0; i < missing.rows.length; i += 20) {
+      await Promise.all(missing.rows.slice(i, i + 20).map((r) => getTitle(r.kind, r.tmdb_id).catch(() => null)));
+    }
   }
   const [r] = (
     await db.execute<{ h: number }>(sql`
       select (
         coalesce((select sum(watched_sec) from watch_sessions where user_id = ${userId}), 0) / 3600.0 +
         coalesce((
-          select sum(t.runtime) from seen s join titles t on t.id = s.title_id
-          where s.user_id = ${userId} and t.kind = 'movie'
+          select sum(case when t.kind = 'tv' then coalesce(t.runtime, 0) * coalesce(t.episodes, 0) else coalesce(t.runtime, 0) end)
+          from seen s join titles t on t.id = s.title_id
+          where s.user_id = ${userId}
             and not exists (select 1 from watch_sessions w where w.user_id = s.user_id and w.title_id = s.title_id)
         ), 0) / 60.0
       )::float as h

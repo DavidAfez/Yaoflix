@@ -47,10 +47,76 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
   const [confirm, setConfirm] = useState<string | null>(null);
   const roleChoices = ROLES.filter((x) => x === "USER" || can.setRole(me.role, "USER", x)).map((x) => ({ value: x, label: roleLabel[x] }));
 
+  // Same buttons in the desktop table and the mobile cards
+  const actions = (r: Row) => {
+    const self = r.id === me.id;
+    const roleOpts = ROLES.filter((x) => x !== r.role && can.setRole(me.role, r.role, x)).map((x) => ({ value: x, label: roleLabel[x] }));
+    const banned = Boolean(r.bannedAt);
+    return (
+      <div className="flex flex-wrap justify-end gap-2">
+        {!r.approved &&
+          (r.verified ? (
+            <button
+              onClick={() => start(() => approveMember(r.id))}
+              className="notch flex h-10 items-center gap-2 bg-lime px-4 text-sm font-semibold text-ink"
+            >
+              <Check size={15} /> Valider
+            </button>
+          ) : (
+            <span className="flex h-10 items-center px-2 font-mono text-[11px] uppercase text-dim" title="Mail pas encore confirmé">
+              mail
+            </span>
+          ))}
+        <IconBtn
+          label={r.deep ? "Analyse : retirer" : r.reviews >= DEEP_UNLOCK ? "Analyse : débloquée" : "Analyse : activer"}
+          on={r.deep || r.reviews >= DEEP_UNLOCK}
+          onClick={() => start(() => setDeepReview(r.id, !r.deep))}
+        >
+          <SlidersHorizontal size={15} />
+        </IconBtn>
+        {(self || can.moderate(me.role, r.role)) && (
+          <IconBtn label="Modifier" on={editing === r.id} onClick={() => setEditing(editing === r.id ? null : r.id)}>
+            <Pencil size={15} />
+          </IconBtn>
+        )}
+      {!self && (
+        <>
+          {roleOpts.length > 0 && <Dropdown label="Rôle" options={roleOpts} onPick={(v) => start(() => setRole(r.id, v))} />}
+          {can.moderate(me.role, r.role) && (
+            <button
+              onClick={() => start(() => setBan(r.id, !banned))}
+              title={banned ? "Réactiver" : "Bannir"}
+              aria-label={banned ? "Réactiver" : "Bannir"}
+              className={`grid size-10 place-items-center border transition-colors ${banned ? "border-lime text-lime" : "border-line hover:border-coral hover:text-coral"}`}
+            >
+              <Ban size={15} />
+            </button>
+          )}
+          {can.moderate(me.role, r.role) &&
+            (confirm === r.id ? (
+              <button
+                onClick={() => start(() => deleteMember(r.id))}
+                onBlur={() => setConfirm(null)}
+                autoFocus
+                className="flex h-10 items-center gap-2 bg-coral px-3 text-sm font-semibold text-ink"
+              >
+                <Trash2 size={15} /> Supprimer
+              </button>
+            ) : (
+              <IconBtn label="Supprimer" on={false} tone="coral" onClick={() => setConfirm(r.id)}>
+                <Trash2 size={15} />
+              </IconBtn>
+            ))}
+        </>
+      )}
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-        <div className="flex items-baseline gap-4">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-3">
           <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">Membres</h1>
           <span className="font-mono text-lime">{total}</span>
           <span className="font-mono text-xs text-dim">staff {staff}</span>
@@ -84,7 +150,37 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
         )}
       </AnimatePresence>
 
-      <div className="overflow-x-auto">
+      {/* Phone: one card per member */}
+      <ul className="divide-y divide-line border-y border-line md:hidden">
+        {rows.map((r) => (
+          <li key={r.id} className={`space-y-3 py-4 ${r.bannedAt ? "opacity-40" : ""}`}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2 truncate font-mono">
+                @{r.handle}
+                {r.verified && <ShieldCheck size={13} className="shrink-0 text-lime" />}
+              </span>
+              <span className={`shrink-0 font-mono text-[11px] uppercase ${roleColor[r.role]}`}>{roleLabel[r.role]}</span>
+            </div>
+            <p className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-dim">
+              {r.age && <span>{r.age}</span>}
+              {r.sex && <span>{r.sex}</span>}
+              {r.country && <span>{flag(r.country)} {r.country}</span>}
+              <span>{r.requests} dem.</span>
+              <span>{r.watched} vus</span>
+              <span>{r.reviews} avis</span>
+              <span>vu {since(r.lastSeenAt)}</span>
+            </p>
+            <div className="[&>div]:justify-start">{actions(r)}</div>
+            {editing === r.id && (
+              <div className="bg-ink-2 p-4">
+                <EditForm row={r} onDone={() => setEditing(null)} />
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-line text-left font-mono text-[11px] uppercase tracking-wider text-dim">
@@ -102,8 +198,6 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
           </thead>
           <tbody>
             {rows.map((r, i) => {
-              const self = r.id === me.id;
-              const roleOpts = ROLES.filter((x) => x !== r.role && can.setRole(me.role, r.role, x)).map((x) => ({ value: x, label: roleLabel[x] }));
               const banned = Boolean(r.bannedAt);
               return (
                 <Fragment key={r.id}>
@@ -128,63 +222,7 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
                   <td className="text-right font-mono tabular-nums">{r.reviews}</td>
                   <td className="text-right font-mono text-xs text-dim">{since(r.lastSeenAt)}</td>
                   <td className="py-2 pl-4">
-                    <div className="flex justify-end gap-2">
-                      {!r.approved &&
-                        (r.verified ? (
-                          <button
-                            onClick={() => start(() => approveMember(r.id))}
-                            className="notch flex h-10 items-center gap-2 bg-lime px-4 text-sm font-semibold text-ink"
-                          >
-                            <Check size={15} /> Valider
-                          </button>
-                        ) : (
-                          <span className="flex h-10 items-center px-2 font-mono text-[11px] uppercase text-dim" title="Mail pas encore confirmé">
-                            mail
-                          </span>
-                        ))}
-                      <IconBtn
-                        label={r.deep ? "Analyse : retirer" : r.reviews >= DEEP_UNLOCK ? "Analyse : débloquée" : "Analyse : activer"}
-                        on={r.deep || r.reviews >= DEEP_UNLOCK}
-                        onClick={() => start(() => setDeepReview(r.id, !r.deep))}
-                      >
-                        <SlidersHorizontal size={15} />
-                      </IconBtn>
-                      {(self || can.moderate(me.role, r.role)) && (
-                        <IconBtn label="Modifier" on={editing === r.id} onClick={() => setEditing(editing === r.id ? null : r.id)}>
-                          <Pencil size={15} />
-                        </IconBtn>
-                      )}
-                    {!self && (
-                      <>
-                        {roleOpts.length > 0 && <Dropdown label="Rôle" options={roleOpts} onPick={(v) => start(() => setRole(r.id, v))} />}
-                        {can.moderate(me.role, r.role) && (
-                          <button
-                            onClick={() => start(() => setBan(r.id, !banned))}
-                            title={banned ? "Réactiver" : "Bannir"}
-                            aria-label={banned ? "Réactiver" : "Bannir"}
-                            className={`grid size-10 place-items-center border transition-colors ${banned ? "border-lime text-lime" : "border-line hover:border-coral hover:text-coral"}`}
-                          >
-                            <Ban size={15} />
-                          </button>
-                        )}
-                        {can.moderate(me.role, r.role) &&
-                          (confirm === r.id ? (
-                            <button
-                              onClick={() => start(() => deleteMember(r.id))}
-                              onBlur={() => setConfirm(null)}
-                              autoFocus
-                              className="flex h-10 items-center gap-2 bg-coral px-3 text-sm font-semibold text-ink"
-                            >
-                              <Trash2 size={15} /> Supprimer
-                            </button>
-                          ) : (
-                            <IconBtn label="Supprimer" on={false} tone="coral" onClick={() => setConfirm(r.id)}>
-                              <Trash2 size={15} />
-                            </IconBtn>
-                          ))}
-                      </>
-                    )}
-                    </div>
+                    {actions(r)}
                   </td>
                 </motion.tr>
                 {editing === r.id && (

@@ -83,25 +83,25 @@ export function TitlePanel({ path, title, state }: Props) {
   let primary: React.ReactNode;
   if (state.grant) {
     primary = (
-      <Button size="lg" onClick={() => router.push(`/w/${state.grant!.id}`)}>
-        <Play size={18} fill="currentColor" /> Regarder
+      <Button onClick={() => router.push(`/w/${state.grant!.id}`)}>
+        <Play size={15} fill="currentColor" /> Regarder
       </Button>
     );
   } else if (state.ready) {
     primary = (
-      <Button size="lg" disabled={pending} onClick={() => start(() => watchNow(title.id))}>
-        {pending ? <Dots /> : <><Play size={18} fill="currentColor" /> Regarder</>}
+      <Button disabled={pending} onClick={() => start(() => watchNow(title.id))}>
+        {pending ? <Dots /> : <><Play size={15} fill="currentColor" /> Regarder</>}
       </Button>
     );
   } else if (open) {
     primary = (
-      <div className="flex h-14 items-center border-b border-line pr-2">
+      <div className="flex h-11 items-center border-b border-line pr-2">
         <StatusMark status={state.request!.status} />
       </div>
     );
   } else {
     primary = (
-      <Button size="lg" onClick={() => setSheet(true)} disabled={!state.verified}>
+      <Button onClick={() => setSheet(true)} disabled={!state.verified}>
         Demander
       </Button>
     );
@@ -109,7 +109,7 @@ export function TitlePanel({ path, title, state }: Props) {
 
   return (
     <>
-      <div ref={hero} className="relative min-h-[88svh] overflow-hidden md:min-h-[86vh]">
+      <div ref={hero} className="relative min-h-[64svh] overflow-hidden md:min-h-[66vh]">
         {title.backdrop && (
           <motion.div style={{ y: bgY, opacity: bgO }} className="absolute inset-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -121,12 +121,12 @@ export function TitlePanel({ path, title, state }: Props) {
 
         <Link
           href="/"
-          className="absolute left-4 top-4 z-10 flex h-10 items-center gap-2 border border-bone/20 bg-ink/50 px-3 text-sm backdrop-blur transition-colors hover:border-lime hover:text-lime md:left-10 md:top-8"
+          className="absolute left-4 top-3 z-10 flex h-9 items-center gap-2 border border-bone/20 bg-ink/50 px-3 text-xs backdrop-blur transition-colors hover:border-lime hover:text-lime md:left-10 md:top-5"
         >
-          <ArrowLeft size={16} /> Accueil
+          <ArrowLeft size={14} /> Accueil
         </Link>
 
-        <div className="relative flex min-h-[88svh] flex-col justify-end gap-8 px-4 pb-10 md:min-h-[86vh] md:flex-row md:items-end md:justify-start md:px-10 md:pb-14">
+        <div className="relative flex min-h-[64svh] flex-col justify-end gap-6 px-4 pb-8 pt-16 md:min-h-[66vh] md:flex-row md:items-end md:justify-start md:px-10 md:pb-10">
           {title.poster && (
             <motion.img
               initial={{ opacity: 0, y: 40, rotate: -3 }}
@@ -134,26 +134,26 @@ export function TitlePanel({ path, title, state }: Props) {
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               src={title.poster}
               alt=""
-              className="hidden w-60 shadow-2xl shadow-black/60 md:block"
+              className="hidden w-40 shadow-2xl shadow-black/60 md:block lg:w-44"
             />
           )}
-          <div className="max-w-3xl space-y-5">
+          <div className="max-w-2xl space-y-4">
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="font-display text-4xl font-extrabold leading-[0.95] tracking-tight md:text-7xl"
+              className="font-display text-3xl font-extrabold leading-[0.95] tracking-tight md:text-5xl"
             >
               {title.name}
             </motion.h1>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs uppercase tracking-wider text-bone/70">
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-wider text-bone/70">
               {meta.map((m, i) => (
                 <span key={i}>{m}</span>
               ))}
               {title.vote ? <span className="text-lime">★ {title.vote.toFixed(1)}</span> : null}
             </motion.p>
             {title.overview && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="line-clamp-4 max-w-2xl leading-relaxed text-bone/80 md:line-clamp-none">
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="line-clamp-4 max-w-xl text-sm leading-relaxed text-bone/80 md:line-clamp-5">
                 {title.overview}
               </motion.p>
             )}
@@ -164,8 +164,9 @@ export function TitlePanel({ path, title, state }: Props) {
               </motion.p>
             )}
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex flex-wrap items-center gap-2 pt-2">
-              {primary}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex flex-wrap items-center gap-1.5 pt-1">
+              {/* Phone: the main action takes its own line, the icons line up below */}
+              <div className="w-full sm:w-auto [&>*]:w-full sm:[&>*]:w-auto">{primary}</div>
               <IconToggle
                 on={listed}
                 label="Liste"
@@ -174,36 +175,36 @@ export function TitlePanel({ path, title, state }: Props) {
                   void toggleWatchlist(title.id, path);
                 }}
               >
-                {listed ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+                {listed ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
               </IconToggle>
               {mark && (
                 <>
                   <IconToggle on={mark.liked} label="J'aime" onClick={mark.toggleLike} tone="coral">
-                    <Heart size={19} fill={mark.liked ? "currentColor" : "none"} />
+                    <Heart size={16} fill={mark.liked ? "currentColor" : "none"} />
                   </IconToggle>
                   <IconToggle on={mark.disliked} label="Bof" onClick={mark.toggleDislike} tone="coral">
-                    <ThumbsDown size={19} />
+                    <ThumbsDown size={16} />
                   </IconToggle>
-                  <IconToggle on={mark.seen} label={mark.seen ? "Vu" : "Déjà vu"} onClick={mark.toggleSeen} text={mark.seen ? "Vu" : "Déjà vu"}>
-                    {mark.seen ? <EyeOff size={18} /> : <Eye size={18} />}
+                  <IconToggle on={mark.seen} label={mark.seen ? "Vu" : "Déjà vu"} onClick={mark.toggleSeen} >
+                    {mark.seen ? <EyeOff size={16} /> : <Eye size={16} />}
                   </IconToggle>
-                  <IconToggle on={mark.reviewed} label="Avis" onClick={mark.review} text="Avis">
-                    <MessageSquare size={18} fill={mark.reviewed ? "currentColor" : "none"} />
+                  <IconToggle on={mark.reviewed} label="Avis" onClick={mark.review}>
+                    <MessageSquare size={16} fill={mark.reviewed ? "currentColor" : "none"} />
                   </IconToggle>
                   {mark.deep && (
-                    <IconToggle on={false} label="Analyse" onClick={mark.analyse} text="Analyse">
-                      <SlidersHorizontal size={18} />
+                    <IconToggle on={false} label="Analyse" onClick={mark.analyse}>
+                      <SlidersHorizontal size={16} />
                     </IconToggle>
                   )}
                   <IconToggle on={mark.never} label="Jamais" onClick={mark.toggleNever} tone="coral">
-                    <Ban size={18} />
+                    <Ban size={16} />
                   </IconToggle>
                 </>
               )}
             </motion.div>
             {mark && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="flex items-center gap-4">
-                <Stars value={mark.rating} onChange={mark.rate} size={26} />
+                <Stars value={mark.rating} onChange={mark.rate} size={16} />
                 {mark.rating > 0 && <span className="font-mono text-xs text-lime">{fmtRating(mark.rating)}/5</span>}
               </motion.div>
             )}
@@ -288,7 +289,7 @@ function IconToggle({
       aria-label={label}
       aria-pressed={on}
       title={label}
-      className={`flex h-14 items-center justify-center gap-2 border transition-colors ${text ? "px-4 text-sm" : "w-14"} ${
+      className={`flex h-10 items-center justify-center gap-2 border transition-colors sm:h-11 ${text ? "px-3 text-sm" : "w-10 sm:w-11"} ${
         on ? (tone === "lime" ? "border-lime text-lime" : "border-coral text-coral") : "border-line text-bone/70 hover:border-bone/40 hover:text-bone"
       }`}
     >

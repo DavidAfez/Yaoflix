@@ -38,7 +38,7 @@ function Panel({ title, children, className = "", i = 0 }: { title: string; chil
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-40px" }}
       transition={{ delay: (i % 3) * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-      className={`border-t border-line pt-5 ${className}`}
+      className={`min-w-0 border-t border-line pt-5 ${className}`}
     >
       <h2 className="mb-5 font-display text-base font-semibold tracking-tight">{title}</h2>
       {children}
@@ -195,7 +195,7 @@ export function Dashboard({ data, days }: { data: Insights; days: number }) {
         ))}
       </div>
 
-      <div className="mt-12 grid gap-x-12 gap-y-14 lg:grid-cols-2">
+      <div className="mt-12 grid grid-cols-1 gap-x-12 gap-y-14 lg:grid-cols-2">
         <Panel title="Activité" className="lg:col-span-2">
           <Legend items={[{ label: "Demandes", color: S[0] }, { label: "Servies", color: S[1] }, { label: "Lectures", color: S[2] }]} />
           <div className="h-64">

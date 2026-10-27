@@ -134,7 +134,7 @@ export default async function Page() {
         </div>
         <h1 className="mt-3 break-all font-display text-5xl font-extrabold tracking-tighter md:text-8xl">@{user.handle}</h1>
 
-        <dl className="mt-8 grid grid-cols-5 gap-px bg-line">
+        <dl className="mt-8 grid grid-cols-3 gap-px bg-line sm:grid-cols-5">
           <Stat label="Vus" value={stats.completed} />
           <Stat label="Heures" value={stats.hours} decimals={1} unit="h" />
           <Stat label="Focus" value={stats.focus ?? 0} unit="min" />
@@ -168,7 +168,7 @@ export default async function Page() {
           prefs: req.prefs,
           poster: toPoster(title),
         }))}
-        profile={{ handle: user.handle, age: user.ageBracket ?? "", sex: user.sex ?? "", hasPhone: user.hasPhone, optIn: user.whatsappOptIn, billboardMs: pref?.ms ?? 1500 }}
+        profile={{ handle: user.handle, age: user.ageBracket ?? "", sex: user.sex ?? "", hasPhone: user.hasPhone, optIn: user.whatsappOptIn, billboardMs: pref?.ms ?? 3000 }}
       />
     </main>
   );

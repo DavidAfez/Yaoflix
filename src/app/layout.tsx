@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {user?.approved ? (
           <MarksProvider initial={await getMarks(user.id)} deep={await deepState(user.id)}>
             <Nav role={user.role} handle={user.handle} />
-            <div className="pb-24 md:pb-0 md:pt-16">{children}</div>
+            <div className="pb-20 md:pb-0 md:pt-12">{children}</div>
           </MarksProvider>
         ) : (
           children

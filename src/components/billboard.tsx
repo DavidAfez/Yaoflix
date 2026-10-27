@@ -26,7 +26,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  * Big recommendation carousel at the top of the home page. Rotates on its own at the member's pace
  * (Réglages, 0 keeps it still), pauses on hover, swipes on mobile.
  */
-export function Billboard({ slides, delay = 1500 }: { slides: Slide[]; delay?: number }) {
+export function Billboard({ slides, delay = 3000 }: { slides: Slide[]; delay?: number }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   const go = useCallback((n: number) => setI((n + slides.length) % slides.length), [slides.length]);

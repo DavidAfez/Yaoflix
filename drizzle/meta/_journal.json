@@ -50,6 +50,13 @@
       "when": 1793114746766,
       "tag": "0006_billboard_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793125377592,
+      "tag": "0007_episodes_billboard_3s",
+      "breakpoints": true
     }
   ]
 }

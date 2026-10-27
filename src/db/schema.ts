@@ -56,7 +56,7 @@ export const users = pgTable(
     // Detailed reviews: granted by staff, or unlocked automatically after 10 reviews
     deepReview: boolean("deep_review").notNull().default(false),
     // Home billboard: time per slide in milliseconds, 0 keeps it still
-    billboardMs: integer("billboard_ms").notNull().default(1500),
+    billboardMs: integer("billboard_ms").notNull().default(3000),
     country: text("country"),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -105,6 +105,8 @@ export const titles = pgTable(
     year: integer("year"),
     genres: text("genres").array().notNull().default([]),
     runtime: integer("runtime"),
+    // Series only: number of episodes aired, to estimate the time spent on a whole series
+    episodes: integer("episodes"),
     voteAverage: real("vote_average"),
     popularity: real("popularity"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
