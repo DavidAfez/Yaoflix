@@ -23,6 +23,25 @@ export function ChatApp({ to }: { to: string | null }) {
   const [handle, setHandle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [devices, setDevices] = useState(false);
+  const [people, setPeople] = useState<string[]>([]);
+  const [looked, setLooked] = useState("");
+
+  // Members matching what is typed, from the same search as the rest of the site
+  useEffect(() => {
+    const q = handle.trim().replace(/^@/, "");
+    if (!q) return setPeople([]);
+    let stale = false;
+    const h = setTimeout(async () => {
+      const r = (await fetch(`/api/search?q=${encodeURIComponent(`@${q}`)}`).then((x) => x.json()).catch(() => ({}))) as { people?: { handle: string }[] };
+      if (stale) return;
+      setPeople((r.people ?? []).slice(0, 8).map((p) => p.handle));
+      setLooked(q);
+    }, 200);
+    return () => {
+      stale = true;
+      clearTimeout(h);
+    };
+  }, [handle]);
 
   const loadThreads = useCallback(async () => {
     const d = (await fetch("/api/chat/threads").then((r) => r.json())) as { threads: Thread[] };
@@ -81,6 +100,18 @@ export function ChatApp({ to }: { to: string | null }) {
               <Send size={15} />
             </button>
           </form>
+          {people.length > 0 && (
+            <ul className="mt-1 border border-line bg-ink-2">
+              {people.map((h) => (
+                <li key={h}>
+                  <button onClick={() => void openWith(h)} className="flex w-full items-center gap-3 px-3 py-2 text-left font-mono text-sm transition-colors hover:bg-bone/5 hover:text-lime">
+                    <Avatar id={null} handle={h} size={24} />@{h}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {handle.trim() && looked === handle.trim().replace(/^@/, "") && !people.length && <p className="mt-2 text-xs text-dim">{t("Aucun membre trouvé")}</p>}
           {error && <p className="mt-2 text-xs text-coral">{error}</p>}
         </div>
         {state.waiting.map((d) => (
@@ -286,7 +317,10 @@ function ThreadView({ thread, me, mine, myRoot, onBack }: { thread: Thread; me: 
     };
   }, [thread.id, me.id, decrypt, refreshPeer]);
 
-  useEffect(() => bottom.current?.scrollIntoView({ block: "end" }), [items.length]);
+  // Braces matter: recent browsers make scrollIntoView return a Promise, which an effect must not return
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ block: "end" });
+  }, [items.length]);
 
   const send = async (p: Payload) => {
     setBusy(true);

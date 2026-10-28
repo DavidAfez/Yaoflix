@@ -53,6 +53,7 @@ export const en: Record<string, string> = {
   "Au moins deux réponses": "At least two answers",
   "Aucun": "None",
   "Aucun coup de cœur.": "No favourites yet.",
+  "Aucun membre trouvé": "No member found",
   "Aucun projet pour l'instant.": "No projects yet.",
   "Aucune capture. Utilise l'appareil photo du lecteur.": "No frames yet. Use the camera button in the player.",
   "Aucune conversation.": "No conversations.",
