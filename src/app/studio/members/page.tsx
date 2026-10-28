@@ -25,11 +25,12 @@ export default async function Page(props: PageProps<"/studio/members">) {
       reviews: sql<number>`(select count(*)::int from feedback f where f.user_id = "users"."id")`,
       deep: schema.users.deepReview,
       approvedAt: schema.users.approvedAt,
+      creator: schema.users.creator,
     })
     .from(schema.users)
     .where(q ? ilike(schema.users.handle, `%${q.replace(/[%_]/g, "")}%`) : undefined)
     // Members waiting for approval first
-    .orderBy(sql`${schema.users.approvedAt} is not null`, desc(schema.users.createdAt))
+    .orderBy(sql`${schema.users.approvedAt} is not null`, sql`${schema.users.creator} is distinct from 'requested'`, desc(schema.users.createdAt))
     .limit(200);
   const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.users);
   const staff = await db.select({ n: sql<number>`count(*)::int` }).from(schema.users).where(eq(schema.users.role, "USER"));

@@ -2,7 +2,7 @@
 import { useRouter } from "next/navigation";
 import { Fragment, useActionState, useEffect, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Ban, Check, Pencil, Plus, Search, ShieldCheck, SlidersHorizontal, Trash2, X } from "lucide-react";
+import { Ban, Check, Clapperboard, Pencil, Plus, Search, ShieldCheck, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { Choice, Field, FormError, Submit } from "@/components/ui";
 import { can, roleLabel } from "@/lib/rbac";
@@ -10,7 +10,7 @@ import { ageBrackets, sexes } from "@/lib/labels";
 import { DEEP_UNLOCK } from "@/lib/deep";
 import { useT } from "@/components/i18n";
 import type { T } from "@/lib/i18n";
-import { approveMember, createMember, deleteMember, setBan, setDeepReview, setRole, updateMember } from "../actions";
+import { approveMember, createMember, deleteMember, setBan, setCreator, setDeepReview, setRole, updateMember } from "../actions";
 import type { Role } from "@/db/schema";
 
 type Row = {
@@ -29,6 +29,7 @@ type Row = {
   reviews: number;
   deep: boolean;
   approved: boolean;
+  creator: "requested" | "approved" | "refused" | null;
 };
 
 const ROLES: Role[] = ["USER", "UPLOADER", "MODERATOR", "DEV"];
@@ -70,6 +71,20 @@ export function Members({ rows, me, total, staff, q }: { rows: Row[]; me: { id: 
               {t("mail")}
             </span>
           ))}
+        {r.creator === "requested" ? (
+          <>
+            <button onClick={() => start(() => setCreator(r.id, "approved"))} className="notch flex h-10 items-center gap-2 bg-lime px-4 text-sm font-semibold text-ink">
+              <Clapperboard size={15} /> {t("Créateur")}
+            </button>
+            <IconBtn label={t("Refuser le profil créateur")} on={false} tone="coral" onClick={() => start(() => setCreator(r.id, "refused"))}>
+              <X size={15} />
+            </IconBtn>
+          </>
+        ) : (
+          <IconBtn label={t(r.creator === "approved" ? "Retirer le profil créateur" : "Donner le profil créateur")} on={r.creator === "approved"} onClick={() => start(() => setCreator(r.id, r.creator === "approved" ? null : "approved"))}>
+            <Clapperboard size={15} />
+          </IconBtn>
+        )}
         <IconBtn
           label={t(r.deep ? "Analyse : retirer" : r.reviews >= DEEP_UNLOCK ? "Analyse : débloquée" : "Analyse : activer")}
           on={r.deep || r.reviews >= DEEP_UNLOCK}

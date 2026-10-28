@@ -127,6 +127,13 @@
       "when": 1793189524484,
       "tag": "0017_drop_chat_keys",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793197799390,
+      "tag": "0018_creators_announce",
+      "breakpoints": true
     }
   ]
 }

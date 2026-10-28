@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
-import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare, ArrowLeft, Ban, SlidersHorizontal } from "lucide-react";
+import { Bookmark, BookmarkCheck, ThumbsDown, Heart, X, Check, Play, Eye, EyeOff, MessageSquare, ArrowLeft, Ban, SlidersHorizontal, Clapperboard } from "lucide-react";
 import { Stars, useMark } from "@/components/marks";
 import { fmtRating } from "@/lib/rating";
 import { useT } from "@/components/i18n";
@@ -29,6 +29,8 @@ type Props = {
     vote: number | null;
     kind: string;
     release: string | null;
+    // Handle of the member who made it, for creator projects
+    creator?: string | null;
   };
   state: {
     ready: boolean;
@@ -101,6 +103,9 @@ export function TitlePanel({ path, title, state }: Props) {
         <StatusMark status={state.request!.status} />
       </div>
     );
+  } else if (title.creator) {
+    // Nothing to request: the creator puts it online
+    primary = <span className="flex h-11 items-center font-mono text-xs uppercase tracking-widest text-dim">{t("Bientôt en ligne")}</span>;
   } else {
     primary = (
       <Button onClick={() => setSheet(true)} disabled={!state.verified}>
@@ -148,6 +153,11 @@ export function TitlePanel({ path, title, state }: Props) {
             >
               {title.name}
             </motion.h1>
+            {title.creator && (
+              <Link href={`/u/${title.creator}`} className="inline-flex items-center gap-2 border border-lime/40 bg-lime/10 px-3 py-1 text-xs transition-colors hover:border-lime">
+                <Clapperboard size={13} className="text-lime" /> {t("Projet de @{h}", { h: title.creator })}
+              </Link>
+            )}
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-wider text-bone/70">
               {meta.map((m, i) => (
                 <span key={i}>{m}</span>

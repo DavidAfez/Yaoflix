@@ -3,14 +3,14 @@ import { stat } from "node:fs/promises";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { apiUser } from "@/lib/auth";
-import { can } from "@/lib/rbac";
+import { mayUploadMedia } from "@/lib/creators";
 import { paths } from "@/lib/storage";
 import { enqueue } from "@/lib/jobs";
 
 export async function POST(_: Request, ctx: RouteContext<"/api/upload/[media]/complete">) {
-  const user = await apiUser(can.upload);
-  if (!user) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const user = await apiUser();
   const { media: id } = await ctx.params;
+  if (!user || !(await mayUploadMedia(user, id))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const [m] = await db
     .select()
     .from(schema.media)

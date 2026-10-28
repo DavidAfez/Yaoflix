@@ -27,7 +27,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
   const handle = decodeURIComponent((await props.params).handle).replace(/^@/, "").toLowerCase();
   if (handle === me.handle) redirect("/me");
   const [member] = await db
-    .select({ id: schema.users.id, handle: schema.users.handle })
+    .select({ id: schema.users.id, handle: schema.users.handle, creator: schema.users.creator })
     .from(schema.users)
     .where(and(eq(schema.users.handle, handle), isNull(schema.users.bannedAt)));
   if (!member) notFound();
@@ -59,7 +59,8 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     hoursSeen(member.id),
     topLists(member.id),
   ]);
-  const ready = await readyTitleIds([...liked, ...seen].map((r) => r.title.id));
+  const made = await db.select().from(schema.titles).where(eq(schema.titles.creatorId, member.id)).orderBy(desc(schema.titles.updatedAt));
+  const ready = await readyTitleIds([...liked, ...seen, ...made.map((title) => ({ title }))].map((r) => r.title.id));
   const L = await localizer([...liked, ...seen].map((r) => r.title));
   const split = (rows: typeof liked) => ({
     movie: rows.filter((r) => r.title.kind === "movie"),
@@ -84,6 +85,22 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
 
       <UserTabs
         lists={lists}
+        projects={
+          member.creator === "approved" || made.length
+            ? {
+                n: made.length,
+                node: made.length ? (
+                  <div className="grid grid-cols-3 gap-3 px-4 pt-6 sm:grid-cols-4 md:grid-cols-6 md:px-10">
+                    {made.map((x, i) => (
+                      <Poster key={x.id} t={toPoster(x, ready.has(x.id))} i={i} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-4 py-16 font-display text-3xl font-extrabold text-bone/15 md:px-10 md:text-5xl">{t("Rien ici pour l'instant.")}</p>
+                ),
+              }
+            : undefined
+        }
         reviews={
           reviews.length ? (
             <section className="mx-4 mt-6 md:mx-10">

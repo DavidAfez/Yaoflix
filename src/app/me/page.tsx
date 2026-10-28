@@ -9,7 +9,7 @@ import { hoursSeen } from "@/lib/marks";
 import { recencyBucket, recencyOrder } from "@/lib/labels";
 import { MeTabs } from "./tabs";
 import { logout } from "../(auth)/actions";
-import { Bug, LogOut } from "lucide-react";
+import { Bug, Clapperboard, LogOut } from "lucide-react";
 import Link from "next/link";
 import { Stat } from "./stat";
 import { postsBy } from "@/lib/feed";
@@ -127,6 +127,9 @@ export default async function Page() {
         actions={
           <>
             <span className="mr-2 hidden font-mono text-xs uppercase tracking-widest text-lime sm:inline">{t(roleLabel[user.role])}</span>
+            <Link href="/me/projects" aria-label={t("Mes projets")} title={t("Mes projets")} className="grid size-10 place-items-center border border-line transition-colors hover:border-lime hover:text-lime">
+              <Clapperboard size={16} />
+            </Link>
             <Link href="/bug?from=/me" aria-label={t("Signaler un bug")} title={t("Signaler un bug")} className="grid size-10 place-items-center border border-line transition-colors hover:border-lime hover:text-lime">
               <Bug size={16} />
             </Link>

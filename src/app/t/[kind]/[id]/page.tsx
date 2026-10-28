@@ -22,7 +22,7 @@ export async function generateMetadata(props: PageProps<"/t/[kind]/[id]">) {
 export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
   const user = await requireUser();
   const { kind, id } = await props.params;
-  if ((kind !== "movie" && kind !== "tv") || !/^\d+$/.test(id)) notFound();
+  if ((kind !== "movie" && kind !== "tv") || !/^-?\d+$/.test(id)) notFound();
   const title = await getTitle(kind, Number(id));
   if (!title) notFound();
 
@@ -50,6 +50,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
     deepSummary(title.id),
     credits(kind, title.tmdbId),
   ]);
+  const [maker] = title.creatorId ? await db.select({ handle: schema.users.handle }).from(schema.users).where(eq(schema.users.id, title.creatorId)) : [];
   const moreReady = await readyTitleIds(more.map((m) => m.id));
   const moreL = await localize(more);
   const [tr, locale] = await Promise.all([getT(), getLocale()]);
@@ -73,6 +74,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           vote: title.voteAverage,
           kind: title.kind,
           release: title.releaseDate,
+          creator: maker?.handle ?? null,
         }}
         state={{
           ready: Boolean(ready),

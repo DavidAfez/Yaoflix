@@ -252,9 +252,16 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
     el.style.height = `${el.scrollHeight}px`;
   }, [body]);
 
+  // Every new post is about a film or a series: no title yet, ask for one first
+  const needsTitle = !parentId && ((mode === "text" && !title && !media.some((m) => m.type === "frame")) || (mode === "poll" && !poll.ref && !poll.frameId));
   const send = () =>
     start(async () => {
       setError(null);
+      if (needsTitle) {
+        setError(t("De quel film ou série tu parles ?"));
+        if (mode === "text") setPicking(true);
+        return;
+      }
       const res =
         mode === "top5"
           ? await createRichPost({ kind: "top5", body, data: top5 })
@@ -310,7 +317,7 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
         onChange={(e) => setBody(e.target.value)}
         maxLength={1000}
         rows={2}
-        placeholder={mode === "text" ? (placeholder ?? t("Ton avis, ta théorie, ta reco")) : t("Un mot pour accompagner (facultatif)")}
+        placeholder={mode === "text" ? (placeholder ?? t("Un film, une série : ton avis, ta théorie, ta reco")) : t("Un mot pour accompagner (facultatif)")}
         className="w-full resize-none bg-transparent text-lg outline-none placeholder:text-bone/30"
       />
       {!parentId && (

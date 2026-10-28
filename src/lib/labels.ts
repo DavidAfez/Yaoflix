@@ -44,3 +44,7 @@ export const recencyBucket = (years: number | null | undefined) => {
   return "Classiques";
 };
 export const recencyOrder = ["Moins d'un an", "1 à 5 ans", "5 à 15 ans", "Classiques", "Inconnu"];
+
+/** Genres a creator can pick for a project, same names as the catalogue. */
+export const CREATOR_GENRES = ["Action", "Animation", "Comédie", "Documentaire", "Drame", "Fantastique", "Horreur", "Musique", "Romance", "Science-fiction", "Thriller", "Expérimental", "Clip", "Animation", "Famille"].filter((g, i, a) => a.indexOf(g) === i);
+export const CREW_JOBS = ["Réalisation", "Scénario", "Image", "Montage", "Musique", "Production", "Son", "Décors", "Costumes"];

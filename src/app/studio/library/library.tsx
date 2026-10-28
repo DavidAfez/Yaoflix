@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { FileVideo, Pause, Play, RotateCcw, Search, Trash2, X, Captions } from "lucide-react";
+import { Bell, BellOff, FileVideo, Mail, Pause, Play, RotateCcw, Search, Trash2, X, Captions } from "lucide-react";
+import type { Announce } from "@/db/schema";
 import type { PosterData } from "@/components/poster";
 import { Button, Dots } from "@/components/ui";
 import { deleteMedia, retryMedia } from "../actions";
@@ -31,7 +32,7 @@ const statusColor = { UPLOADING: "bg-ice", QUEUED: "bg-dim", PROCESSING: "bg-ice
 const mb = (b: number) => (b / 1024 ** 2).toFixed(0);
 const eta = (s: number) => (s > 3600 ? `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}` : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
 
-export function Library({ media, preselect, canDelete }: { media: MediaRow[]; preselect: Picked | null; canDelete: boolean }) {
+export function Library({ media, preselect, canDelete, canAnnounce }: { media: MediaRow[]; preselect: Picked | null; canDelete: boolean; canAnnounce: boolean }) {
   const t = useT();
   const router = useRouter();
   const [picked, setPicked] = useState<Picked | null>(preselect);
@@ -49,7 +50,7 @@ export function Library({ media, preselect, canDelete }: { media: MediaRow[]; pr
         <h1 className="mb-6 font-display text-4xl font-extrabold tracking-tight md:text-6xl">{t("Upload")}</h1>
         <AnimatePresence mode="wait">
           {picked ? (
-            <Uploader key={picked.id} title={picked} onClose={() => setPicked(null)} onDone={() => router.refresh()} />
+            <Uploader key={picked.id} title={picked} canAnnounce={canAnnounce} onClose={() => setPicked(null)} onDone={() => router.refresh()} />
           ) : (
             <TitlePicker key="pick" onPick={setPicked} />
           )}
@@ -123,8 +124,9 @@ function TitlePicker({ onPick }: { onPick: (p: Picked) => void }) {
   );
 }
 
-function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => void; onDone: () => void }) {
+export function Uploader({ title, onClose, onDone, canAnnounce = false }: { title: Picked; onClose: () => void; onDone: () => void; canAnnounce?: boolean }) {
   const t = useT();
+  const [announce, setAnnounce] = useState<Announce>("none");
   const [file, setFile] = useState<File | null>(null);
   const [subs, setSubs] = useState<{ file: File; lang: string }[]>([]);
   const [sent, setSent] = useState(0);
@@ -142,7 +144,7 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
       const init = await fetch("/api/upload/init", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ titleId: title.id, name: file.name, size: file.size }),
+        body: JSON.stringify({ titleId: title.id, name: file.name, size: file.size, announce }),
       }).then((r) => {
         if (!r.ok) throw new Error("init");
         return r.json() as Promise<{ mediaId: string; offset: number; chunk: number }>;
@@ -274,6 +276,31 @@ function Uploader({ title, onClose, onDone }: { title: Picked; onClose: () => vo
               </label>
             )}
           </div>
+
+          {canAnnounce && state === "idle" && (
+            <div>
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-dim">{t("Prévenir les membres à la mise en ligne")}</p>
+              <div className="grid grid-cols-3 gap-px bg-line">
+                {(
+                  [
+                    ["none", BellOff, "Personne"],
+                    ["notify", Bell, "Notification"],
+                    ["mail", Mail, "Notif + mail"],
+                  ] as const
+                ).map(([v, Icon, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setAnnounce(v)}
+                    className={`flex h-14 flex-col items-center justify-center gap-1 text-xs transition-colors ${announce === v ? "bg-lime text-ink" : "bg-ink text-dim hover:text-bone"}`}
+                  >
+                    <Icon size={16} /> {t(label)}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-dim">{t("Ceux qui l'ont demandé ou mis dans leur liste sont toujours prévenus.")}</p>
+            </div>
+          )}
 
           {state !== "idle" && file && (
             <div className="space-y-2">

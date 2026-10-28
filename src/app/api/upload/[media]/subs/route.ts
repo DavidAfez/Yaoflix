@@ -4,7 +4,7 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { apiUser } from "@/lib/auth";
-import { can } from "@/lib/rbac";
+import { mayUploadMedia } from "@/lib/creators";
 import { paths } from "@/lib/storage";
 
 const toVtt = (srt: string) =>
@@ -20,9 +20,9 @@ const LABEL: Record<string, string> = { fr: "FR", en: "EN", es: "ES", de: "DE", 
 
 /** Sidecar subtitles (.srt or .vtt) uploaded by staff, served next to the HLS renditions. */
 export async function POST(req: Request, ctx: RouteContext<"/api/upload/[media]/subs">) {
-  const user = await apiUser(can.upload);
-  if (!user) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const user = await apiUser();
   const { media: id } = await ctx.params;
+  if (!user || !(await mayUploadMedia(user, id))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const [m] = await db.select().from(schema.media).where(eq(schema.media.id, id));
   if (!m) return NextResponse.json({ error: "not found" }, { status: 404 });
 

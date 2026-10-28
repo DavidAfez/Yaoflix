@@ -1,8 +1,8 @@
-import "server-only";
+// Also used by the worker (titles going online): no "server-only" marker here
 import { and, eq, gt } from "drizzle-orm";
 import { db, schema } from "@/db";
 
-type Kind = "ready" | "rejected" | "reply" | "follow" | "fav" | "repost";
+type Kind = "ready" | "rejected" | "reply" | "follow" | "fav" | "repost" | "new" | "creator";
 
 /**
  * Adds a line to someone's notification centre. Social pings (fav, repost, follow) from the same

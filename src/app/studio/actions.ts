@@ -201,6 +201,18 @@ export async function approveMember(userId: string) {
   revalidatePath("/studio/members");
 }
 
+/** Grants, refuses or withdraws the creator profile. */
+export async function setCreator(userId: string, status: "approved" | "refused" | null) {
+  const actor = await requireRole(can.manageUsers);
+  const [u] = await db.update(schema.users).set({ creator: status }).where(eq(schema.users.id, userId)).returning({ id: schema.users.id });
+  if (u && status === "approved") {
+    await notify(u.id, "creator", { href: "/me/projects" });
+    await queueMail(u.id, "creator", {});
+  }
+  await audit(actor.id, `user.creator.${status ?? "none"}`, userId);
+  revalidatePath("/studio/members");
+}
+
 /** Handle a report: remove the content, ban its author, or dismiss it. */
 export async function resolveReport(id: number, action: "remove" | "ban" | "dismiss") {
   const actor = await requireRole(can.manageUsers);

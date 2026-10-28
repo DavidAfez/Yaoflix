@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, inArray } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { RequestPrefs } from "@/db/schema";
 import { randomToken, sha256 } from "./crypto";
@@ -86,6 +86,26 @@ export async function fulfillTitle(mediaId: string, titleId: number) {
     .update(schema.watchlist)
     .set({ notifiedAt: new Date() })
     .where(and(eq(schema.watchlist.titleId, titleId), isNull(schema.watchlist.notifiedAt)));
+  for (const f of fans) served.add(f.userId);
+  await announce(mediaId, titleId, served);
+}
+
+/** A title put online on purpose: everyone else hears about it, in the app or by mail too. */
+async function announce(mediaId: string, titleId: number, served: Set<string>) {
+  const [m] = await db.select({ announce: schema.media.announce }).from(schema.media).where(eq(schema.media.id, mediaId));
+  if (!m || m.announce === "none") return;
+  const [title] = await db.select({ name: schema.titles.name, kind: schema.titles.kind, tmdbId: schema.titles.tmdbId }).from(schema.titles).where(eq(schema.titles.id, titleId));
+  if (!title) return;
+  const href = `/t/${title.kind}/${title.tmdbId}`;
+  const members = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(and(isNotNull(schema.users.approvedAt), isNull(schema.users.bannedAt)));
+  for (const u of members) {
+    if (served.has(u.id)) continue;
+    await notify(u.id, "new", { title: title.name, href });
+    if (m.announce === "mail") await queueMail(u.id, "new-title", { title: title.name, link: `${process.env.APP_URL ?? "http://localhost:3000"}${href}` });
+  }
 }
 
 async function notifyReady(userId: string, titleId: number, token: string, template: "ready" | "watchlist-ready") {

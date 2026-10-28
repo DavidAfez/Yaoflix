@@ -3,16 +3,16 @@ import { open } from "node:fs/promises";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { apiUser } from "@/lib/auth";
-import { can } from "@/lib/rbac";
+import { mayUploadMedia } from "@/lib/creators";
 import { paths } from "@/lib/storage";
 
 const MAX_CHUNK = 16 * 1024 * 1024;
 
 /** Appends one chunk. The client sends its offset; a mismatch returns the server offset so it can resume. */
 export async function PUT(req: Request, ctx: RouteContext<"/api/upload/[media]">) {
-  const user = await apiUser(can.upload);
-  if (!user) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  const user = await apiUser();
   const { media: id } = await ctx.params;
+  if (!user || !(await mayUploadMedia(user, id))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const offset = Number(new URL(req.url).searchParams.get("offset"));
 
   const [m] = await db

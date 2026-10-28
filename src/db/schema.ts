@@ -47,6 +47,8 @@ export const users = pgTable(
     // Staff lets the member in once the email is confirmed
     approvedAt: timestamp("approved_at", { withTimezone: true }),
     passwordHash: text("password_hash").notNull(),
+    // Creator profile: asked at sign-up or later, granted by staff
+    creator: text("creator").$type<"requested" | "approved" | "refused">(),
     role: roleEnum("role").notNull().default("USER"),
     ageBracket: text("age_bracket"),
     sex: text("sex"),
@@ -122,12 +124,18 @@ export const titles = pgTable(
     overviewEn: text("overview_en"),
     voteAverage: real("vote_average"),
     popularity: real("popularity"),
+    // Creator projects: made by a member, not from TMDB (their tmdbId is negative, local only)
+    creatorId: uuid("creator_id").references((): AnyPgColumn => users.id, { onDelete: "cascade" }),
+    credits: jsonb("credits").$type<TitleCredits>(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("titles_tmdb_idx").on(t.tmdbId, t.kind)],
 );
 
 export type Rendition = { height: number; bandwidth: number };
+export type TitleCredits = { crew: { job: string; names: string[] }[]; cast: { name: string; role: string | null }[] };
+/** Who hears about a title going online beyond the members who asked for it. */
+export type Announce = "none" | "notify" | "mail";
 export type Track = { lang: string; label: string; file?: string };
 
 export const media = pgTable(
@@ -145,6 +153,7 @@ export const media = pgTable(
     subtitles: jsonb("subtitles").$type<Track[]>().notNull().default([]),
     progress: integer("progress").notNull().default(0),
     error: text("error"),
+    announce: text("announce").$type<Announce>().notNull().default("none"),
     uploadedBy: uuid("uploaded_by").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     readyAt: timestamp("ready_at", { withTimezone: true }),

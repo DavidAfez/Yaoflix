@@ -28,7 +28,7 @@ const postSchema = z.object({
   // Scheduled post: shown to others from that moment, up to 30 days ahead
   publishAt: z.iso.datetime({ offset: true }).optional(),
   kind: z.enum(["movie", "tv"]).optional(),
-  tmdbId: z.number().int().positive().optional(),
+  tmdbId: z.number().int().refine((n) => n !== 0).optional(),
   parentId: z.uuid().optional(),
 });
 
@@ -54,6 +54,12 @@ export async function createPost(input: z.input<typeof postSchema>): Promise<{ o
     titleId = parent.titleId;
     await notify(parent.userId, "reply", { handle: user.handle, href: `/p/${parentId}` }, user.id);
   } else if (kind && tmdbId) titleId = await titleIdFor(kind, tmdbId);
+  // GabaoFlix talks about films and series: a new post is always about one
+  if (!parentId && !titleId) {
+    const frame = media.find((m) => m.type === "frame");
+    if (frame) [{ titleId }] = await db.select({ titleId: schema.clips.titleId }).from(schema.clips).where(eq(schema.clips.id, frame.clipId));
+  }
+  if (!parentId && !titleId) return { ok: false, error: "De quel film ou série tu parles ?" };
   const [p] = await db
     .insert(schema.posts)
     .values({ userId: user.id, body: body || null, titleId, parentId: parentId ?? null, media: media.length ? media : null, ...(createdAt ? { createdAt } : {}) })
@@ -136,7 +142,7 @@ export async function setFollow(handle: string, on: boolean) {
 // A title as posts carry it. Posters must come from TMDB, nothing else is rendered as an image.
 const titleRef = z.object({
   kind: z.enum(["movie", "tv"]),
-  tmdbId: z.number().int().positive(),
+  tmdbId: z.number().int().refine((n) => n !== 0),
   name: z.string().trim().min(1).max(200),
   year: z.number().int().nullable(),
   poster: z.string().startsWith("https://image.tmdb.org/").max(300).nullable(),
@@ -187,6 +193,8 @@ export async function createRichPost(input: { kind: "top5" | "tier" | "poll"; bo
   }
   if (kind === "poll" && data.answer != null && data.answer >= data.options.length) return { ok: false, error: "Invalide" };
 
+  // A poll is about a title, or about a still taken from one
+  if (kind === "poll" && !data.ref && !data.frameId) return { ok: false, error: "De quel film ou série tu parles ?" };
   const ref = kind === "poll" ? data.ref : kind === "top5" && data.items.length === 1 ? data.items[0] : null;
   const titleId = ref ? await titleIdFor(ref.kind, ref.tmdbId) : null;
   await db.insert(schema.posts).values({ userId: user.id, kind, body: body || null, data: data as PostData, titleId });

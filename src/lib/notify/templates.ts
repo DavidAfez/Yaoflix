@@ -56,6 +56,18 @@ export function renderMail(template: string, d: Data, locale: Locale = "fr"): Ma
           href: String(d.link),
         }),
       };
+    case "new-title":
+      return {
+        subject: t("Nouveau sur GabaoFlix : {title}", { title: String(d.title) }),
+        text: t("{title} vient d'arriver sur GabaoFlix : {link}", { title: String(d.title), link: String(d.link) }),
+        html: frame(esc(t("{title} vient d'arriver.", { title: String(d.title) })), "", { label: t("Voir"), href: String(d.link) }),
+      };
+    case "creator":
+      return {
+        subject: t("Ton profil créateur est validé"),
+        text: `${t("Ton profil créateur est validé")} : ${process.env.APP_URL ?? ""}/me/projects`,
+        html: frame(t("Ton profil créateur est validé."), t("Tu peux mettre tes projets en ligne."), { label: t("Mes projets"), href: `${process.env.APP_URL ?? ""}/me/projects` }),
+      };
     case "rejected":
       return {
         subject: t("{title} : pas pour l'instant", { title: String(d.title) }),

@@ -20,7 +20,7 @@ type Row = {
   banned: boolean;
 };
 
-const REASON: Record<string, string> = { spam: "Spam", harassment: "Harcèlement", hate: "Haine", spoiler: "Spoiler non signalé", illegal: "Contenu illégal", other: "Autre" };
+const REASON: Record<string, string> = { spam: "Spam", harassment: "Harcèlement", hate: "Haine", spoiler: "Spoiler non signalé", offtopic: "Hors sujet", illegal: "Contenu illégal", other: "Autre" };
 const TYPE: Record<string, string> = { post: "Post", user: "Profil", message: "Message" };
 
 export function ReportsList({ rows, view }: { rows: Row[]; view: string }) {

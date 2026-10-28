@@ -4,21 +4,24 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { apiUser } from "@/lib/auth";
+import { mayUpload } from "@/lib/creators";
 import { can } from "@/lib/rbac";
 import { paths } from "@/lib/storage";
 
 const CHUNK = 8 * 1024 * 1024;
 const MAX = 80 * 1024 ** 3;
 
-const body = z.object({ titleId: z.number().int().positive(), name: z.string().max(300), size: z.number().int().positive().max(MAX) });
+const body = z.object({ titleId: z.number().int().positive(), name: z.string().max(300), size: z.number().int().positive().max(MAX), announce: z.enum(["none", "notify", "mail"]).optional() });
 
 /** Starts or resumes a chunked upload. Same title + file name + size by the same person resumes where it stopped. */
 export async function POST(req: Request) {
-  const user = await apiUser(can.upload);
+  const user = await apiUser();
   if (!user) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const parsed = body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "bad" }, { status: 400 });
   const { titleId, name, size } = parsed.data;
+  // Staff upload anything, creators their own projects only
+  if (!(await mayUpload(user, titleId))) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const [existing] = await db
     .select()
@@ -38,7 +41,7 @@ export async function POST(req: Request) {
 
   const [m] = await db
     .insert(schema.media)
-    .values({ titleId, sourceName: name, sourceSize: size, uploadedBy: user.id })
+    .values({ titleId, sourceName: name, sourceSize: size, uploadedBy: user.id, announce: can.announce(user.role) ? (parsed.data.announce ?? "none") : "none" })
     .returning({ id: schema.media.id });
   await db
     .update(schema.requests)

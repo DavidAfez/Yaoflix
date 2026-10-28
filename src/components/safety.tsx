@@ -14,6 +14,7 @@ const LABELS: Record<(typeof REASONS)[number], string> = {
   harassment: "Harcèlement",
   hate: "Haine",
   spoiler: "Spoiler non signalé",
+  offtopic: "Hors sujet (pas sur un film)",
   illegal: "Contenu illégal",
   other: "Autre",
 };

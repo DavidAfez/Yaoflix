@@ -77,7 +77,7 @@ export async function saveBillboard(ms: number) {
 
 const ref = z.object({
   kind: z.enum(["movie", "tv"]),
-  tmdbId: z.number().int().positive(),
+  tmdbId: z.number().int().refine((n) => n !== 0),
   name: z.string().trim().min(1).max(200),
   year: z.number().int().nullable(),
   poster: z.string().startsWith("https://image.tmdb.org/").max(300).nullable(),

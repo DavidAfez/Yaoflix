@@ -4,7 +4,7 @@ import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getUser } from "@/lib/auth";
 import { cinephile, recommend } from "@/lib/recos";
-import { trending, topRated, byGenre, byCountry, classics, interleave, localize, AFRICA, COUNTRY_ROWS, GENRE_ROWS, img, type TitleRow } from "@/lib/tmdb";
+import { trending, topRated, byGenre, byCountry, classics, interleave, localize, AFRICA, COUNTRY_ROWS, GENRE_ROWS, img, type TitleRow, creatorTitles } from "@/lib/tmdb";
 import { neverTitleIds } from "@/lib/marks";
 import { getT } from "@/lib/i18n/server";
 import { KindTabs } from "@/components/kind-tabs";
@@ -85,6 +85,8 @@ export default async function Page(props: PageProps<"/">) {
     db.select({ id: schema.watchlist.titleId }).from(schema.watchlist).where(eq(schema.watchlist.userId, user.id)),
   ]);
   const listedIds = new Set(listed.map((l) => l.id));
+  // Projects of the site's own creators, online
+  const made = (await creatorTitles(20)).filter((t) => !kindFilter || t.kind === kindFilter);
   const t = await getT();
   // Titles the member refuses to watch never show up in a row
   const keep = (rows: TitleRow[]) => rows.filter((t) => !never.has(t.id));
@@ -174,6 +176,14 @@ export default async function Page(props: PageProps<"/">) {
           <Row title="Arrivés" count={latest.length}>
             {latest.filter(({ title }) => !never.has(title.id)).map(({ title }, i) => (
               <Poster key={title.id} t={toPoster(title, true)} i={i} hideNever />
+            ))}
+          </Row>
+        )}
+
+        {made.length > 0 && (
+          <Row title="Créateurs" count={made.length}>
+            {made.filter((x) => !never.has(x.id)).map((x, i) => (
+              <Poster key={x.id} t={toPoster(x, true)} i={i} hideNever />
             ))}
           </Row>
         )}

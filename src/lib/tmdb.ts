@@ -4,7 +4,16 @@ import { db, schema } from "@/db";
 
 const API = "https://api.themoviedb.org/3";
 export const img = (path: string | null | undefined, size: "w342" | "w500" | "w780" | "w1280" | "original" = "w500") =>
-  path ? (path.startsWith("http") || path.startsWith("/media") ? path : `https://image.tmdb.org/t/p/${size}${path}`) : null;
+  path
+    ? path.startsWith("img:")
+      ? `/api/images/${path.slice(4)}` // uploaded by a creator
+      : path.startsWith("http") || path.startsWith("/media")
+        ? path
+        : `https://image.tmdb.org/t/p/${size}${path}`
+    : null;
+
+/** Creator projects live only here: they get negative ids, never sent to TMDB. */
+export const isLocal = (tmdbId: number) => tmdbId < 0;
 
 const GENRES: Record<number, string> = {
   28: "Action", 12: "Aventure", 16: "Animation", 35: "Comédie", 80: "Crime", 99: "Documentaire",
@@ -125,10 +134,30 @@ function pickKind(it: TmdbItem): "movie" | "tv" | null {
   return null;
 }
 
+/** Creator projects that are online, newest first (excluding one). */
+export async function creatorTitles(limit = 20, except?: number): Promise<TitleRow[]> {
+  return db
+    .select()
+    .from(schema.titles)
+    .where(and(sql`${schema.titles.tmdbId} < 0`, except ? sql`${schema.titles.tmdbId} <> ${except}` : undefined, sql`exists(select 1 from media m where m.title_id = ${schema.titles.id} and m.status = 'READY')`))
+    .orderBy(desc(schema.titles.updatedAt))
+    .limit(limit);
+}
+
 /** Search TMDB (movies + series), cache results locally. Falls back to the local cache offline. */
 export async function searchTitles(q: string): Promise<TitleRow[]> {
   const query = q.trim().slice(0, 100);
   if (!query) return [];
+  // Creator projects first: TMDB doesn't know them
+  const own = await db
+    .select()
+    .from(schema.titles)
+    .where(and(sql`${schema.titles.tmdbId} < 0`, or(ilike(schema.titles.name, `%${query}%`), ilike(schema.titles.originalName, `%${query}%`))))
+    .limit(6);
+  return [...own, ...(await searchRemote(query))];
+}
+
+async function searchRemote(query: string): Promise<TitleRow[]> {
   if (hasTmdb()) {
     try {
       const data = await tmdb<{ results: TmdbItem[] }>("/search/multi", { query, include_adult: "false" });
@@ -150,7 +179,7 @@ export async function searchTitles(q: string): Promise<TitleRow[]> {
   return db
     .select()
     .from(schema.titles)
-    .where(or(ilike(schema.titles.name, `%${query}%`), ilike(schema.titles.originalName, `%${query}%`)))
+    .where(and(sql`${schema.titles.tmdbId} > 0`, or(ilike(schema.titles.name, `%${query}%`), ilike(schema.titles.originalName, `%${query}%`))))
     .orderBy(desc(schema.titles.popularity))
     .limit(24);
 }
@@ -177,7 +206,7 @@ export async function trending(): Promise<TitleRow[]> {
 
 /** Get a title from the cache, refreshing details (genres, runtime) from TMDB when possible. */
 export async function getTitle(kind: "movie" | "tv", tmdbId: number): Promise<TitleRow | null> {
-  if (hasTmdb()) {
+  if (hasTmdb() && !isLocal(tmdbId)) {
     try {
       const it = await tmdb<TmdbItem>(`/${kind}/${tmdbId}`);
       const [row] = await upsert([toRow(it, kind)]);
@@ -197,6 +226,7 @@ export async function getTitle(kind: "movie" | "tv", tmdbId: number): Promise<Ti
 
 /** TMDB "recommendations" for a title, used to suggest things to request. */
 export async function similar(kind: "movie" | "tv", tmdbId: number): Promise<TitleRow[]> {
+  if (isLocal(tmdbId)) return creatorTitles(12, tmdbId);
   if (!hasTmdb()) return [];
   try {
     const data = await tmdb<{ results: TmdbItem[] }>(`/${kind}/${tmdbId}/recommendations`);
@@ -373,6 +403,10 @@ const JOBS: [string, string][] = [
 
 /** Studios, crew and cast. Null when TMDB is out of reach: the section then stays hidden. */
 export async function credits(kind: "movie" | "tv", tmdbId: number): Promise<Credits | null> {
+  if (isLocal(tmdbId)) {
+    const [t] = await db.select({ c: schema.titles.credits }).from(schema.titles).where(and(eq(schema.titles.kind, kind), eq(schema.titles.tmdbId, tmdbId)));
+    return t?.c ? { companies: [], networks: [], crew: t.c.crew, cast: t.c.cast.map((p) => ({ ...p, photo: null })) } : null;
+  }
   if (!hasTmdb()) return null;
   try {
     const extra = kind === "movie" ? "credits" : "aggregate_credits";
@@ -407,7 +441,7 @@ export async function credits(kind: "movie" | "tv", tmdbId: number): Promise<Cre
 
 /** Name and synopsis in another language, for the title page of English-speaking members. */
 export async function localized(kind: "movie" | "tv", tmdbId: number, language: string): Promise<{ name: string | null; overview: string | null } | null> {
-  if (!hasTmdb()) return null;
+  if (!hasTmdb() || isLocal(tmdbId)) return null;
   try {
     const d = await tmdb<TmdbItem>(`/${kind}/${tmdbId}`, { language });
     return { name: d.title ?? d.name ?? null, overview: d.overview || null };
@@ -423,7 +457,7 @@ export async function localized(kind: "movie" | "tv", tmdbId: number, language: 
 export async function localize<T extends TitleRow>(rows: T[]): Promise<T[]> {
   const { getLocale } = await import("./i18n/server");
   if ((await getLocale()) !== "en") return rows;
-  const missing = [...new Map(rows.filter((r) => r.nameEn == null).map((r) => [r.id, r])).values()].slice(0, 120);
+  const missing = [...new Map(rows.filter((r) => r.nameEn == null && !isLocal(r.tmdbId)).map((r) => [r.id, r])).values()].slice(0, 120);
   const found = new Map<number, { name: string | null; overview: string | null }>();
   if (hasTmdb() && missing.length) {
     for (let i = 0; i < missing.length; i += 20) {

@@ -45,6 +45,7 @@ const joinSchema = z.object({
   password: z.string().min(10, "10 caractères minimum").max(200),
   age: z.enum(ageBrackets, "Choisis ta tranche d'âge"),
   sex: z.enum(["F", "M", "X", ""]).optional(),
+  creator: z.literal("on").optional(),
 });
 
 export async function join(_: AuthState, form: FormData): Promise<AuthState> {
@@ -52,7 +53,7 @@ export async function join(_: AuthState, form: FormData): Promise<AuthState> {
   if (await ipBanned()) return { error: "Inscription impossible." };
   const parsed = joinSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
-  const { handle, email, password, age, sex } = parsed.data;
+  const { handle, email, password, age, sex, creator } = parsed.data;
   const emailHash = blindIndex(normalizeEmail(email), "email");
 
   const [taken] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.handle, handle));
@@ -75,6 +76,7 @@ export async function join(_: AuthState, form: FormData): Promise<AuthState> {
         passwordHash: await hashPassword(password),
         ageBracket: age,
         sex: sex || null,
+        creator: creator ? "requested" : null,
         country: countryFrom(await headers()),
         locale: await getLocale(),
       })

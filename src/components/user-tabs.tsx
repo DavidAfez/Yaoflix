@@ -6,9 +6,11 @@ import { useT } from "./i18n";
 import type { FeedPost } from "@/lib/feed";
 
 /** Profile tabs, Twitter style: posts, replies, reposts, media, then reviews and the film library. */
-export function UserTabs({ lists, reviews, library }: { lists: { posts: FeedPost[]; replies: FeedPost[]; reposts: FeedPost[]; media: FeedPost[] }; reviews: React.ReactNode; library: React.ReactNode }) {
+export function UserTabs({ lists, reviews, library, projects }: { lists: { posts: FeedPost[]; replies: FeedPost[]; reposts: FeedPost[]; media: FeedPost[] }; reviews: React.ReactNode; library: React.ReactNode; projects?: { node: React.ReactNode; n: number } }) {
   const t = useT();
   const tabs = [
+    // A creator's own work comes first
+    ...(projects ? [{ k: "projects", label: "Projets", n: projects.n } as const] : []),
     { k: "posts", label: "Bobines", n: lists.posts.length },
     { k: "replies", label: "Réponses", n: lists.replies.length },
     { k: "reposts", label: "Reposts", n: lists.reposts.length },
@@ -16,7 +18,7 @@ export function UserTabs({ lists, reviews, library }: { lists: { posts: FeedPost
     { k: "reviews", label: "Avis", n: null },
     { k: "library", label: "Films", n: null },
   ] as const;
-  const [tab, setTab] = useState<(typeof tabs)[number]["k"]>("posts");
+  const [tab, setTab] = useState<(typeof tabs)[number]["k"]>(projects ? "projects" : "posts");
   const list = tab === "posts" || tab === "replies" || tab === "reposts" || tab === "media" ? lists[tab] : null;
   return (
     <>
@@ -41,6 +43,8 @@ export function UserTabs({ lists, reviews, library }: { lists: { posts: FeedPost
             ) : (
               <p className="px-4 py-16 font-display text-3xl font-extrabold text-bone/15 md:px-10 md:text-5xl">{t("Rien ici pour l'instant.")}</p>
             )
+          ) : tab === "projects" ? (
+            projects?.node
           ) : tab === "reviews" ? (
             reviews
           ) : (

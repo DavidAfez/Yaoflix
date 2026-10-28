@@ -23,6 +23,7 @@ export default async function Page(props: PageProps<"/studio/library">) {
   return (
     <Library
       canDelete={can.manageUsers(user.role)}
+      canAnnounce={can.announce(user.role)}
       preselect={pre ? { id: pre.id, ...toPoster(pre) } : null}
       media={media.map(({ m, t, by }) => ({
         id: m.id,

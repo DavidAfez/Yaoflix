@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AtSign, Bell, Check, Heart, MessageCircle, MonitorSmartphone, Repeat2, UserPlus, X } from "lucide-react";
+import { AtSign, Bell, Check, Clapperboard, Sparkles, Heart, MessageCircle, MonitorSmartphone, Repeat2, UserPlus, X } from "lucide-react";
 import { useLocale, useT } from "./i18n";
 import { rejectLabels } from "@/lib/labels";
 import type { RejectReason } from "@/db/schema";
@@ -38,6 +38,8 @@ export function useNotifications() {
 
 const ICON: Record<string, React.ReactNode> = {
   ready: <Check size={15} className="text-lime" />,
+  new: <Sparkles size={15} className="text-lime" />,
+  creator: <Clapperboard size={15} className="text-lime" />,
   rejected: <X size={15} className="text-coral" />,
   reply: <MessageCircle size={15} className="text-ice" />,
   follow: <UserPlus size={15} className="text-ice" />,
@@ -50,6 +52,10 @@ function line(it: Item, t: T) {
   switch (it.kind) {
     case "ready":
       return t("{title} est dispo", { title: d.title ?? "" });
+    case "new":
+      return t("Nouveau : {title}", { title: d.title ?? "" });
+    case "creator":
+      return t("Ton profil créateur est validé");
     case "rejected":
       return `${d.title} : ${t(rejectLabels[d.reason as RejectReason] ?? "Refusé")}`;
     case "reply":

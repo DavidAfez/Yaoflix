@@ -44,19 +44,21 @@ export async function POST() {
 
 async function studio(r: Parameters<typeof can.isStaff>[0]): Promise<StudioNotif[]> {
   const [c] = (
-    await db.execute<{ requests: number; approve: number; reports: number; errors: number; failed: number; flags: number }>(sql`
+    await db.execute<{ requests: number; approve: number; reports: number; errors: number; failed: number; flags: number; creators: number }>(sql`
       select
         (select count(distinct title_id)::int from requests where status = 'PENDING') as requests,
         (select count(*)::int from users where email_verified_at is not null and approved_at is null and banned_at is null) as approve,
         (select count(*)::int from error_logs where resolved_at is null and source = 'user') as reports,
         (select count(*)::int from error_logs where resolved_at is null and source <> 'user') as errors,
         (select count(*)::int from media where status = 'FAILED') as failed,
-        (select count(*)::int from reports where status = 'open') as flags
+        (select count(*)::int from reports where status = 'open') as flags,
+        (select count(*)::int from users where creator = 'requested' and banned_at is null) as creators
     `)
   ).rows;
   return [
     can.handleRequests(r) && { key: "requests", label: "Demandes à traiter", count: c.requests, href: "/studio" },
     can.manageUsers(r) && { key: "approve", label: "Comptes à valider", count: c.approve, href: "/studio/members" },
+    can.manageUsers(r) && { key: "creators", label: "Profils créateurs à valider", count: c.creators, href: "/studio/members" },
     can.manageUsers(r) && { key: "flags", label: "Signalements", count: c.flags, href: "/studio/reports" },
     can.viewErrors(r) && { key: "reports", label: "Bugs signalés", count: c.reports, href: "/studio/errors?source=user" },
     can.viewErrors(r) && { key: "errors", label: "Erreurs ouvertes", count: c.errors, href: "/studio/errors" },

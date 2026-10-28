@@ -52,7 +52,7 @@ export async function destroySession() {
 
 export type SessionUser = Pick<
   User,
-  "id" | "handle" | "role" | "ageBracket" | "sex" | "country" | "emailVerifiedAt" | "whatsappOptIn"
+  "id" | "handle" | "role" | "ageBracket" | "sex" | "country" | "emailVerifiedAt" | "whatsappOptIn" | "creator"
 > & { hasPhone: boolean; approved: boolean };
 
 /** Resolve the current user once per request. */
@@ -69,6 +69,7 @@ export const getUser = cache(async (): Promise<SessionUser | null> => {
       country: schema.users.country,
       emailVerifiedAt: schema.users.emailVerifiedAt,
       whatsappOptIn: schema.users.whatsappOptIn,
+      creator: schema.users.creator,
       phoneHash: schema.users.phoneHash,
       bannedAt: schema.users.bannedAt,
       approvedAt: schema.users.approvedAt,
