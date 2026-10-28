@@ -1,9 +1,9 @@
 import { sql, eq } from "drizzle-orm";
-import nodemailer from "nodemailer";
 import { db, schema } from "@/db";
 import { decrypt } from "@/lib/crypto";
 import { logError } from "@/lib/errors";
 import { renderMail, renderWhatsApp } from "@/lib/notify/templates";
+import { mailRoute, sendMail } from "@/lib/notify/mailer";
 import { sendWhatsApp, whatsappEnabled } from "@/lib/notify/whatsapp";
 import { backfillThumbnails, transcode } from "./transcode";
 import { renderClip } from "./clip";
@@ -15,7 +15,6 @@ import { transcribe } from "./transcribe";
 type Job = typeof schema.jobs.$inferSelect;
 
 const MAX_ATTEMPTS = 5;
-const mailer = process.env.SMTP_URL ? nodemailer.createTransport(process.env.SMTP_URL) : null;
 
 /** Atomically claims the next due job of the given types. SKIP LOCKED lets several workers run side by side. */
 async function claim(types: string[]): Promise<Job | null> {
@@ -67,13 +66,7 @@ async function handle(job: Job) {
       const u = await contact(String(p.userId));
       if (!u || u.banned) return;
       const mail = renderMail(String(p.template), (p.data ?? {}) as Record<string, unknown>, u.locale === "en" ? "en" : "fr");
-      const to = decrypt(u.emailEnc);
-      if (!mailer) {
-        const masked = to.replace(/^(.).*(@.*)$/, "$1***$2");
-        console.log(`\n[mail] to ${masked}\n  ${mail.subject}\n  ${mail.text}\n`);
-        return;
-      }
-      await mailer.sendMail({ from: process.env.MAIL_FROM, to, subject: mail.subject, text: mail.text, html: mail.html });
+      await sendMail({ to: decrypt(u.emailEnc), ...mail });
       return;
     }
     case "whatsapp": {
@@ -166,7 +159,7 @@ async function lane(name: string, types: string[]) {
 }
 
 async function main() {
-  console.log("GabaoFlix worker up");
+  console.log(`GabaoFlix worker up · mails: ${mailRoute()}`);
   // The database may still be starting: wait for it instead of crashing
   for (let attempt = 1; ; attempt++) {
     try {
