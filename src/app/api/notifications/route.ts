@@ -27,7 +27,11 @@ export async function GET() {
           and m.created_at > coalesce((select r.at from chat_reads r where r.thread_id = t.id and r.user_id = ${user.id}), 'epoch'))
     `)
   ).rows;
-  return NextResponse.json({ items, unread: n, chat, studio: can.isStaff(user.role) ? await studio(user.role) : [] });
+  // A new device of this member waiting for one of the others to let it in
+  const [{ devices }] = (
+    await db.execute<{ devices: number }>(sql`select count(*)::int as devices from chat_devices where user_id = ${user.id} and approved_at is null and revoked_at is null`)
+  ).rows;
+  return NextResponse.json({ items, unread: n, chat, devices, studio: can.isStaff(user.role) ? await studio(user.role) : [] });
 }
 
 /** Everything is read once the panel has been opened. */

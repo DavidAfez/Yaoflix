@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AtSign, Bell, Check, Heart, MessageCircle, Repeat2, UserPlus, X } from "lucide-react";
+import { AtSign, Bell, Check, Heart, MessageCircle, MonitorSmartphone, Repeat2, UserPlus, X } from "lucide-react";
 import { useLocale, useT } from "./i18n";
 import { rejectLabels } from "@/lib/labels";
 import type { RejectReason } from "@/db/schema";
@@ -11,12 +11,12 @@ import type { T } from "@/lib/i18n";
 
 export type StudioNotif = { key: string; label: string; count: number; href: string };
 type Item = { id: number; kind: string; data: { title?: string; handle?: string; href?: string; reason?: string }; readAt: string | null; at: string };
-type Payload = { items: Item[]; unread: number; chat: number; studio: StudioNotif[] };
+type Payload = { items: Item[]; unread: number; chat: number; devices: number; studio: StudioNotif[] };
 
 /** Notification centre data, refreshed on every page change and every minute. */
 export function useNotifications() {
   const path = usePathname();
-  const [data, setData] = useState<Payload>({ items: [], unread: 0, chat: 0, studio: [] });
+  const [data, setData] = useState<Payload>({ items: [], unread: 0, chat: 0, devices: 0, studio: [] });
   const load = useCallback(() => {
     fetch("/api/notifications")
       .then((r) => (r.ok ? (r.json() as Promise<Payload>) : null))
@@ -33,7 +33,7 @@ export function useNotifications() {
     setData((d) => ({ ...d, unread: 0 }));
     void fetch("/api/notifications", { method: "POST" });
   }, [data.unread]);
-  return { ...data, markRead, total: data.unread + data.studio.reduce((a, b) => a + b.count, 0) };
+  return { ...data, markRead, total: data.unread + data.devices + data.studio.reduce((a, b) => a + b.count, 0) };
 }
 
 const ICON: Record<string, React.ReactNode> = {
@@ -110,6 +110,12 @@ export function NotificationBell({ n, className = "", align = "right" }: { n: Re
             transition={{ duration: 0.15 }}
             className={`absolute top-11 z-50 max-h-[70vh] w-80 overflow-y-auto border-l-2 border-lime bg-ink-2 py-1 shadow-2xl shadow-black/60 ${align === "right" ? "right-0" : "left-0"}`}
           >
+            {n.devices > 0 && (
+              <Link href="/chat" onClick={() => setOpen(false)} className="flex items-center gap-3 border-b border-line px-4 py-3 text-sm text-bone transition-colors hover:bg-bone/5 hover:text-lime">
+                <MonitorSmartphone size={15} className="shrink-0 text-lime" />
+                {t("Un nouvel appareil veut accéder à tes messages")}
+              </Link>
+            )}
             {n.studio.length > 0 && (
               <div className="border-b border-line pb-1">
                 <p className="px-4 pb-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-lime">{t("Studio")}</p>
@@ -121,7 +127,7 @@ export function NotificationBell({ n, className = "", align = "right" }: { n: Re
                 ))}
               </div>
             )}
-            {n.items.length === 0 && !n.studio.length ? (
+            {n.items.length === 0 && !n.studio.length && !n.devices ? (
               <p className="px-4 py-6 text-center text-sm text-dim">{t("Rien de neuf.")}</p>
             ) : (
               n.items.map((it) => (

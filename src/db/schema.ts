@@ -552,17 +552,30 @@ export const topLists = pgTable(
 );
 
 /**
- * End-to-end encrypted chat. The server only ever holds public keys, private keys wrapped with a
- * passphrase it never sees, and ciphertext. Nobody running the server can read the messages.
+ * End-to-end encrypted chat. The server only ever holds public keys and ciphertext.
+ * Nobody running the server can read the messages.
  */
-export const chatKeys = pgTable("chat_keys", {
-  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
-  publicKey: text("public_key").notNull(), // JWK, ECDH P-256
-  wrappedKey: text("wrapped_key").notNull(), // private JWK, AES-GCM with a key derived from the passphrase
-  salt: text("salt").notNull(),
-  iv: text("iv").notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+/**
+ * One key set per device, created in the browser. The private halves never leave it (non-extractable
+ * WebCrypto keys in IndexedDB); the server only keeps the public halves. A member's first device is
+ * the root; each later device is vouched for (ECDSA signature) by one already trusted.
+ */
+export const chatDevices = pgTable(
+  "chat_devices",
+  {
+    id: uuid("id").primaryKey(), // chosen by the device, part of what it signs
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    ecdh: text("ecdh").notNull(), // P-256 public key, raw, base64
+    sign: text("sign").notNull(), // ECDSA P-256 public key, raw, base64
+    signedBy: uuid("signed_by"), // null for the root
+    sig: text("sig").notNull(),
+    label: text("label").notNull().default(""),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("chat_devices_user_idx").on(t.userId)],
+);
 
 export const chatThreads = pgTable(
   "chat_threads",
@@ -583,11 +596,24 @@ export const chatMessages = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     threadId: uuid("thread_id").notNull().references(() => chatThreads.id, { onDelete: "cascade" }),
     senderId: uuid("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    senderDevice: uuid("sender_device").notNull(),
     iv: text("iv").notNull(),
-    body: text("body").notNull(), // ciphertext, base64
+    body: text("body").notNull(), // ciphertext under a random per-message key, base64
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("chat_messages_thread_idx").on(t.threadId, t.createdAt)],
+);
+
+/** The per-message key, wrapped for one device with ECDH(fromDevice, device). */
+export const chatMessageKeys = pgTable(
+  "chat_message_keys",
+  {
+    messageId: uuid("message_id").notNull().references(() => chatMessages.id, { onDelete: "cascade" }),
+    deviceId: uuid("device_id").notNull(),
+    fromDevice: uuid("from_device").notNull(),
+    wrap: text("wrap").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.messageId, t.deviceId] }), index("chat_message_keys_device_idx").on(t.deviceId)],
 );
 
 export const chatReads = pgTable(

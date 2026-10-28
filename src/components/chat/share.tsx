@@ -3,30 +3,35 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Check, X } from "lucide-react";
-import { seal, threadKey } from "@/lib/e2e";
+import { seal } from "@/lib/e2e";
 import { Avatar } from "../avatar";
 import { useT } from "../i18n";
 import { Dots } from "../ui";
-import { useChatKey } from "./keys";
+import { useChatDevice } from "./device";
+import { peer } from "./peers";
 import type { Thread } from "./message";
 
 /** Send a post into one of the member's conversations, encrypted like any message. */
 export function ShareToChat({ postId, onClose }: { postId: string; onClose: () => void }) {
   const t = useT();
-  const { state } = useChatKey();
+  const { state } = useChatDevice({ create: false });
+  const [failed, setFailed] = useState<string | null>(null);
   const [threads, setThreads] = useState<Thread[] | null>(null);
   const [sent, setSent] = useState<string | null>(null);
   useEffect(() => {
     fetch("/api/chat/threads")
       .then((r) => r.json() as Promise<{ threads: Thread[] }>)
-      .then((d) => setThreads(d.threads.filter((x) => x.other.publicKey)))
+      .then((d) => setThreads(d.threads.filter((x) => x.other.ready)))
       .catch(() => setThreads([]));
   }, []);
   const send = async (th: Thread) => {
-    if (state.status !== "ready" || !th.other.publicKey) return;
-    const key = await threadKey(state.key, th.other.publicKey, th.id);
-    const sealed = await seal(key, { post: postId });
-    const res = await fetch(`/api/chat/threads/${th.id}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sealed) });
+    if (state.status !== "ready") return;
+    setFailed(null);
+    const o = await peer(state.userId, th.other.handle);
+    // A changed key must be looked at in the conversation first
+    if (!o?.devices.length || o.changed) return setFailed(th.id);
+    const sealed = await seal(state.me, [...o.devices, ...state.mine], { post: postId });
+    const res = await fetch(`/api/chat/threads/${th.id}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ device: state.me.id, ...sealed }) });
     if (res.ok) {
       setSent(th.id);
       setTimeout(onClose, 900);
@@ -64,6 +69,7 @@ export function ShareToChat({ postId, onClose }: { postId: string; onClose: () =
                   <Avatar id={th.other.avatarId} handle={th.other.handle} size={32} />
                   <span className="flex-1 font-mono text-sm">@{th.other.handle}</span>
                   {sent === th.id && <Check size={16} className="text-lime" />}
+                  {failed === th.id && <span className="text-xs text-coral">{t("Ouvre la conversation")}</span>}
                 </button>
               </li>
             ))}
