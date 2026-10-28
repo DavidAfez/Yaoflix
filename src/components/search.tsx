@@ -223,48 +223,6 @@ function People({ people, q }: { people: Person[]; q: string }) {
 
 const typing = () => ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName ?? "");
 
-export function SearchHero({ children }: { children: React.ReactNode }) {
-  const s = useTitleSearch();
-  const [focused, setFocused] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "/" && !typing()) {
-        e.preventDefault();
-        input.current?.focus();
-      }
-    };
-    // The nav button on the home page focuses this bar instead of opening the overlay
-    const onOpen = () => input.current?.focus();
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("gf:search", onOpen);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("gf:search", onOpen);
-    };
-  }, []);
-
-  return (
-    <>
-      <div className="sticky top-11 z-30 bg-ink/85 px-4 backdrop-blur-xl md:top-12 md:px-10">
-        <SearchBar s={s} input={input} focused={focused} setFocused={setFocused} />
-      </div>
-      <AnimatePresence mode="wait">
-        {s.results ? (
-          <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Results s={s} />
-          </motion.div>
-        ) : (
-          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
-
 /** Full-screen search reachable from every page through the nav, "/" or Ctrl+K. */
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();

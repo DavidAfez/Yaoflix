@@ -31,7 +31,8 @@ export async function GET() {
   const [{ devices }] = (
     await db.execute<{ devices: number }>(sql`select count(*)::int as devices from chat_devices where user_id = ${user.id} and approved_at is null and revoked_at is null`)
   ).rows;
-  return NextResponse.json({ items, unread: n, chat, devices, studio: can.isStaff(user.role) ? await studio(user.role) : [] });
+  const staff = can.isStaff(user.role) ? await studio(user.role) : { tasks: [], alerts: [] };
+  return NextResponse.json({ items, unread: n, chat, devices, studio: staff.tasks, alerts: staff.alerts });
 }
 
 /** Everything is read once the panel has been opened. */
@@ -42,7 +43,8 @@ export async function POST() {
   return NextResponse.json({ ok: true });
 }
 
-async function studio(r: Parameters<typeof can.isStaff>[0]): Promise<StudioNotif[]> {
+/** Studio to-dos for the bell, and technical alerts kept apart from it. */
+async function studio(r: Parameters<typeof can.isStaff>[0]): Promise<{ tasks: StudioNotif[]; alerts: StudioNotif[] }> {
   const [c] = (
     await db.execute<{ requests: number; approve: number; reports: number; errors: number; failed: number; flags: number; creators: number }>(sql`
       select
@@ -55,13 +57,17 @@ async function studio(r: Parameters<typeof can.isStaff>[0]): Promise<StudioNotif
         (select count(*)::int from users where creator = 'requested' and banned_at is null) as creators
     `)
   ).rows;
-  return [
+  const keep = (xs: (StudioNotif | false)[]) => xs.filter((x): x is StudioNotif => Boolean(x) && (x as StudioNotif).count > 0);
+  const tasks = keep([
     can.handleRequests(r) && { key: "requests", label: "Demandes à traiter", count: c.requests, href: "/studio" },
     can.manageUsers(r) && { key: "approve", label: "Comptes à valider", count: c.approve, href: "/studio/members" },
     can.manageUsers(r) && { key: "creators", label: "Profils créateurs à valider", count: c.creators, href: "/studio/members" },
     can.manageUsers(r) && { key: "flags", label: "Signalements", count: c.flags, href: "/studio/reports" },
+  ]);
+  const alerts = keep([
     can.viewErrors(r) && { key: "reports", label: "Bugs signalés", count: c.reports, href: "/studio/errors?source=user" },
     can.viewErrors(r) && { key: "errors", label: "Erreurs ouvertes", count: c.errors, href: "/studio/errors" },
     can.upload(r) && { key: "failed", label: "Encodages en échec", count: c.failed, href: "/studio/library" },
-  ].filter((x): x is StudioNotif => Boolean(x) && (x as StudioNotif).count > 0);
+  ]);
+  return { tasks, alerts };
 }

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AtSign, Bell, Check, Clapperboard, Sparkles, Heart, MessageCircle, MonitorSmartphone, Repeat2, UserPlus, X } from "lucide-react";
+import { AtSign, Bell, TriangleAlert, Check, Clapperboard, Sparkles, Heart, MessageCircle, MonitorSmartphone, Repeat2, UserPlus, X } from "lucide-react";
 import { useLocale, useT } from "./i18n";
 import { rejectLabels } from "@/lib/labels";
 import type { RejectReason } from "@/db/schema";
@@ -11,12 +11,12 @@ import type { T } from "@/lib/i18n";
 
 export type StudioNotif = { key: string; label: string; count: number; href: string };
 type Item = { id: number; kind: string; data: { title?: string; handle?: string; href?: string; reason?: string }; readAt: string | null; at: string };
-type Payload = { items: Item[]; unread: number; chat: number; devices: number; studio: StudioNotif[] };
+type Payload = { items: Item[]; unread: number; chat: number; devices: number; studio: StudioNotif[]; alerts: StudioNotif[] };
 
 /** Notification centre data, refreshed on every page change and every minute. */
 export function useNotifications() {
   const path = usePathname();
-  const [data, setData] = useState<Payload>({ items: [], unread: 0, chat: 0, devices: 0, studio: [] });
+  const [data, setData] = useState<Payload>({ items: [], unread: 0, chat: 0, devices: 0, studio: [], alerts: [] });
   const load = useCallback(() => {
     fetch("/api/notifications")
       .then((r) => (r.ok ? (r.json() as Promise<Payload>) : null))
@@ -154,5 +154,19 @@ export function NotificationBell({ n, className = "", align = "right" }: { n: Re
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/** Staff only: errors, bug reports and failed encodes, apart from the notification centre. */
+export function AlertsButton({ n, className = "" }: { n: ReturnType<typeof useNotifications>; className?: string }) {
+  const t = useT();
+  const count = n.alerts.reduce((a, b) => a + b.count, 0);
+  if (!count) return null;
+  const label = n.alerts.map((a) => `${t(a.label)} : ${a.count}`).join(" · ");
+  return (
+    <Link href={n.alerts[0].href} aria-label={label} title={label} className={`relative grid size-9 place-items-center text-coral/80 transition-colors hover:text-coral ${className}`}>
+      <TriangleAlert size={16} />
+      <span className="absolute right-0 top-0.5 font-mono text-[9px] font-semibold leading-none">{count > 99 ? "99+" : count}</span>
+    </Link>
   );
 }

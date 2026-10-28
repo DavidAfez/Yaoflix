@@ -12,7 +12,6 @@ import { Billboard, type Slide } from "@/components/billboard";
 import { readyTitleIds } from "@/lib/recos";
 import { toPoster, daysLeft } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
-import { SearchHero } from "@/components/search";
 import { Landing } from "@/components/landing";
 import { StatusMark } from "@/components/status";
 
@@ -130,144 +129,142 @@ export default async function Page(props: PageProps<"/">) {
 
   return (
     <main>
-      <SearchHero>
-        <Billboard slides={slides} delay={pref?.ms ?? 3000} />
-        <KindTabs current={k} />
+      <Billboard slides={slides} delay={pref?.ms ?? 3000} />
+      <KindTabs current={k} />
 
-        {grants.length > 0 && (
-          <section className="mx-4 mt-10 md:mx-10">
-            <div className="scrollbar-none flex snap-x gap-3 overflow-x-auto">
-              {grants.map(({ grant, title }) => (
-                <Link
-                  key={grant.id}
-                  href={`/w/${grant.id}`}
-                  className="group relative h-44 w-[82vw] shrink-0 snap-start overflow-hidden bg-ink-3 md:h-56 md:w-[480px]"
-                >
-                  {title.backdropPath && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={img(title.backdropPath, "w780")!} alt="" className="absolute inset-0 size-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-105" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-ink via-ink/40 to-transparent" />
-                  <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5">
-                    <div>
-                      <p className="font-display text-xl font-semibold leading-tight md:text-2xl">{title.name}</p>
-                      <p className="mt-1 font-mono text-xs text-lime">J-{daysLeft(grant.expiresAt)}</p>
-                    </div>
-                    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-lime text-ink transition-transform group-hover:scale-110">
-                      <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M0 0l16 9-16 9z" /></svg>
-                    </span>
+      {grants.length > 0 && (
+        <section className="mx-4 mt-10 md:mx-10">
+          <div className="scrollbar-none flex snap-x gap-3 overflow-x-auto">
+            {grants.map(({ grant, title }) => (
+              <Link
+                key={grant.id}
+                href={`/w/${grant.id}`}
+                className="group relative h-44 w-[82vw] shrink-0 snap-start overflow-hidden bg-ink-3 md:h-56 md:w-[480px]"
+              >
+                {title.backdropPath && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={img(title.backdropPath, "w780")!} alt="" className="absolute inset-0 size-full object-cover opacity-70 transition-transform duration-700 group-hover:scale-105" />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-tr from-ink via-ink/40 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-5">
+                  <div>
+                    <p className="font-display text-xl font-semibold leading-tight md:text-2xl">{title.name}</p>
+                    <p className="mt-1 font-mono text-xs text-lime">J-{daysLeft(grant.expiresAt)}</p>
                   </div>
-                  {grant.lastPositionSec > 0 && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-lime/70" />}
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {recos.length > 0 && (
-          <Row title="Pour toi">
-            {keep(recos).map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} size="lg" hideNever />
+                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-lime text-ink transition-transform group-hover:scale-110">
+                    <svg width="16" height="18" viewBox="0 0 16 18" fill="currentColor"><path d="M0 0l16 9-16 9z" /></svg>
+                  </span>
+                </div>
+                {grant.lastPositionSec > 0 && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-lime/70" />}
+              </Link>
             ))}
-          </Row>
-        )}
-
-        {latest.length > 0 && (
-          <Row title="Arrivés" count={latest.length}>
-            {latest.filter(({ title }) => !never.has(title.id)).map(({ title }, i) => (
-              <Poster key={title.id} t={toPoster(title, true)} i={i} hideNever />
-            ))}
-          </Row>
-        )}
-
-        {made.length > 0 && (
-          <Row title="Créateurs" count={made.length}>
-            {made.filter((x) => !never.has(x.id)).map((x, i) => (
-              <Poster key={x.id} t={toPoster(x, true)} i={i} hideNever />
-            ))}
-          </Row>
-        )}
-
-        {k === "all" && myRequests.length > 0 && (
-          <section className="mt-14 px-4 md:px-10">
-            <h2 className="mb-4 font-display text-xl font-semibold md:text-2xl">{t("Demandes")}</h2>
-            <ul className="divide-y divide-line border-y border-line">
-              {myRequests.map(({ req, title }) => (
-                <li key={req.id}>
-                  <Link href={`/t/${title.kind}/${title.tmdbId}`} className="flex items-center gap-4 py-3 transition-colors hover:bg-ink-2">
-                    {title.posterPath && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={img(title.posterPath, "w342")!} alt="" className="h-14 w-10 object-cover" />
-                    )}
-                    <span className="flex-1 truncate">{title.name}</span>
-                    <StatusMark status={req.status} reason={req.rejectReason} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {!grants.length && !recos.length && !latest.length && !myRequests.length && !topMovies.length && !topShows.length && !genres.some((r) => r.items.length) && (
-          <div className="grid min-h-[40vh] place-items-center px-6 text-center">
-            <p className="font-display text-5xl font-extrabold leading-none text-bone/15 md:text-8xl">{t("Cherche.")}<br />{t("Demande.")}<br />{t("Regarde.")}</p>
           </div>
-        )}
+        </section>
+      )}
 
-        {mine.length > 0 && (
-          <Row title="Ta cinéphilie">
-            {keep(mine).map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
-            ))}
-          </Row>
-        )}
-
-        {old.length > 0 && (
-          <Row title="Grands classiques">
-            {keep(old).map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
-            ))}
-          </Row>
-        )}
-
-        {topMovies.length > 0 && (
-          <Row title="Top films">
-            {keep(topMovies).map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
-            ))}
-          </Row>
-        )}
-
-        {topShows.length > 0 && (
-          <Row title="Top séries">
-            {keep(topShows).map((t, i) => (
-              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
-            ))}
-          </Row>
-        )}
-
-        {countries
-          .filter((r) => r.items.length > 0)
-          .map((r) => (
-            <Row key={`c-${r.name}`} title={r.name}>
-              {keep(r.items).map((t, i) => (
-                <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
-              ))}
-            </Row>
+      {recos.length > 0 && (
+        <Row title="Pour toi">
+          {keep(recos).map((t, i) => (
+            <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} size="lg" hideNever />
           ))}
+        </Row>
+      )}
 
-        {genres
-          .filter((r) => r.items.length > 0)
-          .map((r) => (
-            <Row key={r.name} title={r.name}>
-              {keep(r.items).map((t, i) => (
-                <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
-              ))}
-            </Row>
+      {latest.length > 0 && (
+        <Row title="Arrivés" count={latest.length}>
+          {latest.filter(({ title }) => !never.has(title.id)).map(({ title }, i) => (
+            <Poster key={title.id} t={toPoster(title, true)} i={i} hideNever />
           ))}
+        </Row>
+      )}
 
-        <div className="h-16" />
-      </SearchHero>
+      {made.length > 0 && (
+        <Row title="Créateurs" count={made.length}>
+          {made.filter((x) => !never.has(x.id)).map((x, i) => (
+            <Poster key={x.id} t={toPoster(x, true)} i={i} hideNever />
+          ))}
+        </Row>
+      )}
+
+      {k === "all" && myRequests.length > 0 && (
+        <section className="mt-14 px-4 md:px-10">
+          <h2 className="mb-4 font-display text-xl font-semibold md:text-2xl">{t("Demandes")}</h2>
+          <ul className="divide-y divide-line border-y border-line">
+            {myRequests.map(({ req, title }) => (
+              <li key={req.id}>
+                <Link href={`/t/${title.kind}/${title.tmdbId}`} className="flex items-center gap-4 py-3 transition-colors hover:bg-ink-2">
+                  {title.posterPath && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={img(title.posterPath, "w342")!} alt="" className="h-14 w-10 object-cover" />
+                  )}
+                  <span className="flex-1 truncate">{title.name}</span>
+                  <StatusMark status={req.status} reason={req.rejectReason} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {!grants.length && !recos.length && !latest.length && !myRequests.length && !topMovies.length && !topShows.length && !genres.some((r) => r.items.length) && (
+        <div className="grid min-h-[40vh] place-items-center px-6 text-center">
+          <p className="font-display text-5xl font-extrabold leading-none text-bone/15 md:text-8xl">{t("Cherche.")}<br />{t("Demande.")}<br />{t("Regarde.")}</p>
+        </div>
+      )}
+
+      {mine.length > 0 && (
+        <Row title="Ta cinéphilie">
+          {keep(mine).map((t, i) => (
+            <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+          ))}
+        </Row>
+      )}
+
+      {old.length > 0 && (
+        <Row title="Grands classiques">
+          {keep(old).map((t, i) => (
+            <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+          ))}
+        </Row>
+      )}
+
+      {topMovies.length > 0 && (
+        <Row title="Top films">
+          {keep(topMovies).map((t, i) => (
+            <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+          ))}
+        </Row>
+      )}
+
+      {topShows.length > 0 && (
+        <Row title="Top séries">
+          {keep(topShows).map((t, i) => (
+            <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+          ))}
+        </Row>
+      )}
+
+      {countries
+        .filter((r) => r.items.length > 0)
+        .map((r) => (
+          <Row key={`c-${r.name}`} title={r.name}>
+            {keep(r.items).map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+            ))}
+          </Row>
+        ))}
+
+      {genres
+        .filter((r) => r.items.length > 0)
+        .map((r) => (
+          <Row key={r.name} title={r.name}>
+            {keep(r.items).map((t, i) => (
+              <Poster key={t.id} t={toPoster(t, topReady.has(t.id))} i={i} hideNever />
+            ))}
+          </Row>
+        ))}
+
+      <div className="h-16" />
     </main>
   );
 }

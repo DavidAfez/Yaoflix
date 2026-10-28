@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { Home, Bookmark, User, Clapperboard, LogOut, Search, Bug, MessagesSquare, Mail } from "lucide-react";
 import { SearchOverlay } from "./search";
 import { useT } from "./i18n";
-import { NotificationBell, useNotifications } from "./studio-bell";
+import { AlertsButton, NotificationBell, useNotifications } from "./studio-bell";
 import { logout } from "@/app/(auth)/actions";
 import type { Role } from "@/db/schema";
 
@@ -19,25 +19,20 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
   const pending = notifs.studio.reduce((a, b) => a + b.count, 0);
   const [searching, setSearching] = useState(false);
   const close = useCallback(() => setSearching(false), []);
-  // The home page has its own big bar: focus it rather than stacking an overlay
-  const openSearch = useCallback(() => {
-    if (path === "/") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      window.dispatchEvent(new Event("gf:search"));
-    } else setSearching(true);
-  }, [path]);
+  // Search lives behind its icon on every page, home included
+  const openSearch = useCallback(() => setSearching(true), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName ?? "");
-      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing && path !== "/")) {
+      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
         e.preventDefault();
         openSearch();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openSearch, path]);
+  }, [openSearch]);
 
   if (path.startsWith("/w/")) return null;
 
@@ -80,6 +75,7 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
           <Search size={17} />
         </button>
         <span className="ml-2 font-mono text-xs text-dim">@{handle}</span>
+        <AlertsButton n={notifs} className="ml-1" />
         <NotificationBell n={notifs} className="ml-1" />
         <Link
           href={`/bug?from=${encodeURIComponent(path)}`}
@@ -104,6 +100,7 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
         <button type="button" onClick={openSearch} aria-label={t("Rechercher")} className="ml-auto grid size-9 place-items-center text-dim hover:text-lime">
           <Search size={18} />
         </button>
+        <AlertsButton n={notifs} />
         <NotificationBell n={notifs} />
       </header>
 
