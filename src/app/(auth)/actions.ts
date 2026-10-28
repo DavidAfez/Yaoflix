@@ -5,7 +5,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { blindIndex, encrypt, normalizeEmail, randomToken, sha256 } from "@/lib/crypto";
-import { createSession, destroySession, hashPassword, verifyPassword } from "@/lib/auth";
+import { createSession, destroySession, hashPassword, ipBanned, verifyPassword } from "@/lib/auth";
 import { countryFrom } from "@/lib/context";
 import { queueMail } from "@/lib/jobs";
 import { rateLimit } from "@/lib/ratelimit";
@@ -49,6 +49,7 @@ const joinSchema = z.object({
 
 export async function join(_: AuthState, form: FormData): Promise<AuthState> {
   if (!(await throttle("join", 5, 600))) return { error: "Trop d'essais. Reviens dans quelques minutes." };
+  if (await ipBanned()) return { error: "Inscription impossible." };
   const parsed = joinSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
   const { handle, email, password, age, sex } = parsed.data;
@@ -102,7 +103,7 @@ export async function login(_: AuthState, form: FormData): Promise<AuthState> {
     .limit(1);
   const ok = await verifyPassword(user?.passwordHash ?? (await dummyHash()), password);
   if (!user || !ok) return { error: "Email ou mot de passe incorrect" };
-  if (user.bannedAt) return { error: "Compte suspendu" };
+  if (user.bannedAt || (await ipBanned())) return { error: "Compte suspendu" };
   if (!user.emailVerifiedAt) {
     const token = await issueToken(user.id, "verify", 60 * 24);
     await queueMail(user.id, "verify", { link: `${APP()}/verify/${token}` });

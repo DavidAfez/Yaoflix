@@ -3,15 +3,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, Clapperboard, Heart, ListOrdered, MessageCircle, Mic, Pin, Plus, Repeat2, Rows3, Trash2, X } from "lucide-react";
-import { createPost, createRichPost, deletePost, pinPost, setFollow, toggleFav, toggleRepost } from "@/app/feed/actions";
-import { ClipView, PollBuilder, PollView, TIERS, Top5Builder, Top5View, TierBuilder, TierView, type PollDraft } from "./post-kinds";
-import type { TierItem, TitleRef } from "@/db/schema";
+import { BarChart3, CalendarClock, Clapperboard, Flag, Heart, ImageIcon, ListOrdered, MessageCircle, Mic, Plus, Repeat2, Rows3, Send, Trash2, X } from "lucide-react";
+import { createPost, createRichPost, deletePost, setFollow, toggleFav, toggleRepost } from "@/app/feed/actions";
+import { ReportSheet } from "./safety";
+import { EmojiTool, GifTool, ImageTool, MediaStrip, MentionHint, PostMediaView, ScheduleChip, ScheduleTool } from "./composer-tools";
+import { ClipView, FramePicker, PollBuilder, PollView, TIERS, Top5Builder, Top5View, TierBuilder, TierView, type PollDraft } from "./post-kinds";
+import type { PostMedia, TierItem, TitleRef } from "@/db/schema";
 import { StarShape, Stars, useMark } from "./marks";
 import { Dots } from "./ui";
 import { fmtRating } from "@/lib/rating";
 import type { FeedPost } from "@/lib/feed";
 import { useLocale, useT } from "./i18n";
+import { Avatar } from "./avatar";
+import { ShareToChat } from "./chat/share";
 import { tag, type Locale, type T } from "@/lib/i18n";
 import type { PosterData } from "./poster";
 
@@ -28,8 +32,8 @@ function ago(iso: string, t: T, locale: Locale) {
 function TitleBlock({ t, rating }: { t: NonNullable<FeedPost["title"]>; rating: number | null }) {
   const tr = useT();
   return (
-    <Link href={`/t/${t.kind}/${t.tmdbId}`} className="flex items-center gap-3 border border-line bg-ink-2 p-2 pr-4 transition-colors hover:border-lime">
-      <div className="grid h-16 w-11 shrink-0 place-items-center overflow-hidden bg-ink-3 font-display text-lg font-extrabold text-bone/15">
+    <Link href={`/t/${t.kind}/${t.tmdbId}`} className="inline-flex max-w-full items-center gap-2.5 border border-line bg-ink-2 py-1 pl-1 pr-3 transition-colors hover:border-lime">
+      <div className="grid h-10 w-7 shrink-0 place-items-center overflow-hidden bg-ink-3 font-display text-sm font-extrabold text-bone/15">
         {t.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={t.poster} alt="" className="size-full object-cover" />
@@ -38,8 +42,8 @@ function TitleBlock({ t, rating }: { t: NonNullable<FeedPost["title"]>; rating: 
         )}
       </div>
       <div className="min-w-0">
-        <p className="truncate font-display text-sm font-semibold">{t.name}</p>
-        <p className="mt-1 flex items-center gap-3 font-mono text-[11px] text-dim">
+        <p className="truncate text-[13px] font-semibold leading-tight">{t.name}</p>
+        <p className="flex items-center gap-2.5 font-mono text-[10px] text-dim">
           {t.year}
           {t.kind === "tv" && <span className="uppercase">{tr("Série")}</span>}
           {rating ? (
@@ -62,7 +66,8 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
   const [liked, setLiked] = useState(p.liked);
   const [reposted, setReposted] = useState(p.reposted);
   const [gone, setGone] = useState(false);
-  const [pinned, setPinned] = useState(Boolean(p.pinned));
+  const [reporting, setReporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [, start] = useTransition();
   useEffect(() => {
     setLiked(p.liked);
@@ -85,8 +90,8 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
         </p>
       )}
       <header className="mb-3 flex items-center gap-3">
-        <Link href={`/u/${p.handle}`} className="grid size-9 shrink-0 place-items-center bg-lime font-display font-extrabold uppercase text-ink">
-          {p.handle.charAt(0)}
+        <Link href={`/u/${p.handle}`} className="shrink-0">
+          <Avatar id={p.avatarId} handle={p.handle} size={36} />
         </Link>
         <div className="min-w-0 flex-1">
           <Link href={`/u/${p.handle}`} className="font-mono text-sm hover:text-lime">
@@ -94,9 +99,15 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
           </Link>
           {p.replyTo && <span className="ml-2 font-mono text-[11px] text-dim">↳ @{p.replyTo}</span>}
         </div>
-        <Link href={`/p/${p.id}`} className="font-mono text-[11px] text-dim hover:text-bone">
-          {ago(p.at, t, locale)}
-        </Link>
+        {p.scheduled ? (
+          <span className="flex items-center gap-1 font-mono text-[11px] text-lime" title={t("Programmé")}>
+            <CalendarClock size={12} /> {new Date(p.at).toLocaleString(tag(locale), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+          </span>
+        ) : (
+          <Link href={`/p/${p.id}`} className="font-mono text-[11px] text-dim hover:text-bone">
+            {ago(p.at, t, locale)}
+          </Link>
+        )}
       </header>
 
       {p.title && !p.replyTo && (p.kind === "text" || p.kind === "clip") && (
@@ -120,6 +131,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
         )}
       </Link>
 
+      <PostMediaView media={p.media} />
       {p.kind === "clip" && p.clip && (
         <div className="mt-3">
           <ClipView clip={p.clip} />
@@ -172,17 +184,12 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
           </motion.span>
           <span className="font-mono text-xs tabular-nums">{likes || ""}</span>
         </motion.button>
-        {p.mine && p.kind === "top5" && (
-          <button
-            onClick={() => {
-              setPinned(!pinned);
-              start(() => pinPost(p.id, !pinned));
-            }}
-            aria-label={t(pinned ? "Désépingler" : "Épingler sur mon profil")}
-            title={t(pinned ? "Désépingler" : "Épingler sur mon profil")}
-            className={`ml-auto transition-colors ${pinned ? "text-lime" : "hover:text-lime"}`}
-          >
-            <Pin size={15} fill={pinned ? "currentColor" : "none"} />
+        <button onClick={() => setSharing(true)} aria-label={t("Envoyer en message")} title={t("Envoyer en message")} className="transition-colors hover:text-ice">
+          <Send size={15} />
+        </button>
+        {!p.mine && (
+          <button onClick={() => setReporting(true)} aria-label={t("Signaler")} title={t("Signaler")} className="ml-auto transition-colors hover:text-coral">
+            <Flag size={14} />
           </button>
         )}
         {p.mine && (
@@ -196,12 +203,14 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
             }}
             aria-label={t("Supprimer")}
             title={t("Supprimer")}
-            className={`${p.kind === "top5" ? "" : "ml-auto "}transition-colors hover:text-coral`}
+            className="ml-auto transition-colors hover:text-coral"
           >
             <Trash2 size={15} />
           </button>
         )}
       </footer>
+      <AnimatePresence>{reporting && <ReportSheet target={{ type: "post", id: p.id, label: `@${p.handle}` }} onClose={() => setReporting(false)} />}</AnimatePresence>
+      <AnimatePresence>{sharing && <ShareToChat postId={p.id} onClose={() => setSharing(false)} />}</AnimatePresence>
     </motion.article>
   );
 }
@@ -215,6 +224,9 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
   const router = useRouter();
   const t = useT();
   const [mode, setMode] = useState<Mode>("text");
+  const [media, setMedia] = useState<PostMedia[]>([]);
+  const [publishAt, setPublishAt] = useState<string | null>(null);
+  const [frames, setFrames] = useState(false);
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -250,10 +262,12 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
             ? await createRichPost({ kind: "tier", body, data: tier })
             : mode === "poll"
               ? await createRichPost({ kind: "poll", body, data: { ...poll, options: poll.options.filter((o) => o.label.trim()) } })
-              : await createPost({ body, parentId, kind: title?.kind as "movie" | "tv" | undefined, tmdbId: title?.tmdbId });
+              : await createPost({ body, parentId, kind: title?.kind as "movie" | "tv" | undefined, tmdbId: title?.tmdbId, media, publishAt: publishAt ?? undefined });
       if (!res.ok) return setError(t(res.error ?? "Oups"));
       setBody("");
       setTitle(null);
+      setMedia([]);
+      setPublishAt(null);
       setTop5({ title: "", items: [] });
       setTier(emptyTier());
       setPoll(emptyPoll());
@@ -262,12 +276,22 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
     });
   const ready =
     mode === "text"
-      ? Boolean(body.trim())
+      ? Boolean(body.trim() || media.length)
       : mode === "top5"
         ? Boolean(top5.title.trim() && top5.items.length)
         : mode === "tier"
           ? Boolean(tier.title.trim() && tier.tiers.some((x) => x.items.length))
           : Boolean(poll.question.trim() && poll.options.filter((o) => o.label.trim()).length >= 2);
+  const insert = (text: string) => {
+    const el = area.current;
+    const at = el?.selectionStart ?? body.length;
+    setBody(body.slice(0, at) + text + body.slice(el?.selectionEnd ?? at));
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(at + text.length, at + text.length);
+    });
+  };
+  const addMedia = (m: PostMedia) => setMedia((x) => (x.length >= 4 ? x : [...x, m]));
   const tools: { m: Mode; label: string; icon: React.ReactNode }[] = [
     { m: "top5", label: "Top 5", icon: <ListOrdered size={16} /> },
     { m: "tier", label: "Tier list", icon: <Rows3 size={16} /> },
@@ -289,6 +313,15 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
         placeholder={mode === "text" ? (placeholder ?? t("Ton avis, ta théorie, ta reco")) : t("Un mot pour accompagner (facultatif)")}
         className="w-full resize-none bg-transparent text-lg outline-none placeholder:text-bone/30"
       />
+      {!parentId && (
+        <MentionHint
+          text={body}
+          active={mode === "text" && !title && !picking}
+          onAccept={(r) => setTitle({ ...r, ready: false })}
+        />
+      )}
+      {mode === "text" && <MediaStrip media={media} onRemove={(i) => setMedia((x) => x.filter((_, j) => j !== i))} />}
+      <AnimatePresence>{frames && <FramePicker onPick={(f) => (addMedia({ type: "frame", clipId: f.id }), setFrames(false))} onClose={() => setFrames(false)} />}</AnimatePresence>
       <AnimatePresence>{mode === "text" && picking && <TitlePicker onPick={(t) => (setTitle(t), setPicking(false))} onClose={() => setPicking(false)} />}</AnimatePresence>
       {error && <p className="mt-2 text-sm text-coral">{error}</p>}
       <div className="mt-3 flex items-center justify-between gap-4">
@@ -306,6 +339,15 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
                 <Plus size={18} />
               </motion.span>
             </button>
+            {mode === "text" && (
+              <>
+                <ImageTool onAdd={addMedia} disabled={media.length >= 4} />
+                <GifTool onPick={addMedia} disabled={media.length >= 4} />
+                <EmojiTool onPick={insert} />
+                <ScheduleTool value={publishAt} onChange={setPublishAt} />
+                {publishAt && <ScheduleChip value={publishAt} onClear={() => setPublishAt(null)} />}
+              </>
+            )}
             {/* What is attached right now, removable in one tap */}
             {mode !== "text" && (
               <span className="flex h-10 min-w-0 items-center gap-2 border border-lime px-3 text-sm text-lime">
@@ -330,7 +372,7 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
                   transition={{ duration: 0.15 }}
                   className="absolute left-0 top-12 z-30 w-56 border-l-2 border-lime bg-ink-2 py-1 shadow-2xl shadow-black/60"
                 >
-                  {[{ m: "title" as const, label: "Film ou série", icon: <Clapperboard size={16} /> }, ...tools].map((x, i) => (
+                  {[{ m: "title" as const, label: "Film ou série", icon: <Clapperboard size={16} /> }, ...(canCapture ? [{ m: "frame" as const, label: "Mes captures", icon: <ImageIcon size={16} /> }] : []), ...tools].map((x, i) => (
                     <motion.li key={x.m} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
                       <button
                         type="button"
@@ -339,6 +381,9 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
                           if (x.m === "title") {
                             setMode("text");
                             setPicking(true);
+                          } else if (x.m === "frame") {
+                            setMode("text");
+                            setFrames(true);
                           } else {
                             setMode(x.m);
                             setPicking(false);

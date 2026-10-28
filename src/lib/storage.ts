@@ -8,6 +8,8 @@ export const paths = {
   voiceDir: path.join(MEDIA_ROOT, "voice"),
   voice: (file: string) => path.join(MEDIA_ROOT, "voice", file),
   clipsDir: path.join(MEDIA_ROOT, "clips"),
+  imagesDir: path.join(MEDIA_ROOT, "images"),
+  image: (id: string) => path.join(MEDIA_ROOT, "images", id),
   clip: (id: string, kind: string) => path.join(MEDIA_ROOT, "clips", `${id}.${kind === "image" ? "jpg" : "mp4"}`),
 };
 

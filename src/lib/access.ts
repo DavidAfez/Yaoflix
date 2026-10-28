@@ -3,6 +3,7 @@ import { db, schema } from "@/db";
 import type { RequestPrefs } from "@/db/schema";
 import { randomToken, sha256 } from "./crypto";
 import { queueMail, queueWhatsApp } from "./jobs";
+import { notify } from "./notify-center";
 
 export const GRANT_DAYS = 7;
 
@@ -92,4 +93,5 @@ async function notifyReady(userId: string, titleId: number, token: string, templ
   const data = { title: title?.name ?? "", link: watchUrl(token), days: GRANT_DAYS };
   await queueMail(userId, template, data);
   await queueWhatsApp(userId, template, data);
+  await notify(userId, "ready", { title: title?.name ?? "", href: `/w/${token}` });
 }

@@ -3,8 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type Hls from "hls.js";
 import type { ErrorData } from "hls.js";
-import { ArrowLeft, Maximize, Minimize, Pause, Play, PictureInPicture2, RotateCcw, RotateCw, Volume2, VolumeX, Volume1, Settings2, Captions, Scissors, Camera, Check } from "lucide-react";
+import { ArrowLeft, Maximize, Minimize, Pause, Play, PictureInPicture2, RotateCcw, RotateCw, Volume2, VolumeX, Volume1, Settings2, Captions, Scissors, Camera, Check, Cast, Airplay, Palette, Square } from "lucide-react";
 import { ClipSheet } from "./clip-sheet";
+import { PaletteSheet } from "./palette";
+import { useCast } from "./cast";
 import Link from "next/link";
 import { report } from "../error-reporter";
 import { useTelemetry } from "./telemetry";
@@ -22,6 +24,10 @@ type Props = {
   prefs: RequestPrefs | null;
   subtitles: Track[];
   canCapture?: boolean;
+  kind: string;
+  tmdbId: number;
+  handle: string;
+  poster: string | null;
 };
 
 type Thumbs = { every: number; w: number; h: number; grid: number; count: number };
@@ -40,7 +46,7 @@ const fmt = (s: number) => {
 
 const qLabel = (h: number) => (h >= 2000 ? "4K" : `${h}p`);
 
-export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, prefs, subtitles, canCapture = false }: Props) {
+export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, prefs, subtitles, canCapture = false, kind, tmdbId, handle, poster }: Props) {
   const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -63,6 +69,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
   const [hover, setHover] = useState<number | null>(null);
   const [thumbs, setThumbs] = useState<Thumbs | null>(null);
   const [clipping, setClipping] = useState(false);
+  const [painting, setPainting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
@@ -77,6 +84,8 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
 
   const src = `/api/stream/${grantId}/master.m3u8`;
   const tele = useTelemetry(grantKey, video);
+  const cast = useCast({ grantId, title, poster, video });
+  const signed = cast.signedUrl;
 
   const poke = useCallback(() => {
     setUi(true);
@@ -104,8 +113,11 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
       if (destroyed) return;
 
       if (!HlsCtor.isSupported()) {
-        // iOS Safari before Managed Media Source: native HLS is the most reliable path
-        v.src = src;
+        // iOS Safari before Managed Media Source: native HLS is the most reliable path.
+        // The signed URL needs no cookie, so AirPlay can hand it to the TV as is.
+        const url = await signed(grantId).then((u) => new URL(u).pathname, () => src);
+        if (destroyed) return;
+        v.src = url;
         v.addEventListener("loadedmetadata", () => position && (v.currentTime = position), { once: true });
         return;
       }
@@ -196,7 +208,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
-  }, [src, grantId, resumeAt, prefs]);
+  }, [src, grantId, resumeAt, prefs, signed]);
 
   // Stall watchdog: if we sit in "waiting" with data around, nudge the playhead
   useEffect(() => {
@@ -457,13 +469,37 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
         preload="auto"
         poster={backdrop ?? undefined}
         autoPlay
+        controlsList="nodownload"
+        x-webkit-airplay="allow"
+        onContextMenu={(e) => e.preventDefault()}
       >
         {subtitles.map((s, i) => (
           <track key={s.file ?? i} kind="subtitles" src={`/api/stream/${grantId}/${s.file}`} srcLang={s.lang.slice(0, 2)} label={s.label} />
         ))}
       </video>
 
-      <div className="absolute inset-0" onPointerUp={onSurface} />
+      <div className="absolute inset-0" onPointerUp={onSurface} onContextMenu={(e) => e.preventDefault()} />
+      <Watermark handle={handle} />
+
+      {cast.device && (
+        <div className="absolute inset-0 z-20 grid place-items-center bg-ink/85 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-6 px-6 text-center">
+            <Cast size={34} className="text-lime" />
+            <p className="font-display text-2xl font-extrabold md:text-4xl">{title}</p>
+            <p className="font-mono text-xs uppercase tracking-widest text-dim">
+              {t("Sur")} {cast.device}
+            </p>
+            <div className="flex items-center gap-3">
+              <motion.button whileTap={{ scale: 0.9 }} onClick={cast.toggle} aria-label={t(cast.paused ? "Lecture" : "Pause")} className="grid size-16 place-items-center rounded-full bg-bone text-ink">
+                {cast.paused ? <Play size={26} fill="currentColor" className="translate-x-0.5" /> : <Pause size={26} fill="currentColor" />}
+              </motion.button>
+              <CtrlBtn label="Arrêter la diffusion" onClick={cast.stop} className="border border-line">
+                <Square size={18} />
+              </CtrlBtn>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {ripple && (
@@ -564,6 +600,19 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
                   {canCapture && (
                     <CtrlBtn label="Capture" onClick={() => void capture()}>
                       <Camera size={19} />
+                    </CtrlBtn>
+                  )}
+                  <CtrlBtn label="Palette" onClick={() => { video.current?.pause(); setPainting(true); setMenu(null); }}>
+                    <Palette size={19} />
+                  </CtrlBtn>
+                  {cast.chromecast && (
+                    <CtrlBtn label="Caster" onClick={() => void cast.startChromecast()}>
+                      <Cast size={19} />
+                    </CtrlBtn>
+                  )}
+                  {cast.airplay && (
+                    <CtrlBtn label="AirPlay" onClick={cast.showAirplay}>
+                      <Airplay size={19} />
                     </CtrlBtn>
                   )}
                   <div className="group/vol flex items-center">
@@ -680,6 +729,9 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
         )}
       </AnimatePresence>
       <AnimatePresence>
+        {painting && <PaletteSheet video={video} title={title} kind={kind} tmdbId={tmdbId} onClose={() => setPainting(false)} />}
+      </AnimatePresence>
+      <AnimatePresence>
         {toast && (
           <motion.p
             initial={{ opacity: 0, y: -10 }}
@@ -706,6 +758,25 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
             }}
           />}</AnimatePresence>
     </div>
+  );
+}
+
+/** A faint @handle that drifts across the frame: a screen recording names who made it. */
+function Watermark({ handle }: { handle: string }) {
+  const [pos, setPos] = useState({ x: 12, y: 18 });
+  useEffect(() => {
+    const id = setInterval(() => setPos({ x: 6 + Math.random() * 70, y: 10 + Math.random() * 70 }), 45_000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <motion.span
+      aria-hidden
+      animate={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+      transition={{ duration: 6, ease: "easeInOut" }}
+      className="pointer-events-none absolute select-none font-mono text-[11px] tracking-widest text-bone/[0.12]"
+    >
+      @{handle}
+    </motion.span>
   );
 }
 

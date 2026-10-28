@@ -1,18 +1,32 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { rateLimit } from "@/lib/ratelimit";
 import { titleIdFor } from "@/lib/marks";
+import { notify } from "@/lib/notify-center";
 import type { PostData } from "@/db/schema";
 
 const refresh = () => revalidatePath("/", "layout");
 
+const mediaSchema = z
+  .array(
+    z.discriminatedUnion("type", [
+      z.object({ type: z.literal("image"), id: z.uuid() }),
+      z.object({ type: z.literal("frame"), clipId: z.uuid() }),
+      z.object({ type: z.literal("gif"), url: z.string().startsWith("https://media.tenor.com/").max(400), w: z.number().int().min(0).max(4000), h: z.number().int().min(0).max(4000) }),
+    ]),
+  )
+  .max(4);
+
 const postSchema = z.object({
-  body: z.string().trim().min(1, "Écris quelque chose").max(1000, "1000 caractères maximum"),
+  body: z.string().trim().max(1000, "1000 caractères maximum"),
+  media: mediaSchema.optional(),
+  // Scheduled post: shown to others from that moment, up to 30 days ahead
+  publishAt: z.iso.datetime({ offset: true }).optional(),
   kind: z.enum(["movie", "tv"]).optional(),
   tmdbId: z.number().int().positive().optional(),
   parentId: z.uuid().optional(),
@@ -24,23 +38,57 @@ export async function createPost(input: z.input<typeof postSchema>): Promise<{ o
   if (!rateLimit(`post:${user.id}`, 10, 60)) return { ok: false, error: "Doucement, réessaie dans une minute." };
   const parsed = postSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
-  const { body, kind, tmdbId, parentId } = parsed.data;
+  const { body, kind, tmdbId, parentId, media = [] } = parsed.data;
+  if (!body && !media.length) return { ok: false, error: "Écris quelque chose" };
+  if (!(await ownsMedia(user.id, media))) return { ok: false, error: "Interdit" };
+  let createdAt: Date | undefined;
+  if (parsed.data.publishAt && !parentId) {
+    createdAt = new Date(parsed.data.publishAt);
+    if (createdAt.getTime() < Date.now() - 60_000 || createdAt.getTime() > Date.now() + 30 * 86400_000) return { ok: false, error: "Date invalide" };
+  }
   let titleId: number | null = null;
   if (parentId) {
     // A reply talks about the same title as the post it answers
-    const [parent] = await db.select({ titleId: schema.posts.titleId }).from(schema.posts).where(eq(schema.posts.id, parentId));
+    const [parent] = await db.select({ titleId: schema.posts.titleId, userId: schema.posts.userId }).from(schema.posts).where(eq(schema.posts.id, parentId));
     if (!parent) return { ok: false, error: "Post introuvable" };
     titleId = parent.titleId;
+    await notify(parent.userId, "reply", { handle: user.handle, href: `/p/${parentId}` }, user.id);
   } else if (kind && tmdbId) titleId = await titleIdFor(kind, tmdbId);
-  const [p] = await db.insert(schema.posts).values({ userId: user.id, body, titleId, parentId: parentId ?? null }).returning({ id: schema.posts.id });
+  const [p] = await db
+    .insert(schema.posts)
+    .values({ userId: user.id, body: body || null, titleId, parentId: parentId ?? null, media: media.length ? media : null, ...(createdAt ? { createdAt } : {}) })
+    .returning({ id: schema.posts.id });
   refresh();
   return { ok: true, id: p.id };
+}
+
+/** Pictures and stills must belong to the author. */
+async function ownsMedia(userId: string, media: z.infer<typeof mediaSchema>) {
+  const imageIds = media.flatMap((m) => (m.type === "image" ? [m.id] : []));
+  const frameIds = media.flatMap((m) => (m.type === "frame" ? [m.clipId] : []));
+  if (imageIds.length) {
+    const own = await db.select({ id: schema.images.id }).from(schema.images).where(and(eq(schema.images.userId, userId), inArray(schema.images.id, imageIds)));
+    if (own.length !== new Set(imageIds).size) return false;
+  }
+  if (frameIds.length) {
+    const own = await db.select({ id: schema.clips.id }).from(schema.clips).where(and(eq(schema.clips.userId, userId), eq(schema.clips.kind, "image"), inArray(schema.clips.id, frameIds)));
+    if (own.length !== new Set(frameIds).size) return false;
+  }
+  return true;
+}
+
+async function pingAuthor(postId: string, kind: "fav" | "repost", user: { id: string; handle: string }) {
+  const [p] = await db.select({ userId: schema.posts.userId }).from(schema.posts).where(eq(schema.posts.id, postId));
+  if (p) await notify(p.userId, kind, { handle: user.handle, href: `/p/${postId}` }, user.id);
 }
 
 export async function toggleFav(postId: string, on: boolean) {
   const user = await requireUser();
   const where = and(eq(schema.postLikes.userId, user.id), eq(schema.postLikes.postId, postId));
-  if (on) await db.insert(schema.postLikes).values({ userId: user.id, postId }).onConflictDoNothing();
+  if (on) {
+    await db.insert(schema.postLikes).values({ userId: user.id, postId }).onConflictDoNothing();
+    await pingAuthor(postId, "fav", user);
+  }
   else await db.delete(schema.postLikes).where(where);
   refresh();
 }
@@ -51,7 +99,10 @@ export async function toggleRepost(postId: string, on: boolean) {
   const where = and(eq(schema.posts.userId, user.id), eq(schema.posts.repostOf, postId));
   if (on) {
     const [already] = await db.select({ id: schema.posts.id }).from(schema.posts).where(where);
-    if (!already) await db.insert(schema.posts).values({ userId: user.id, repostOf: postId });
+    if (!already) {
+      await db.insert(schema.posts).values({ userId: user.id, repostOf: postId });
+      await pingAuthor(postId, "repost", user);
+    }
   } else await db.delete(schema.posts).where(where);
   refresh();
 }
@@ -69,7 +120,15 @@ export async function setFollow(handle: string, on: boolean) {
   const user = await requireUser();
   const [target] = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.handle, handle));
   if (!target || target.id === user.id) return;
-  if (on) await db.insert(schema.follows).values({ followerId: user.id, followeeId: target.id }).onConflictDoNothing();
+  const [blocked] = await db
+    .select({ x: schema.blocks.blockerId })
+    .from(schema.blocks)
+    .where(or(and(eq(schema.blocks.blockerId, user.id), eq(schema.blocks.blockedId, target.id)), and(eq(schema.blocks.blockerId, target.id), eq(schema.blocks.blockedId, user.id))));
+  if (on && blocked) return;
+  if (on) {
+    await db.insert(schema.follows).values({ followerId: user.id, followeeId: target.id }).onConflictDoNothing();
+    await notify(target.id, "follow", { handle: user.handle, href: `/u/${user.handle}` }, user.id);
+  }
   else await db.delete(schema.follows).where(and(eq(schema.follows.followerId, user.id), eq(schema.follows.followeeId, target.id)));
   refresh();
 }

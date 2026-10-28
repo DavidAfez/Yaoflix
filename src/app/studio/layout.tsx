@@ -14,7 +14,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
     { href: "/studio", label: "File" },
     { href: "/studio/library", label: "Upload" },
     ...(can.viewInsights(user.role) ? [{ href: "/studio/insights", label: "Insights" }] : []),
-    ...(can.manageUsers(user.role) ? [{ href: "/studio/members", label: "Membres" }] : []),
+    ...(can.manageUsers(user.role) ? [{ href: "/studio/members", label: "Membres" }, { href: "/studio/reports", label: "Signalements" }] : []),
     { href: "/studio/errors", label: "Erreurs" },
   ];
   return (

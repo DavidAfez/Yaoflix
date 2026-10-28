@@ -1,3 +1,4 @@
+import { blindIndex } from "./crypto";
 import { headers } from "next/headers";
 
 /**
@@ -22,4 +23,14 @@ export function deviceFrom(h: Headers): "mobile" | "tablet" | "tv" | "desktop" {
 export async function requestContext() {
   const h = await headers();
   return { country: countryFrom(h), device: deviceFrom(h) };
+}
+
+/**
+ * Keyed hash of the client IP (HMAC with the server pepper). The IP itself is never stored;
+ * the hash only serves to keep banned members from coming back with a new account.
+ */
+export function ipHashFrom(h: Headers): string | null {
+  const ip = h.get("cf-connecting-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip");
+  if (!ip) return null;
+  return blindIndex(ip, "ip");
 }

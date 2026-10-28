@@ -9,8 +9,10 @@ import { toPoster } from "@/lib/view";
 import { localizer } from "@/lib/tmdb";
 import { Poster, Row } from "@/components/poster";
 import { ReviewList } from "@/components/reviews";
-import { followState, pinnedPost, postsBy } from "@/lib/feed";
-import { FollowButton, PostCard } from "@/components/feed";
+import { profileFeed } from "@/lib/feed";
+import { profileHead, topLists } from "@/lib/profile";
+import { ProfileHeader, Top5Shelf } from "@/components/profile";
+import { UserTabs } from "@/components/user-tabs";
 import { Stat } from "@/app/me/stat";
 import { getLocale, getT } from "@/lib/i18n/server";
 
@@ -30,7 +32,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     .where(and(eq(schema.users.handle, handle), isNull(schema.users.bannedAt)));
   if (!member) notFound();
 
-  const [reviews, liked, seen, [counts], posts, fol, hours, pinned] = await Promise.all([
+  const [reviews, liked, seen, [counts], lists, head, hours, tops] = await Promise.all([
     userReviews(member.id),
     db
       .select({ title: schema.titles })
@@ -52,10 +54,10 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
         (select count(*)::int from likes where user_id = ${member.id} and value = 1) as liked,
         (select count(*)::int from feedback where user_id = ${member.id}) as reviews
     `).then((r) => r.rows),
-    postsBy(me.id, member.id),
-    followState(me.id, member.id),
+    profileFeed(me.id, member.id),
+    profileHead(me.id, member.id),
     hoursSeen(member.id),
-    pinnedPost(me.id, member.id),
+    topLists(member.id),
   ]);
   const ready = await readyTitleIds([...liked, ...seen].map((r) => r.title.id));
   const L = await localizer([...liked, ...seen].map((r) => r.title));
@@ -68,54 +70,38 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
   const s = split(seen);
 
   return (
-    <main className="py-8 md:py-10">
-      <header className="mx-4 border-b border-line pb-8 md:mx-10">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <h1 className="break-all font-display text-5xl font-extrabold tracking-tighter md:text-8xl">@{member.handle}</h1>
-          <FollowButton handle={member.handle} following={fol.following} />
-        </div>
-        <dl className="mt-8 grid grid-cols-3 gap-px bg-line md:grid-cols-6">
+    <main className="pb-24">
+      <div className="px-4 md:px-10">
+        <ProfileHeader head={head!} mine={false} />
+        <dl className="mt-8 grid grid-cols-2 gap-px bg-line md:grid-cols-4">
           <Stat label="Vus" value={counts.seen} />
           <Stat label="Heures" value={hours} decimals={0} unit="h" />
           <Stat label="Aimés" value={counts.liked} />
           <Stat label="Avis" value={counts.reviews} />
-          <Stat label="Abonnés" value={fol.followers} />
-          <Stat label="Abonnements" value={fol.follows} />
         </dl>
-      </header>
+        <Top5Shelf tops={tops} mine={false} />
+      </div>
 
-      {pinned && (
-        <section className="mx-4 mt-10 max-w-2xl border-l-2 border-lime md:mx-10">
-          <PostCard p={pinned} />
-        </section>
-      )}
-
-      {l.movie.length > 0 && <Row title="Films aimés">{l.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
-      {l.tv.length > 0 && <Row title="Séries aimées">{l.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
-
-      {posts.length > 0 && (
-        <section className="mx-4 mt-12 max-w-2xl border-t border-line md:mx-10">
-          <h2 className="mb-2 mt-8 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
-            {t("Bobines")} <span className="font-mono text-xs text-lime">{String(posts.length).padStart(2, "0")}</span>
-          </h2>
-          {posts.map((p, i) => (
-            <PostCard key={p.id} p={p} i={i} />
-          ))}
-        </section>
-      )}
-
-      {reviews.length > 0 && (
-        <section className="mx-4 mt-12 md:mx-10">
-          <h2 className="mb-6 flex items-baseline gap-3 font-display text-xl font-semibold tracking-tight md:text-2xl">
-            {t("Avis")} <span className="font-mono text-xs text-lime">{String(reviews.length).padStart(2, "0")}</span>
-          </h2>
-          <ReviewList items={reviews} showTitle t={t} locale={locale} />
-        </section>
-      )}
-
-      {s.movie.length > 0 && <Row title="Films vus">{s.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
-      {s.tv.length > 0 && <Row title="Séries vues">{s.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
-      <div className="h-16" />
+      <UserTabs
+        lists={lists}
+        reviews={
+          reviews.length ? (
+            <section className="mx-4 mt-6 md:mx-10">
+              <ReviewList items={reviews} showTitle t={t} locale={locale} />
+            </section>
+          ) : (
+            <p className="px-4 py-16 font-display text-3xl font-extrabold text-bone/15 md:px-10 md:text-5xl">{t("Rien ici pour l'instant.")}</p>
+          )
+        }
+        library={
+          <>
+            {l.movie.length > 0 && <Row title="Films aimés">{l.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+            {l.tv.length > 0 && <Row title="Séries aimées">{l.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+            {s.movie.length > 0 && <Row title="Films vus">{s.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+            {s.tv.length > 0 && <Row title="Séries vues">{s.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+          </>
+        }
+      />
     </main>
   );
 }

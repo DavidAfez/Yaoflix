@@ -44,7 +44,7 @@ export function MeTabs(props: {
   const seen = pool.filter((p) => marks.has(marks.seen, p));
   return (
     <>
-      <nav className="scrollbar-none sticky top-0 z-20 -mx-4 flex gap-8 overflow-x-auto border-b border-line bg-ink/90 px-4 backdrop-blur md:top-12 md:-mx-10 md:px-10">
+      <nav className="scrollbar-none sticky top-11 z-20 -mx-4 flex gap-8 overflow-x-auto border-b border-line bg-ink/90 px-4 backdrop-blur md:top-12 md:-mx-10 md:px-10">
         {TABS.map((t) => (
           <button key={t} onClick={() => setTab(t)} className={`relative shrink-0 py-5 text-sm ${tab === t ? "text-bone" : "text-dim hover:text-bone"}`}>
             {tr(t)}

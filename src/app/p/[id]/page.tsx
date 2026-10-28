@@ -20,7 +20,7 @@ export default async function Page(props: PageProps<"/p/[id]">) {
   const tr = await getT();
   return (
     <main className="mx-auto max-w-2xl md:border-x md:border-line">
-      <div className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line bg-ink/90 px-4 backdrop-blur-xl md:top-12 md:px-6">
+      <div className="sticky top-11 z-20 flex h-14 items-center gap-3 border-b border-line bg-ink/90 px-4 backdrop-blur-xl md:top-12 md:px-6">
         <Link href="/feed" className="flex items-center gap-2 text-sm hover:text-lime">
           <ArrowLeft size={16} /> Feed
         </Link>

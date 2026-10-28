@@ -1,12 +1,13 @@
 import "server-only";
 import { cache } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { and, eq, gt, lt } from "drizzle-orm";
 import { hash, verify } from "@node-rs/argon2";
 import { db, schema } from "@/db";
 import type { Role, User } from "@/db/schema";
 import { randomToken, sha256 } from "./crypto";
+import { ipHashFrom } from "./context";
 
 const COOKIE = "yf_s";
 const SESSION_DAYS = 30;
@@ -20,7 +21,7 @@ export const verifyPassword = (digest: string, pw: string) => verify(digest, pw)
 export async function createSession(userId: string) {
   const token = randomToken();
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000);
-  await db.insert(schema.sessions).values({ id: sha256(token), userId, expiresAt });
+  await db.insert(schema.sessions).values({ id: sha256(token), userId, expiresAt, ipHash: ipHashFrom(await headers()) });
   // Opportunistic cleanup of expired sessions
   await db.delete(schema.sessions).where(lt(schema.sessions.expiresAt, new Date()));
   const jar = await cookies();
@@ -32,6 +33,14 @@ export async function createSession(userId: string) {
     path: "/",
     expires: expiresAt,
   });
+}
+
+/** True when this connection comes from the hashed IP of a banned member. */
+export async function ipBanned(): Promise<boolean> {
+  const h = ipHashFrom(await headers());
+  if (!h) return false;
+  const [b] = await db.select({ until: schema.ipBans.until }).from(schema.ipBans).where(and(eq(schema.ipBans.ipHash, h), gt(schema.ipBans.until, new Date())));
+  return Boolean(b);
 }
 
 export async function destroySession() {

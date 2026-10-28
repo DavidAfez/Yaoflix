@@ -8,6 +8,7 @@ import { blindIndex, encrypt, normalizeEmail } from "@/lib/crypto";
 import { ageBrackets } from "@/lib/labels";
 import { can } from "@/lib/rbac";
 import { queueMail } from "@/lib/jobs";
+import { notify } from "@/lib/notify-center";
 import { enqueue } from "@/lib/jobs";
 import { rejectReasonEnum, roleEnum } from "@/db/schema";
 
@@ -37,6 +38,7 @@ export async function refuseTitle(titleId: number, reason: string) {
   const [t] = await db.select({ name: schema.titles.name }).from(schema.titles).where(eq(schema.titles.id, titleId));
   for (const uid of new Set(rows.map((x) => x.userId).filter(Boolean) as string[])) {
     await queueMail(uid, "rejected", { title: t?.name, reason: r });
+    await notify(uid, "rejected", { title: t?.name ?? "", reason: r });
   }
   await audit(user.id, "request.refuse", String(titleId), { reason: r, count: rows.length });
   revalidatePath("/studio");
@@ -77,9 +79,16 @@ export async function setBan(userId: string, banned: boolean) {
   if (!target || userId === actor.id || !can.moderate(actor.role, target.role)) throw new Error("Forbidden");
   await db.update(schema.users).set({ bannedAt: banned ? new Date() : null }).where(eq(schema.users.id, userId));
   if (banned) {
+    // Their hashed IPs keep new accounts out for 30 days (never the IPs themselves)
+    const seen = await db.select({ h: schema.sessions.ipHash }).from(schema.sessions).where(eq(schema.sessions.userId, userId));
+    const until = new Date(Date.now() + 30 * 86400_000);
+    for (const h of new Set(seen.map((x) => x.h).filter((x): x is string => Boolean(x)))) {
+      await db.insert(schema.ipBans).values({ ipHash: h, userId, until }).onConflictDoUpdate({ target: schema.ipBans.ipHash, set: { until, userId } });
+    }
     await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
     await db.update(schema.accessGrants).set({ revokedAt: new Date() }).where(eq(schema.accessGrants.userId, userId));
   }
+  if (!banned) await db.delete(schema.ipBans).where(eq(schema.ipBans.userId, userId));
   await audit(actor.id, banned ? "user.ban" : "user.unban", userId);
   revalidatePath("/studio/members");
 }
@@ -190,4 +199,23 @@ export async function approveMember(userId: string) {
     await audit(actor.id, "user.approve", userId);
   }
   revalidatePath("/studio/members");
+}
+
+/** Handle a report: remove the content, ban its author, or dismiss it. */
+export async function resolveReport(id: number, action: "remove" | "ban" | "dismiss") {
+  const actor = await requireRole(can.manageUsers);
+  const [r] = await db.select().from(schema.reports).where(eq(schema.reports.id, id));
+  if (!r || r.status !== "open") return;
+  if (action === "remove" || action === "ban") {
+    if (r.targetType === "post") await db.delete(schema.posts).where(eq(schema.posts.id, r.targetId));
+    if (r.targetType === "message") await db.delete(schema.chatMessages).where(eq(schema.chatMessages.id, r.targetId));
+  }
+  if (action === "ban" && r.targetUserId) await setBan(r.targetUserId, true);
+  // Every open report on the same target is settled at once
+  await db
+    .update(schema.reports)
+    .set({ status: action === "dismiss" ? "dismissed" : "removed", handledBy: actor.id, handledAt: new Date() })
+    .where(and(eq(schema.reports.targetType, r.targetType), eq(schema.reports.targetId, r.targetId), eq(schema.reports.status, "open")));
+  await audit(actor.id, `report.${action}`, String(id), { target: `${r.targetType}:${r.targetId}` });
+  revalidatePath("/studio/reports");
 }

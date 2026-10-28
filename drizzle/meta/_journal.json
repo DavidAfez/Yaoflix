@@ -78,6 +78,41 @@
       "when": 1793140534161,
       "tag": "0010_clips_posts_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793187037844,
+      "tag": "0011_post_media_images",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793187236348,
+      "tag": "0012_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793187281505,
+      "tag": "0013_reports_blocks_ipbans",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793187376250,
+      "tag": "0014_profile_top_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793187504787,
+      "tag": "0015_chat",
+      "breakpoints": true
     }
   ]
 }

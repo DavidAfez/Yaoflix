@@ -3,10 +3,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { Home, Bookmark, User, Clapperboard, LogOut, Search, Bug, MessagesSquare } from "lucide-react";
+import { Home, Bookmark, User, Clapperboard, LogOut, Search, Bug, MessagesSquare, Mail } from "lucide-react";
 import { SearchOverlay } from "./search";
 import { useT } from "./i18n";
-import { StudioBell, useStudioNotifs } from "./studio-bell";
+import { NotificationBell, useNotifications } from "./studio-bell";
 import { logout } from "@/app/(auth)/actions";
 import type { Role } from "@/db/schema";
 
@@ -15,8 +15,8 @@ const isStaff = (r: Role) => r !== "USER";
 export function Nav({ role, handle }: { role: Role; handle: string }) {
   const path = usePathname();
   const t = useT();
-  const notifs = useStudioNotifs(isStaff(role));
-  const pending = notifs.reduce((a, b) => a + b.count, 0);
+  const notifs = useNotifications();
+  const pending = notifs.studio.reduce((a, b) => a + b.count, 0);
   const [searching, setSearching] = useState(false);
   const close = useCallback(() => setSearching(false), []);
   // The home page has its own big bar: focus it rather than stacking an overlay
@@ -44,6 +44,7 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
   const items = [
     { href: "/", label: t("Accueil"), icon: Home },
     { href: "/feed", label: "Feed", icon: MessagesSquare },
+    { href: "/chat", label: t("Messages"), icon: Mail },
     { href: "/list", label: t("Liste"), icon: Bookmark },
     { href: "/me", label: t("Moi"), icon: User },
     ...(isStaff(role) ? [{ href: "/studio", label: "Studio", icon: Clapperboard }] : []),
@@ -57,39 +58,34 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
         <Link href="/" className="font-display text-lg font-extrabold tracking-tight">
           GABAOFLIX<span className="text-lime">.</span>
         </Link>
-        <nav className="ml-14 flex gap-9">
+        <nav className="ml-auto flex gap-8">
           {items.map((it) => (
             <Link key={it.href} href={it.href} className="relative py-3.5 text-sm tracking-wide">
               <span className={active(it.href) ? "text-bone" : "text-dim transition-colors hover:text-bone"}>{it.label}</span>
+              {it.href === "/chat" && notifs.chat > 0 && <span className="absolute -right-2 top-3 size-1.5 bg-lime" />}
               {active(it.href) && (
                 <motion.span layoutId="nav-desk" className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" transition={{ type: "spring", stiffness: 500, damping: 40 }} />
               )}
             </Link>
           ))}
         </nav>
-        {/* The home page already has its big search bar */}
-        {path !== "/" && (
-          <button
-            type="button"
-            onClick={openSearch}
-            className="ml-auto flex h-8 w-72 items-center gap-3 border border-line px-3 text-sm text-bone/40 transition-colors hover:border-lime hover:text-bone lg:w-96"
-          >
-            <Search size={16} className="text-lime" />
-            {t("Un film, une série, @membre")}
-            <kbd className="ml-auto font-mono text-[11px] text-dim">/</kbd>
-          </button>
-        )}
-        <span className={`${path === "/" ? "ml-auto" : "ml-6"} font-mono text-xs text-dim`}>@{handle}</span>
-        {isStaff(role) && (
-          <span className="ml-3">
-            <StudioBell items={notifs} />
-          </span>
-        )}
+        <span className="mx-5 h-5 w-px bg-line" />
+        <button
+          type="button"
+          onClick={openSearch}
+          aria-label={t("Rechercher")}
+          title={`${t("Rechercher")}  /`}
+          className="grid size-9 place-items-center text-dim transition-colors hover:text-lime"
+        >
+          <Search size={17} />
+        </button>
+        <span className="ml-2 font-mono text-xs text-dim">@{handle}</span>
+        <NotificationBell n={notifs} className="ml-1" />
         <Link
           href={`/bug?from=${encodeURIComponent(path)}`}
           aria-label={t("Signaler un bug")}
           title={t("Signaler un bug")}
-          className={`${isStaff(role) ? "ml-1" : "ml-4"} grid size-9 place-items-center text-dim transition-colors hover:text-lime`}
+          className="grid size-9 place-items-center text-dim transition-colors hover:text-lime"
         >
           <Bug size={17} />
         </Link>
@@ -100,21 +96,30 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
         </form>
       </header>
 
+      {/* Phones: a thin top bar for the brand, search and notifications */}
+      <header className="fixed inset-x-0 top-0 z-50 flex h-11 items-center gap-1 border-b border-line bg-ink/90 pl-4 pr-1.5 pt-[env(safe-area-inset-top)] backdrop-blur-xl md:hidden">
+        <Link href="/" className="font-display text-base font-extrabold tracking-tight">
+          GABAOFLIX<span className="text-lime">.</span>
+        </Link>
+        <button type="button" onClick={openSearch} aria-label={t("Rechercher")} className="ml-auto grid size-9 place-items-center text-dim hover:text-lime">
+          <Search size={18} />
+        </button>
+        <NotificationBell n={notifs} />
+      </header>
+
       <nav
         className="fixed inset-x-0 bottom-0 z-50 grid border-t border-line bg-ink/90 backdrop-blur-xl md:hidden"
-        style={{ gridTemplateColumns: `repeat(${items.length + 1}, 1fr)`, paddingBottom: "env(safe-area-inset-bottom)" }}
+        style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)`, paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <button type="button" onClick={openSearch} className="relative order-1 flex h-14 flex-col items-center justify-center gap-1" aria-label={t("Chercher")}>
-          <Search size={19} strokeWidth={searching ? 2.2 : 1.6} className={searching ? "text-lime" : "text-dim"} />
-          <span className={`text-[10px] tracking-wider ${searching ? "text-bone" : "text-dim"}`}>{t("Chercher")}</span>
-        </button>
+
         {items.map((it) => {
           const on = active(it.href);
           const Icon = it.icon;
           return (
-            <Link key={it.href} href={it.href} className={`relative flex h-14 flex-col items-center justify-center gap-0.5 ${it.href === "/" ? "order-0" : "order-2"}`} aria-label={it.label}>
+            <Link key={it.href} href={it.href} className="relative flex h-14 flex-col items-center justify-center gap-0.5" aria-label={it.label}>
               {on && <motion.span layoutId="nav-mob" className="absolute inset-x-5 top-0 h-0.5 bg-lime" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
               <motion.span animate={{ y: on ? -1 : 0, scale: on ? 1.08 : 1 }} className="relative">
+                {it.href === "/chat" && notifs.chat > 0 && <span className="absolute -right-1.5 -top-1 size-2 bg-lime" />}
                 {it.href === "/studio" && pending > 0 && (
                   <span className="absolute -right-2.5 -top-1.5 grid min-w-4 place-items-center bg-lime px-1 font-mono text-[9px] font-semibold leading-4 text-ink">
                     {pending > 99 ? "99+" : pending}

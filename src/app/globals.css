@@ -11,9 +11,10 @@
   --color-ice: #8fe3ff;
   --color-coral: #ff6b4a;
 
-  --font-display: var(--font-unbounded), ui-sans-serif, system-ui;
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-title), ui-sans-serif, system-ui;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui;
+  /* "mono" kept as the token name for labels and figures, set in a narrow grotesque, not a code font */
+  --font-mono: var(--font-label), ui-sans-serif, system-ui;
 
   --radius-none: 0;
   --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
@@ -129,4 +130,14 @@ input::-ms-clear {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Titles: a touch wider and tighter, the display face carries the brand */
+.font-display {
+  font-stretch: 112%;
+  letter-spacing: -0.02em;
+}
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }

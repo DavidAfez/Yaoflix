@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { requireUser, verifyPassword, destroySession } from "@/lib/auth";
@@ -73,4 +73,38 @@ export async function saveBillboard(ms: number) {
   if (!BILLBOARD.includes(ms)) return;
   await db.update(schema.users).set({ billboardMs: ms }).where(eq(schema.users.id, user.id));
   revalidatePath("/");
+}
+
+const ref = z.object({
+  kind: z.enum(["movie", "tv"]),
+  tmdbId: z.number().int().positive(),
+  name: z.string().trim().min(1).max(200),
+  year: z.number().int().nullable(),
+  poster: z.string().startsWith("https://image.tmdb.org/").max(300).nullable(),
+});
+
+/** A new version of the profile top 5. The previous one stays in the history. */
+export async function saveTop5(items: unknown) {
+  const user = await requireUser();
+  const parsed = z.array(ref).min(1).max(5).safeParse(items);
+  if (!parsed.success) return { ok: false };
+  await db.update(schema.topLists).set({ archivedAt: new Date() }).where(and(eq(schema.topLists.userId, user.id), isNull(schema.topLists.archivedAt)));
+  await db.insert(schema.topLists).values({ userId: user.id, items: parsed.data });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Bio, avatar and banner. Pictures must be the member's own uploads. */
+export async function saveProfileCard(input: { bio: string; avatarId: string | null; bannerId: string | null }) {
+  const user = await requireUser();
+  const parsed = z.object({ bio: z.string().trim().max(160), avatarId: z.uuid().nullable(), bannerId: z.uuid().nullable() }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalide" };
+  const ids = [parsed.data.avatarId, parsed.data.bannerId].filter((x): x is string => Boolean(x));
+  if (ids.length) {
+    const own = await db.select({ id: schema.images.id }).from(schema.images).where(and(eq(schema.images.userId, user.id), inArray(schema.images.id, ids)));
+    if (own.length !== new Set(ids).size) return { ok: false, error: "Interdit" };
+  }
+  await db.update(schema.users).set({ bio: parsed.data.bio || null, avatarId: parsed.data.avatarId, bannerId: parsed.data.bannerId }).where(eq(schema.users.id, user.id));
+  revalidatePath("/", "layout");
+  return { ok: true };
 }

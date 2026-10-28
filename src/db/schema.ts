@@ -61,6 +61,10 @@ export const users = pgTable(
     locale: text("locale").notNull().default("fr"),
     // A top 5 post shown at the top of the profile
     pinnedPostId: uuid("pinned_post_id"),
+    // Public profile: a short bio and two pictures (ids in the images table)
+    bio: text("bio"),
+    avatarId: uuid("avatar_id"),
+    bannerId: uuid("banner_id"),
     country: text("country"),
     bannedAt: timestamp("banned_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -81,6 +85,8 @@ export const sessions = pgTable(
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    // HMAC of the IP with the server pepper: never the IP itself, only used to keep banned people out
+    ipHash: text("ip_hash"),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
 );
@@ -390,6 +396,8 @@ export const posts = pgTable(
     kind: text("kind").notNull().default("text"),
     data: jsonb("data").$type<PostData>(),
     clipId: uuid("clip_id").references((): AnyPgColumn => clips.id, { onDelete: "set null" }),
+    // Images, GIFs and stills attached to the post, 4 at most
+    media: jsonb("media").$type<PostMedia[]>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -459,3 +467,144 @@ export const pollVotes = pgTable(
   },
   (t) => [primaryKey({ columns: [t.postId, t.userId] })],
 );
+
+export type PostMedia = { type: "image"; id: string } | { type: "frame"; clipId: string } | { type: "gif"; url: string; w: number; h: number };
+
+/** Pictures members attach to posts, chat or their profile. Served to signed-in members only. */
+export const images = pgTable("images", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  mime: text("mime").notNull(),
+  bytes: integer("bytes").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * In-app notifications. kind: ready | rejected | reply | follow | fav | repost.
+ * data holds what the line shows (title, handle, link) so rendering needs no join.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    data: jsonb("data").$type<{ title?: string; handle?: string; href?: string; reason?: string }>().notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("notifications_user_idx").on(t.userId, t.createdAt)],
+);
+
+/** Content flagged by members: posts, profiles, messages. For a message, the reporter shares the decrypted text. */
+export const reports = pgTable(
+  "reports",
+  {
+    id: serial("id").primaryKey(),
+    reporterId: uuid("reporter_id").references(() => users.id, { onDelete: "set null" }),
+    targetType: text("target_type").notNull(), // post | user | message
+    targetId: text("target_id").notNull(),
+    targetUserId: uuid("target_user_id").references(() => users.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    note: text("note"),
+    snapshot: jsonb("snapshot").$type<{ text?: string; handle?: string; kind?: string }>(),
+    status: text("status").notNull().default("open"), // open | removed | dismissed
+    handledBy: uuid("handled_by").references(() => users.id, { onDelete: "set null" }),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("reports_status_idx").on(t.status)],
+);
+
+/** A member who does not want to see or hear from another one. */
+export const blocks = pgTable(
+  "blocks",
+  {
+    blockerId: uuid("blocker_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    blockedId: uuid("blocked_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] })],
+);
+
+/** Hashed IPs of banned members, refused at signup and login until the date passes. */
+export const ipBans = pgTable("ip_bans", {
+  ipHash: text("ip_hash").primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  until: timestamp("until", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Profile top 5. Every change saves a new version and archives the previous one,
+ * so the history of a member's favourites stays visible.
+ */
+export const topLists = pgTable(
+  "top_lists",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    items: jsonb("items").$type<TitleRef[]>().notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("top_lists_user_idx").on(t.userId, t.createdAt)],
+);
+
+/**
+ * End-to-end encrypted chat. The server only ever holds public keys, private keys wrapped with a
+ * passphrase it never sees, and ciphertext. Nobody running the server can read the messages.
+ */
+export const chatKeys = pgTable("chat_keys", {
+  userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  publicKey: text("public_key").notNull(), // JWK, ECDH P-256
+  wrappedKey: text("wrapped_key").notNull(), // private JWK, AES-GCM with a key derived from the passphrase
+  salt: text("salt").notNull(),
+  iv: text("iv").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const chatThreads = pgTable(
+  "chat_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // The two members, a < b, so a pair has exactly one thread
+    a: uuid("a").notNull().references(() => users.id, { onDelete: "cascade" }),
+    b: uuid("b").notNull().references(() => users.id, { onDelete: "cascade" }),
+    lastAt: timestamp("last_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("chat_threads_pair_idx").on(t.a, t.b)],
+);
+
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id").notNull().references(() => chatThreads.id, { onDelete: "cascade" }),
+    senderId: uuid("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    iv: text("iv").notNull(),
+    body: text("body").notNull(), // ciphertext, base64
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("chat_messages_thread_idx").on(t.threadId, t.createdAt)],
+);
+
+export const chatReads = pgTable(
+  "chat_reads",
+  {
+    threadId: uuid("thread_id").notNull().references(() => chatThreads.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.threadId, t.userId] })],
+);
+
+/** Encrypted attachments of a thread: stored as opaque bytes, decrypted in the browser. */
+export const chatFiles = pgTable("chat_files", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  threadId: uuid("thread_id").notNull().references(() => chatThreads.id, { onDelete: "cascade" }),
+  senderId: uuid("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bytes: integer("bytes").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

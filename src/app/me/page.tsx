@@ -12,7 +12,9 @@ import { logout } from "../(auth)/actions";
 import { Bug, LogOut } from "lucide-react";
 import Link from "next/link";
 import { Stat } from "./stat";
-import { pinnedPost, postsBy } from "@/lib/feed";
+import { postsBy } from "@/lib/feed";
+import { profileHead, topLists } from "@/lib/profile";
+import { ProfileHeader, Top5Shelf } from "@/components/profile";
 import { can } from "@/lib/rbac";
 import { getT } from "@/lib/i18n/server";
 
@@ -96,7 +98,8 @@ export default async function Page() {
   ]);
 
   const t = await getT();
-  const [posts, pinned] = await Promise.all([postsBy(uid, uid), pinnedPost(uid, uid)]);
+  const [posts, head, tops] = await Promise.all([postsBy(uid, uid), profileHead(uid, uid), topLists(uid)]);
+  const pinned = null;
   const [pref] = await db.select({ ms: schema.users.billboardMs }).from(schema.users).where(eq(schema.users.id, uid));
   const toAsk = (await Promise.all(seeds.map((s) => similar(s.kind as "movie" | "tv", s.tmdbId)))).flat();
   const askReady = await readyTitleIds(toAsk.map((t) => t.id));
@@ -117,40 +120,34 @@ export default async function Page() {
   const recency = recencyOrder.filter((b) => b !== "Inconnu").map((b) => ({ label: b, share: (recCount.get(b) ?? 0) / recTotal }));
 
   return (
-    <main className="px-4 pb-24 pt-8 md:px-10 md:pt-10">
-      <header className="border-b border-line pb-8">
-        <div className="flex items-center justify-between gap-4">
-          <p className="font-mono text-xs uppercase tracking-widest text-lime">{t(roleLabel[user.role])}</p>
-          <div className="flex gap-2">
-          <Link
-            href="/bug?from=/me"
-            aria-label={t("Signaler un bug")}
-            className="flex h-10 items-center gap-2 border border-line px-3 text-sm transition-colors hover:border-lime hover:text-lime"
-          >
-            <Bug size={15} />
-            <span className="hidden sm:inline">{t("Un souci ?")}</span>
-          </Link>
-          <form action={logout}>
-            <button
-              aria-label={t("Déconnexion")}
-              className="flex h-10 items-center gap-2 border border-line px-3 text-sm transition-colors hover:border-coral hover:text-coral"
-            >
-              <LogOut size={15} />
-              <span className="hidden sm:inline">{t("Déconnexion")}</span>
-            </button>
-          </form>
-          </div>
-        </div>
-        <h1 className="mt-3 break-all font-display text-5xl font-extrabold tracking-tighter md:text-8xl">@{user.handle}</h1>
-
-        <dl className="mt-8 grid grid-cols-3 gap-px bg-line sm:grid-cols-5">
+    <main className="px-4 pb-24 md:px-10">
+      <ProfileHeader
+        head={head!}
+        mine
+        actions={
+          <>
+            <span className="mr-2 hidden font-mono text-xs uppercase tracking-widest text-lime sm:inline">{t(roleLabel[user.role])}</span>
+            <Link href="/bug?from=/me" aria-label={t("Signaler un bug")} title={t("Signaler un bug")} className="grid size-10 place-items-center border border-line transition-colors hover:border-lime hover:text-lime">
+              <Bug size={16} />
+            </Link>
+            <form action={logout}>
+              <button aria-label={t("Déconnexion")} title={t("Déconnexion")} className="grid size-10 place-items-center border border-line transition-colors hover:border-coral hover:text-coral">
+                <LogOut size={16} />
+              </button>
+            </form>
+          </>
+        }
+      />
+      <div className="pb-2">
+        <dl className="mt-8 grid grid-cols-3 gap-px bg-line sm:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
           <Stat label="Vus" value={stats.completed} />
           <Stat label="Heures" value={stats.hours} decimals={1} unit="h" />
           <Stat label="Focus" value={stats.focus ?? 0} unit="min" />
           <Stat label="Demandes" value={reqs.length} />
           <Stat label="Aimés" value={liked.length} />
         </dl>
-      </header>
+        <Top5Shelf tops={tops} mine />
+      </div>
 
       <MeTabs
         overview={{

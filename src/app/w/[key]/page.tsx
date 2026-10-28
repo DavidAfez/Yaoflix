@@ -47,6 +47,10 @@ export default async function Page(props: PageProps<"/w/[key]">) {
         prefs={g.grant.prefs}
         subtitles={g.media.subtitles.filter((s) => s.file)}
         canCapture={can.capture(user.role)}
+        kind={g.title.kind}
+        tmdbId={g.title.tmdbId}
+        handle={user.handle}
+        poster={img(g.title.posterPath, "w500")}
       />
     </main>
   );

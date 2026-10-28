@@ -247,7 +247,7 @@ export function SearchHero({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="sticky top-0 z-30 bg-ink/85 px-4 backdrop-blur-xl md:top-12 md:px-10">
+      <div className="sticky top-11 z-30 bg-ink/85 px-4 backdrop-blur-xl md:top-12 md:px-10">
         <SearchBar s={s} input={input} focused={focused} setFocused={setFocused} />
       </div>
       <AnimatePresence mode="wait">

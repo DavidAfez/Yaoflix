@@ -3,11 +3,12 @@ import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { img } from "./tmdb";
 import { getLocale } from "./i18n/server";
-import type { PostData } from "@/db/schema";
+import type { PostData, PostMedia } from "@/db/schema";
 
 export type FeedPost = {
   id: string;
   handle: string;
+  avatarId: string | null;
   mine: boolean;
   body: string | null;
   voice: boolean;
@@ -25,6 +26,9 @@ export type FeedPost = {
   clip: { id: string; ready: boolean; failed: boolean } | null;
   poll: { counts: number[]; mine: number | null } | null;
   pinned?: boolean;
+  media: PostMedia[];
+  /** The author's own post waiting for its publication time */
+  scheduled: boolean;
   /** Set when the post shows up because someone the member follows reposted it */
   repostedBy?: string;
 };
@@ -33,6 +37,7 @@ type Row = {
   id: string;
   user_id: string;
   handle: string;
+  avatar_id: string | null;
   body: string | null;
   voice: boolean;
   created_at: Date;
@@ -53,6 +58,7 @@ type Row = {
   data: PostData | null;
   clip_id: string | null;
   clip_status: string | null;
+  media: PostMedia[] | null;
 };
 
 /** Original posts (not reposts) with counters and what the viewer already did on them. */
@@ -60,7 +66,7 @@ async function select(me: string, filter: SQL, limit: number, order: SQL = sql`p
   // English speakers get the English title when it is known
   const name = (await getLocale()) === "en" ? sql`coalesce(t.name_en, t.name)` : sql`t.name`;
   const res = await db.execute<Row>(sql`
-    select p.id, p.user_id, u.handle, p.created_at,
+    select p.id, p.user_id, u.handle, u.avatar_id, p.created_at,
       coalesce(nullif(p.body, ''), f.transcript) as body,
       (f.audio_file is not null) as voice,
       t.kind, t.tmdb_id, ${name} as name, t.year, t.poster_path, t.genres,
@@ -71,7 +77,7 @@ async function select(me: string, filter: SQL, limit: number, order: SQL = sql`p
       exists(select 1 from post_likes l where l.post_id = p.id and l.user_id = ${me}) as liked,
       exists(select 1 from posts x where x.repost_of = p.id and x.user_id = ${me}) as reposted,
       pu.handle as reply_to,
-      p.kind as post_kind, p.data, p.clip_id, c.status as clip_status
+      p.kind as post_kind, p.data, p.clip_id, c.status as clip_status, p.media
     from posts p
     join users u on u.id = p.user_id and u.banned_at is null
     left join feedback f on f.id = p.feedback_id
@@ -80,7 +86,11 @@ async function select(me: string, filter: SQL, limit: number, order: SQL = sql`p
     left join posts pp on pp.id = p.parent_id
     left join users pu on pu.id = pp.user_id
     left join clips c on c.id = p.clip_id
-    where p.repost_of is null and (p.kind <> 'text' or coalesce(nullif(p.body, ''), f.transcript) is not null or f.audio_file is not null) and ${filter}
+    where p.repost_of is null
+      and (p.kind <> 'text' or p.media is not null or coalesce(nullif(p.body, ''), f.transcript) is not null or f.audio_file is not null)
+      and (p.created_at <= now() or p.user_id = ${me})
+      and not exists (select 1 from blocks bl where (bl.blocker_id = ${me} and bl.blocked_id = p.user_id) or (bl.blocker_id = p.user_id and bl.blocked_id = ${me}))
+      and ${filter}
     order by ${order}
     limit ${limit}
   `);
@@ -90,6 +100,7 @@ async function select(me: string, filter: SQL, limit: number, order: SQL = sql`p
 const toPost = (me: string) => (r: Row): FeedPost => ({
   id: r.id,
   handle: r.handle,
+  avatarId: r.avatar_id,
   mine: r.user_id === me,
   body: r.body,
   voice: r.voice,
@@ -106,6 +117,8 @@ const toPost = (me: string) => (r: Row): FeedPost => ({
   data: r.data,
   clip: r.clip_id ? { id: r.clip_id, ready: r.clip_status === "READY", failed: r.clip_status === "FAILED" } : null,
   poll: null,
+  media: r.media ?? [],
+  scheduled: new Date(r.created_at).getTime() > Date.now(),
 });
 
 /** Vote counts and the member's own vote for the polls among these posts. */
@@ -212,4 +225,19 @@ export async function followState(me: string, userId: string) {
     `)
   ).rows;
   return r;
+}
+
+/** A profile's four lists: posts, replies, reposts, posts with pictures or clips. */
+export async function profileFeed(me: string, userId: string) {
+  const own = await withPolls(me, (await select(me, sql`p.user_id = ${userId}`, 120)).map(toPost(me)));
+  const shared = (
+    await db.execute<{ repost_of: string }>(sql`select repost_of from posts where user_id = ${userId} and repost_of is not null order by created_at desc limit 60`)
+  ).rows.map((r) => r.repost_of);
+  const reposts = shared.length ? await withPolls(me, (await select(me, sql`p.id in (${sql.join(shared.map((id) => sql`${id}::uuid`), sql`, `)})`, 60)).map(toPost(me))) : [];
+  return {
+    posts: own.filter((p) => !p.replyTo),
+    replies: own.filter((p) => p.replyTo),
+    reposts,
+    media: own.filter((p) => p.media.length || p.clip),
+  };
 }
