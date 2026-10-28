@@ -2,17 +2,18 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowLeft, Check, Flag, ImagePlus, Lock, MonitorSmartphone, Send, ShieldCheck, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Flag, Lock, MonitorSmartphone, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import { fingerprint, open, openBytes, safetyNumber, seal, sealBytes, type Device, type Me } from "@/lib/e2e";
 import { Avatar } from "../avatar";
-import { EmojiTool, GifTool } from "../composer-tools";
 import { PostCard } from "../feed";
 import { useLocale, useT } from "../i18n";
 import { ReportSheet } from "../safety";
 import { Dots } from "../ui";
 import { useChatDevice } from "./device";
 import { acceptKey, peer, type Peer } from "./peers";
-import type { Msg, Payload, Thread } from "./message";
+import type { Attachment, Msg, Payload, Thread } from "./message";
+import { ChatComposer, type Staged } from "./composer";
+import { PollBody, Thumb, TierView, Top5View } from "../post-kinds";
 import type { FeedPost } from "@/lib/feed";
 
 export function ChatApp({ to }: { to: string | null }) {
@@ -274,14 +275,12 @@ function ThreadView({ thread, me, mine, myRoot, onBack }: { thread: Thread; me: 
   const t = useT();
   const locale = useLocale();
   const [items, setItems] = useState<Item[]>([]);
-  const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [reporting, setReporting] = useState<Item | null>(null);
   const [other, setOther] = useState<Peer | null>(null);
   const [safety, setSafety] = useState<string | null>(null);
   const [showSafety, setShowSafety] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const last = useRef<string | null>(null);
 
   const decrypt = useCallback((ms: Msg[]) => Promise.all(ms.map(async (m) => ({ ...m, p: m.key ? await open<Payload>(me, m.key.from, m.key.wrap, m.iv, m.body) : null }))), [me]);
@@ -322,31 +321,61 @@ function ThreadView({ thread, me, mine, myRoot, onBack }: { thread: Thread; me: 
     bottom.current?.scrollIntoView({ block: "end" });
   }, [items.length]);
 
-  const send = async (p: Payload) => {
+  const send = async (p: Payload): Promise<boolean> => {
     setBusy(true);
     try {
       // Fresh device list each time: a device added a minute ago gets the message too
       const o = await refreshPeer();
-      if (!o?.devices.length || o.changed) return;
+      if (!o?.devices.length || o.changed) return false;
       const sealed = await seal(me, [...o.devices, ...mine], p);
       const res = await fetch(`/api/chat/threads/${thread.id}/messages`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ device: me.id, ...sealed }) });
-      if (!res.ok) return;
+      if (!res.ok) return false;
       const m = (await res.json()) as Msg;
       last.current = m.at;
       setItems((x) => [...x, { ...m, p }]);
+      return true;
     } finally {
       setBusy(false);
     }
   };
 
-  const sendImage = async (f: File) => {
-    if (f.size > 10 * 1024 * 1024) return;
+  /** Pictures are encrypted here, each with its own key, then sent with the rest of the message. */
+  const sendAll = async (p: Omit<Payload, "media">, files: Staged[]) => {
     setBusy(true);
-    const { k, iv, data } = await sealBytes(await f.arrayBuffer());
-    const res = await fetch(`/api/chat/files?thread=${thread.id}`, { method: "POST", body: data });
-    const d = (await res.json().catch(() => ({}))) as { id?: string };
-    setBusy(false);
-    if (d.id) await send({ img: { id: d.id, iv, k, mime: f.type || "image/jpeg" } });
+    const media: Attachment[] = [];
+    for (const f of files) {
+      if (f.type === "gif") {
+        media.push(f);
+        continue;
+      }
+      const { k, iv, data } = await sealBytes(await f.file.arrayBuffer());
+      const res = await fetch(`/api/chat/files?thread=${thread.id}`, { method: "POST", body: data });
+      const d = (await res.json().catch(() => ({}))) as { id?: string };
+      if (!d.id) {
+        setBusy(false);
+        return false;
+      }
+      media.push({ type: "img", id: d.id, iv, k, mime: f.file.type || "image/jpeg" });
+    }
+    return send({ ...p, ...(media.length ? { media } : {}) });
+  };
+
+  // Votes travel as encrypted messages too: count them here, one per member, first one wins
+  const votes = new Map<string, { counts: Map<string, number>; mine: number | null }>();
+  for (const m of items) {
+    const v = m.p?.vote;
+    if (!v) continue;
+    const tally = votes.get(v.of) ?? { counts: new Map(), mine: null };
+    const who = m.mine ? "me" : "them";
+    if (!tally.counts.has(who)) tally.counts.set(who, v.option);
+    if (m.mine && tally.mine === null) tally.mine = v.option;
+    votes.set(v.of, tally);
+  }
+  const pollState = (id: string, n: number) => {
+    const tally = votes.get(id);
+    const counts = Array.from({ length: n }, () => 0);
+    tally?.counts.forEach((o) => o < n && counts[o]++);
+    return { counts, mine: tally?.mine ?? null };
   };
 
   if (other && !other.devices.length)
@@ -395,7 +424,7 @@ function ThreadView({ thread, me, mine, myRoot, onBack }: { thread: Thread; me: 
         </div>
       )}
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4">
-        {items.map((m) => (
+        {items.filter((m) => !m.p?.vote).map((m) => (
           <div key={m.id} className={`group flex items-end gap-2 ${m.mine ? "justify-end" : ""}`}>
             {!m.mine && m.p && (
               <button onClick={() => setReporting(m)} aria-label={t("Signaler")} className="order-last text-dim opacity-0 transition-opacity hover:text-coral group-hover:opacity-100">
@@ -403,7 +432,7 @@ function ThreadView({ thread, me, mine, myRoot, onBack }: { thread: Thread; me: 
               </button>
             )}
             <div className={`max-w-[80%] ${m.mine ? "bg-lime/90 text-ink" : "bg-ink-2"} px-3 py-2`}>
-              <Bubble p={m.p} missing={!m.key} />
+              <Bubble p={m.p} missing={!m.key} mine={m.mine} poll={m.p?.rich?.kind === "poll" ? { ...pollState(m.id, m.p.rich.data.options.length), vote: (o) => void send({ vote: { of: m.id, option: o } }) } : undefined} />
               <p className={`mt-1 text-right font-mono text-[9px] ${m.mine ? "text-ink/60" : "text-dim"}`}>
                 {new Date(m.at).toLocaleTimeString(locale === "en" ? "en-GB" : "fr-FR", { hour: "2-digit", minute: "2-digit" })}
               </p>
@@ -412,26 +441,7 @@ function ThreadView({ thread, me, mine, myRoot, onBack }: { thread: Thread; me: 
         ))}
         <div ref={bottom} />
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!text.trim()) return;
-          void send({ t: text.trim() });
-          setText("");
-        }}
-        className="flex items-center gap-1 border-t border-line px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
-      >
-        <button type="button" onClick={() => fileInput.current?.click()} aria-label={t("Image")} className="grid size-9 place-items-center text-dim hover:text-lime">
-          <ImagePlus size={18} />
-        </button>
-        <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && void sendImage(e.target.files[0])} />
-        <GifTool onPick={(m) => m.type === "gif" && void send({ gif: m })} />
-        <EmojiTool onPick={(e) => setText((x) => x + e)} />
-        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} placeholder={t("Message")} className="h-10 min-w-0 flex-1 bg-transparent px-2 outline-none" />
-        <button disabled={busy || !text.trim() || other?.changed} aria-label={t("Envoyer")} className="grid size-10 place-items-center bg-lime text-ink disabled:opacity-40">
-          {busy ? <Dots /> : <Send size={16} />}
-        </button>
-      </form>
+      <ChatComposer busy={busy} disabled={other?.changed} onSend={sendAll} />
       <AnimatePresence>
         {reporting && <ReportSheet target={{ type: "message", id: reporting.id, label: `@${thread.other.handle}`, text: reporting.p?.t ?? "" }} onClose={() => setReporting(null)} />}
       </AnimatePresence>
@@ -439,24 +449,50 @@ function ThreadView({ thread, me, mine, myRoot, onBack }: { thread: Thread; me: 
   );
 }
 
-function Bubble({ p, missing }: { p: Payload | null; missing: boolean }) {
+function Bubble({ p, missing, mine, poll }: { p: Payload | null; missing: boolean; mine: boolean; poll?: { counts: number[]; mine: number | null; vote: (o: number) => void } }) {
   const t = useT();
   if (!p) return <p className="text-xs italic opacity-60">{t(missing ? "Envoyé avant l'arrivée de cet appareil" : "Message illisible")}</p>;
+  // Older messages carried a single picture or GIF
+  const media: Attachment[] = [...(p.media ?? []), ...(p.gif ? [p.gif] : []), ...(p.img ? [{ type: "img" as const, ...p.img }] : [])];
   return (
     <div className="space-y-2">
-      {p.t && <p className="whitespace-pre-line break-words">{p.t}</p>}
-      {p.gif && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={p.gif.url} alt="" className="max-h-60" />
+      {p.title && (
+        <Link href={`/t/${p.title.kind}/${p.title.tmdbId}`} className="flex items-center gap-3 border border-current/20 p-1.5 pr-3 hover:opacity-80">
+          <Thumb item={{ type: "title", ...p.title }} size="sm" />
+          <span className="min-w-0">
+            <span className="block truncate font-display font-semibold">{p.title.name}</span>
+            <span className="font-mono text-[10px] opacity-60">{p.title.year}</span>
+          </span>
+        </Link>
       )}
-      {p.img && <SecretImage file={p.img} />}
+      {p.rich && (
+        // Builders' views are made for the dark theme: keep them on dark even inside my own bubble
+        <div className={mine ? "-mx-3 bg-ink px-3 py-3 text-bone" : ""}>
+          {p.rich.kind === "top5" && <Top5View data={p.rich.data} />}
+          {p.rich.kind === "tier" && <TierView data={p.rich.data} />}
+          {p.rich.kind === "poll" && poll && <PollBody data={p.rich.data} counts={poll.counts} mine={poll.mine} author={mine} onVote={poll.vote} />}
+        </div>
+      )}
+      {media.length > 0 && (
+        <div className={`grid gap-1 ${media.length > 1 ? "grid-cols-2" : ""}`}>
+          {media.map((m, i) =>
+            m.type === "gif" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={m.url} alt="" className="max-h-60 w-full object-cover" />
+            ) : (
+              <SecretImage key={m.id} file={m} />
+            ),
+          )}
+        </div>
+      )}
+      {p.t && <p className="whitespace-pre-line break-words">{p.t}</p>}
       {p.post && <SharedPost id={p.post} />}
     </div>
   );
 }
 
 /** Downloads the encrypted bytes and decrypts them in the browser. */
-function SecretImage({ file }: { file: NonNullable<Payload["img"]> }) {
+function SecretImage({ file }: { file: Extract<Attachment, { type: "img" }> | NonNullable<Payload["img"]> }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let u: string | null = null;

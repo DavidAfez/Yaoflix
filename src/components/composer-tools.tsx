@@ -9,7 +9,7 @@ import type { PostMedia, TitleRef } from "@/db/schema";
 const EMOJIS = "😂 🤣 😭 😍 🥹 😮 😱 🤯 😴 🙄 😤 😡 🥶 🤔 🫠 😎 🤩 🥲 😬 👀 👏 🙌 🔥 💯 ✨ 💀 ❤️ 💔 🖤 🎬 🍿 🎥 📽️ 🎞️ 🎭 🏆 ⭐ 🌟 👑 🎵 🎧 🌍 🌙 ☀️ 🌧️ ⚡ 💣 🩸 🔪 👻 🤖 👽 🦖 🐉 🚀 🏎️ 🍷 ☕".split(" ");
 
 /** Popover on top of a toolbar button, closed by any click outside. */
-function Pop({ open, onClose, children, className = "" }: { open: boolean; onClose: () => void; children: React.ReactNode; className?: string }) {
+function Pop({ open, onClose, children, className = "", up = false }: { open: boolean; onClose: () => void; children: React.ReactNode; className?: string; up?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -22,11 +22,12 @@ function Pop({ open, onClose, children, className = "" }: { open: boolean; onClo
       {open && (
         <motion.div
           ref={ref}
-          initial={{ opacity: 0, y: -6 }}
+          initial={{ opacity: 0, y: up ? 6 : -6 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
+          exit={{ opacity: 0, y: up ? 6 : -6 }}
           transition={{ duration: 0.15 }}
-          className={`absolute left-0 top-11 z-30 border-l-2 border-lime bg-ink-2 p-2 shadow-2xl shadow-black/60 ${className}`}
+          // Toolbars at the bottom of the screen (chat) open upwards
+          className={`absolute left-0 z-30 border-l-2 border-lime bg-ink-2 p-2 shadow-2xl shadow-black/60 ${up ? "bottom-11" : "top-11"} ${className}`}
         >
           {children}
         </motion.div>
@@ -43,7 +44,7 @@ export function ToolBtn({ label, on, onClick, children }: { label: string; on?: 
   );
 }
 
-export function EmojiTool({ onPick }: { onPick: (e: string) => void }) {
+export function EmojiTool({ onPick, up }: { onPick: (e: string) => void; up?: boolean }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   return (
@@ -51,7 +52,7 @@ export function EmojiTool({ onPick }: { onPick: (e: string) => void }) {
       <ToolBtn label={t("Emoji")} on={open} onClick={() => setOpen(!open)}>
         <Smile size={18} />
       </ToolBtn>
-      <Pop open={open} onClose={() => setOpen(false)} className="w-72">
+      <Pop open={open} onClose={() => setOpen(false)} className="w-72" up={up}>
         <div className="grid grid-cols-8 gap-0.5">
           {EMOJIS.map((e) => (
             <button key={e} type="button" onClick={() => onPick(e)} className="grid size-8 place-items-center text-lg transition-transform hover:scale-125">
@@ -66,7 +67,7 @@ export function EmojiTool({ onPick }: { onPick: (e: string) => void }) {
 
 type Gif = { id: string; preview: string; url: string; w: number; h: number };
 
-export function GifTool({ onPick, disabled }: { onPick: (m: PostMedia) => void; disabled?: boolean }) {
+export function GifTool({ onPick, disabled, up }: { onPick: (m: PostMedia) => void; disabled?: boolean; up?: boolean }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState(true);
@@ -100,7 +101,7 @@ export function GifTool({ onPick, disabled }: { onPick: (m: PostMedia) => void; 
       <ToolBtn label="GIF" on={open} onClick={() => !disabled && setOpen(!open)}>
         <span className="border border-current px-1 font-mono text-[10px] font-bold leading-4">GIF</span>
       </ToolBtn>
-      <Pop open={open} onClose={() => setOpen(false)} className="w-80">
+      <Pop open={open} onClose={() => setOpen(false)} className="w-80" up={up}>
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("Chercher un GIF")} className="mb-2 h-9 w-full border border-line bg-transparent px-3 text-sm outline-none focus:border-lime" />
         {!items ? (
           <Dots />

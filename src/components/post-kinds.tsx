@@ -15,7 +15,7 @@ export const TIERS = ["S", "A", "B", "C", "D"];
 const TIER_BG = ["bg-[#e2626b] text-ink", "bg-[#f0a35e] text-ink", "bg-[#f2d36b] text-ink", "bg-[#8fd18a] text-ink", "bg-[#8fc7f0] text-ink"];
 export const toRef = (p: PosterData): TitleRef => ({ kind: p.kind, tmdbId: p.tmdbId, name: p.name, year: p.year, poster: p.poster });
 
-function Thumb({ item, size = "md" }: { item: TierItem | ({ type: "title" } & TitleRef); size?: "sm" | "md" }) {
+export function Thumb({ item, size = "md" }: { item: TierItem | ({ type: "title" } & TitleRef); size?: "sm" | "md" }) {
   const cls = size === "sm" ? "h-14 w-10" : "h-20 w-14";
   if (item.type === "frame")
     return (
@@ -84,9 +84,10 @@ export function TierView({ data }: { data: { title: string; tiers: { label: stri
   );
 }
 
+export type PollData = { question: string; options: { label: string }[]; answer?: number | null; frameId?: string | null; ref?: TitleRef | null };
+
 export function PollView({ p }: { p: FeedPost }) {
-  const t = useT();
-  const data = p.data as { question: string; options: { label: string }[]; answer?: number | null; frameId?: string | null; ref?: TitleRef | null };
+  const data = p.data as PollData;
   const [mine, setMine] = useState<number | null>(p.poll?.mine ?? null);
   const [counts, setCounts] = useState<number[]>(p.poll?.counts ?? data.options.map(() => 0));
   const [, start] = useTransition();
@@ -94,8 +95,26 @@ export function PollView({ p }: { p: FeedPost }) {
     setMine(p.poll?.mine ?? null);
     if (p.poll) setCounts(p.poll.counts);
   }, [p.poll]);
+  return (
+    <PollBody
+      data={data}
+      counts={counts}
+      mine={mine}
+      author={p.mine}
+      onVote={(i) => {
+        setMine(i);
+        setCounts((c) => c.map((n, j) => (j === i ? n + 1 : n)));
+        start(() => votePoll(p.id, i));
+      }}
+    />
+  );
+}
+
+/** A poll or quiz as shown, wherever its votes are stored (feed, or encrypted in the chat). */
+export function PollBody({ data, counts, mine, author, onVote }: { data: PollData; counts: number[]; mine: number | null; author: boolean; onVote: (i: number) => void }) {
+  const t = useT();
   const total = counts.reduce((a, b) => a + b, 0);
-  const shown = mine !== null || p.mine;
+  const shown = mine !== null || author;
   const quiz = data.answer != null;
 
   return (
@@ -108,18 +127,14 @@ export function PollView({ p }: { p: FeedPost }) {
       <p className="font-display text-lg font-semibold">{data.question}</p>
       <div className="space-y-1.5">
         {data.options.map((o, i) => {
-          const pct = total ? Math.round((counts[i] / total) * 100) : 0;
+          const pct = total ? Math.round(((counts[i] ?? 0) / total) * 100) : 0;
           const right = quiz && shown && data.answer === i;
           const wrong = quiz && shown && mine === i && data.answer !== i;
           return (
             <button
               key={i}
               disabled={shown}
-              onClick={() => {
-                setMine(i);
-                setCounts((c) => c.map((n, j) => (j === i ? n + 1 : n)));
-                start(() => votePoll(p.id, i));
-              }}
+              onClick={() => onVote(i)}
               className={`relative flex h-11 w-full items-center overflow-hidden border px-3 text-left text-sm transition-colors ${
                 right ? "border-emerald-400" : wrong ? "border-coral" : mine === i ? "border-bone/60" : "border-line enabled:hover:border-lime"
               }`}
