@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { Home, Bookmark, User, Clapperboard, LogOut, Search, Bug, MessagesSquare } from "lucide-react";
 import { SearchOverlay } from "./search";
 import { useT } from "./i18n";
+import { StudioBell, useStudioNotifs } from "./studio-bell";
 import { logout } from "@/app/(auth)/actions";
 import type { Role } from "@/db/schema";
 
@@ -14,6 +15,8 @@ const isStaff = (r: Role) => r !== "USER";
 export function Nav({ role, handle }: { role: Role; handle: string }) {
   const path = usePathname();
   const t = useT();
+  const notifs = useStudioNotifs(isStaff(role));
+  const pending = notifs.reduce((a, b) => a + b.count, 0);
   const [searching, setSearching] = useState(false);
   const close = useCallback(() => setSearching(false), []);
   // The home page has its own big bar: focus it rather than stacking an overlay
@@ -77,11 +80,16 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
           </button>
         )}
         <span className={`${path === "/" ? "ml-auto" : "ml-6"} font-mono text-xs text-dim`}>@{handle}</span>
+        {isStaff(role) && (
+          <span className="ml-3">
+            <StudioBell items={notifs} />
+          </span>
+        )}
         <Link
           href={`/bug?from=${encodeURIComponent(path)}`}
           aria-label={t("Signaler un bug")}
           title={t("Signaler un bug")}
-          className="ml-4 grid size-9 place-items-center text-dim transition-colors hover:text-lime"
+          className={`${isStaff(role) ? "ml-1" : "ml-4"} grid size-9 place-items-center text-dim transition-colors hover:text-lime`}
         >
           <Bug size={17} />
         </Link>
@@ -106,7 +114,12 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
           return (
             <Link key={it.href} href={it.href} className={`relative flex h-14 flex-col items-center justify-center gap-0.5 ${it.href === "/" ? "order-0" : "order-2"}`} aria-label={it.label}>
               {on && <motion.span layoutId="nav-mob" className="absolute inset-x-5 top-0 h-0.5 bg-lime" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}
-              <motion.span animate={{ y: on ? -1 : 0, scale: on ? 1.08 : 1 }}>
+              <motion.span animate={{ y: on ? -1 : 0, scale: on ? 1.08 : 1 }} className="relative">
+                {it.href === "/studio" && pending > 0 && (
+                  <span className="absolute -right-2.5 -top-1.5 grid min-w-4 place-items-center bg-lime px-1 font-mono text-[9px] font-semibold leading-4 text-ink">
+                    {pending > 99 ? "99+" : pending}
+                  </span>
+                )}
                 <Icon size={19} strokeWidth={on ? 2.2 : 1.6} className={on ? "text-lime" : "text-dim"} />
               </motion.span>
               <span className={`text-[10px] tracking-wider ${on ? "text-bone" : "text-dim"}`}>{it.label}</span>

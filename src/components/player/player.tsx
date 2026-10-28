@@ -73,6 +73,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
   const [ripple, setRipple] = useState<null | { side: "l" | "r"; k: number }>(null);
   const [fatal, setFatal] = useState(false);
   const [ended, setEnded] = useState(false);
+  const counted = useRef(false);
 
   const src = `/api/stream/${grantId}/master.m3u8`;
   const tele = useTelemetry(grantKey, video);
@@ -221,9 +222,10 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
           if (v.buffered.start(i) <= v.currentTime + 0.5 && v.buffered.end(i) >= v.currentTime) setBuffered(v.buffered.end(i));
         }
       }
-      // Credits: treat the last 3% (min 60s) as the end for the feedback prompt
-      if (v.duration && v.currentTime > v.duration - Math.max(60, v.duration * 0.03) && !ended) {
-        setEnded(true);
+      // Credits: the last 3% (min 60 s) count as a finished viewing for the stats.
+      // The feedback card itself waits for the real end of the video.
+      if (v.duration && v.currentTime > v.duration - Math.max(60, v.duration * 0.03) && !counted.current) {
+        counted.current = true;
         tele.end();
       }
     };
@@ -239,7 +241,10 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
     const onEnded = () => {
       setEnded(true);
       tele.paused("end");
-      tele.end();
+      if (!counted.current) {
+        counted.current = true;
+        tele.end();
+      }
     };
     const onWait = () => setWaiting(true);
     const onReady = () => setWaiting(false);
@@ -277,7 +282,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
       v.removeEventListener("error", onErr);
       document.removeEventListener("fullscreenchange", onFs);
     };
-  }, [tele, grantId, ended]);
+  }, [tele, grantId]);
 
   // Default subtitle from the request preferences
   useEffect(() => {
@@ -687,7 +692,19 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
         )}
       </AnimatePresence>
 
-      <AnimatePresence>{ended && <EndCard titleId={titleId} title={title} onReplay={() => { setEnded(false); video.current!.currentTime = 0; void video.current!.play(); }} />}</AnimatePresence>
+      <AnimatePresence>{ended && <EndCard
+            titleId={titleId}
+            title={title}
+            onClose={() => {
+              setEnded(false);
+              poke();
+            }}
+            onReplay={() => {
+              setEnded(false);
+              video.current!.currentTime = 0;
+              void video.current!.play();
+            }}
+          />}</AnimatePresence>
     </div>
   );
 }

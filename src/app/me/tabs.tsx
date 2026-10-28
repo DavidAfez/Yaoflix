@@ -68,14 +68,7 @@ export function MeTabs(props: {
               <OverviewTab {...props.overview} />
             </>
           )}
-          {tab === "Bobines" && (
-            <div className="-mx-4 max-w-2xl md:mx-0 md:border-x md:border-line">
-              <Composer canCapture={props.canCapture} />
-              {props.posts.map((p, i) => (
-                <PostCard key={p.id} p={{ ...p, pinned: p.id === props.pinned?.id }} i={i} />
-              ))}
-            </div>
-          )}
+          {tab === "Bobines" && <Reels posts={props.posts} pinned={props.pinned} canCapture={props.canCapture} />}
           {tab === "Aimés" && (liked.length ? <ByKind items={liked} /> : <Empty word="Aucun coup de cœur." />)}
           {tab === "Vus" && (seen.length ? <ByKind items={seen} /> : <Empty word="Rien de vu encore." />)}
           {tab === "Demandes" && <Requests items={props.requests} />}
@@ -83,6 +76,76 @@ export function MeTabs(props: {
         </motion.section>
       </AnimatePresence>
     </>
+  );
+}
+
+const KINDS: { k: string; label: string }[] = [
+  { k: "text", label: "Avis" },
+  { k: "clip", label: "Clips" },
+  { k: "top5", label: "Top 5" },
+  { k: "tier", label: "Tier lists" },
+  { k: "poll", label: "Sondages" },
+];
+
+/** The member's own posts: writing on top, a filter by kind, the pinned top 5 on the side. */
+function Reels({ posts, pinned, canCapture }: { posts: FeedPost[]; pinned: FeedPost | null; canCapture: boolean }) {
+  const t = useT();
+  const [kind, setKind] = useState<string | null>(null);
+  const shown = kind ? posts.filter((p) => p.kind === kind) : posts;
+  const counts = Object.fromEntries(KINDS.map((x) => [x.k, posts.filter((p) => p.kind === x.k).length]));
+  return (
+    <div className="grid gap-10 pb-24 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-14">
+      <div className="min-w-0">
+        <div className="-mx-4 border-y border-line bg-ink-2/40 md:mx-0 md:border">
+          <Composer canCapture={canCapture} />
+        </div>
+
+        <div className="scrollbar-none -mx-4 mt-8 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
+          {[{ k: null as string | null, label: "Tout", n: posts.length }, ...KINDS.map((x) => ({ k: x.k as string | null, label: x.label, n: counts[x.k] }))]
+            .filter((x) => x.k === null || x.n > 0)
+            .map((x) => (
+              <button
+                key={x.label}
+                onClick={() => setKind(x.k)}
+                className={`flex shrink-0 items-center gap-2 border px-3 py-1.5 text-sm transition-colors ${kind === x.k ? "border-lime text-lime" : "border-line text-dim hover:text-bone"}`}
+              >
+                {t(x.label)} <span className="font-mono text-[11px] tabular-nums">{x.n}</span>
+              </button>
+            ))}
+        </div>
+
+        {shown.length ? (
+          <div className="-mx-4 mt-4 border-t border-line md:mx-0">
+            {shown.map((p, i) => (
+              <PostCard key={p.id} p={{ ...p, pinned: p.id === pinned?.id }} i={i} />
+            ))}
+          </div>
+        ) : (
+          <p className="py-16 font-display text-4xl font-extrabold leading-none tracking-tight text-bone/15 md:text-5xl">{t("Ta première bobine.")}</p>
+        )}
+      </div>
+
+      <aside className="hidden space-y-8 lg:block">
+        <div className="sticky top-32 space-y-8">
+          <dl className="grid grid-cols-2 gap-px bg-line [&>div:last-child:nth-child(odd)]:col-span-2">
+            {KINDS.map((x) => (
+              <div key={x.k} className="bg-ink p-4">
+                <dd className="font-display text-3xl font-extrabold tabular-nums">{counts[x.k]}</dd>
+                <dt className="mt-1 font-mono text-[10px] uppercase tracking-widest text-dim">{t(x.label)}</dt>
+              </div>
+            ))}
+          </dl>
+          {pinned && (
+            <div>
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-lime">{t("Épinglé")}</p>
+              <div className="border-l-2 border-lime [&_article]:px-4">
+                <PostCard p={pinned} />
+              </div>
+            </div>
+          )}
+        </div>
+      </aside>
+    </div>
   );
 }
 

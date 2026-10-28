@@ -117,7 +117,7 @@ export default async function Page() {
   const recency = recencyOrder.filter((b) => b !== "Inconnu").map((b) => ({ label: b, share: (recCount.get(b) ?? 0) / recTotal }));
 
   return (
-    <main className="px-4 py-8 md:px-10 md:py-10">
+    <main className="px-4 pb-24 pt-8 md:px-10 md:pt-10">
       <header className="border-b border-line pb-8">
         <div className="flex items-center justify-between gap-4">
           <p className="font-mono text-xs uppercase tracking-widest text-lime">{t(roleLabel[user.role])}</p>

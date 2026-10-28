@@ -17,14 +17,13 @@ function pickMime() {
 
 type Phase = "idle" | "rec" | "review" | "sending" | "sent";
 
-export function EndCard({ titleId, title, onReplay }: { titleId: number; title: string; onReplay: () => void }) {
+export function EndCard({ titleId, title, onReplay, onClose }: { titleId: number; title: string; onReplay: () => void; onClose: () => void }) {
   const t = useT();
   const [phase, setPhase] = useState<Phase>("idle");
   const [levels, setLevels] = useState<number[]>(Array(BARS).fill(0.08));
   const [sec, setSec] = useState(0);
   const [vote, setVote] = useState<0 | 1 | -1>(0);
   const [denied, setDenied] = useState(false);
-  const [hidden, setHidden] = useState(false);
   const rec = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const blob = useRef<Blob | null>(null);
@@ -104,8 +103,6 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
     void setLike(titleId, next);
   };
 
-  if (hidden) return null;
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -113,7 +110,7 @@ export function EndCard({ titleId, title, onReplay }: { titleId: number; title: 
       exit={{ opacity: 0 }}
       className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-10 bg-ink/85 px-6 backdrop-blur-md"
     >
-      <button onClick={() => setHidden(true)} aria-label={t("Fermer")} className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] grid size-11 place-items-center text-dim hover:text-bone md:right-8 md:top-8">
+      <button onClick={onClose} aria-label={t("Fermer")} className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] grid size-11 place-items-center text-dim hover:text-bone md:right-8 md:top-8">
         <X />
       </button>
 

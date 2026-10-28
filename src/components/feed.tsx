@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BarChart3, Clapperboard, Heart, ListOrdered, MessageCircle, Mic, Pin, Repeat2, Rows3, Trash2, X } from "lucide-react";
+import { BarChart3, Clapperboard, Heart, ListOrdered, MessageCircle, Mic, Pin, Plus, Repeat2, Rows3, Trash2, X } from "lucide-react";
 import { createPost, createRichPost, deletePost, pinPost, setFollow, toggleFav, toggleRepost } from "@/app/feed/actions";
 import { ClipView, PollBuilder, PollView, TIERS, Top5Builder, Top5View, TierBuilder, TierView, type PollDraft } from "./post-kinds";
 import type { TierItem, TitleRef } from "@/db/schema";
@@ -215,6 +215,14 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
   const router = useRouter();
   const t = useT();
   const [mode, setMode] = useState<Mode>("text");
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: PointerEvent) => !menuRef.current?.contains(e.target as Node) && setMenu(false);
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [menu]);
   const [top5, setTop5] = useState<{ title: string; items: TitleRef[] }>({ title: "", items: [] });
   const [tier, setTier] = useState(emptyTier);
   const [poll, setPoll] = useState<PollDraft>(emptyPoll);
@@ -285,32 +293,67 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
       {error && <p className="mt-2 text-sm text-coral">{error}</p>}
       <div className="mt-3 flex items-center justify-between gap-4">
         {!parentId ? (
-          <div className="scrollbar-none flex min-w-0 items-center gap-1.5 overflow-x-auto">
-            {mode === "text" && (
-              <button
-                type="button"
-                onClick={() => setPicking(!picking)}
-                aria-label={t("Film ou série")}
-                title={t("Film ou série")}
-                className={`flex h-10 shrink-0 items-center gap-2 border px-3 text-sm transition-colors ${picking || title ? "border-lime text-lime" : "border-line text-bone/70 hover:border-bone/40"}`}
-              >
-                <Clapperboard size={16} /> <span className="hidden sm:inline">{t("Film ou série")}</span>
-              </button>
+          <div className="relative flex min-w-0 items-center gap-2" ref={menuRef}>
+            <button
+              type="button"
+              onClick={() => setMenu(!menu)}
+              aria-label={t("Ajouter")}
+              aria-expanded={menu}
+              title={t("Ajouter")}
+              className={`grid size-10 shrink-0 place-items-center border transition-colors ${menu ? "border-lime text-lime" : "border-line text-bone/70 hover:border-bone/40 hover:text-bone"}`}
+            >
+              <motion.span animate={{ rotate: menu ? 45 : 0 }} className="grid">
+                <Plus size={18} />
+              </motion.span>
+            </button>
+            {/* What is attached right now, removable in one tap */}
+            {mode !== "text" && (
+              <span className="flex h-10 min-w-0 items-center gap-2 border border-lime px-3 text-sm text-lime">
+                {tools.find((x) => x.m === mode)?.icon}
+                <span className="truncate">{t(tools.find((x) => x.m === mode)?.label ?? "")}</span>
+                <button
+                  type="button"
+                  onClick={() => setMode("text")}
+                  aria-label={t("Retirer")}
+                  className="text-lime/70 hover:text-lime"
+                >
+                  <X size={14} />
+                </button>
+              </span>
             )}
-            {tools.map((x) => (
-              <button
-                key={x.m}
-                type="button"
-                onClick={() => {
-                  setMode(mode === x.m ? "text" : x.m);
-                  setPicking(false);
-                }}
-                title={t(x.label)}
-                className={`flex h-10 shrink-0 items-center gap-2 border px-3 text-sm transition-colors ${mode === x.m ? "border-lime text-lime" : "border-line text-bone/70 hover:border-bone/40"}`}
-              >
-                {x.icon} <span className="hidden sm:inline">{t(x.label)}</span>
-              </button>
-            ))}
+            <AnimatePresence>
+              {menu && (
+                <motion.ul
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 top-12 z-30 w-56 border-l-2 border-lime bg-ink-2 py-1 shadow-2xl shadow-black/60"
+                >
+                  {[{ m: "title" as const, label: "Film ou série", icon: <Clapperboard size={16} /> }, ...tools].map((x, i) => (
+                    <motion.li key={x.m} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenu(false);
+                          if (x.m === "title") {
+                            setMode("text");
+                            setPicking(true);
+                          } else {
+                            setMode(x.m);
+                            setPicking(false);
+                          }
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-bone/5 hover:text-lime"
+                      >
+                        <span className="text-dim">{x.icon}</span>
+                        {t(x.label)}
+                      </button>
+                    </motion.li>
+                  ))}
+                </motion.ul>
+              )}
+            </AnimatePresence>
           </div>
         ) : (
           <span />
