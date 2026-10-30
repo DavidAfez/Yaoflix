@@ -6,3 +6,6 @@ next-env.d.ts
 .env.local
 storage/
 .pgdata/
+
+# Database exports (npm run db:export): private data
+*.dump

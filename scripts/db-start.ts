@@ -3,26 +3,13 @@
  * Starts the personal PostgreSQL instance created with initdb in ~/gabao-db (port set in its postgresql.conf).
  * No admin rights needed. Safe to run when it is already up.
  */
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { pgBin } from "./pg-bin";
 
 const dataDir = process.env.PGDATA || path.join(homedir(), "gabao-db");
-
-function pgBin(tool: string): string {
-  if (process.platform === "win32") {
-    const root = "C:\\Program Files\\PostgreSQL";
-    if (existsSync(root)) {
-      const versions = readdirSync(root).filter((v) => /^\d+$/.test(v)).sort((a, b) => Number(b) - Number(a));
-      for (const v of versions) {
-        const exe = path.join(root, v, "bin", `${tool}.exe`);
-        if (existsSync(exe)) return exe;
-      }
-    }
-  }
-  return tool;
-}
 
 // Never fail: "npm run go" chains on this script, and a machine may use the PostgreSQL service instead
 if (!existsSync(path.join(dataDir, "PG_VERSION"))) {
