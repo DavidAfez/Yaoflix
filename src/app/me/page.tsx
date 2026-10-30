@@ -20,7 +20,7 @@ import { getT } from "@/lib/i18n/server";
 
 export async function generateMetadata() {
   const t = await getT();
-  return { title: t("Moi") };
+  return { title: t("Profil") };
 }
 
 export default async function Page() {

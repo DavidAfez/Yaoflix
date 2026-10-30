@@ -41,7 +41,7 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
     { href: "/feed", label: "Feed", icon: MessagesSquare },
     { href: "/chat", label: t("Messages"), icon: Mail },
     { href: "/list", label: t("Liste"), icon: Bookmark },
-    { href: "/me", label: t("Moi"), icon: User },
+    { href: "/me", label: t("Profil"), icon: User },
     ...(isStaff(role) ? [{ href: "/studio", label: "Studio", icon: Clapperboard }] : []),
   ];
   const active = (href: string) =>

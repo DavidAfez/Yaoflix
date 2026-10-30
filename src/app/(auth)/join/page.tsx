@@ -12,7 +12,7 @@ export async function generateMetadata() {
 export default async function Page() {
   if (await getUser()) redirect("/");
   return (
-    <AuthShell word="Entre.">
+    <AuthShell word="C'est le gaaazz">
       <JoinForm />
     </AuthShell>
   );
