@@ -57,6 +57,8 @@ export const users = pgTable(
     whatsappOptIn: boolean("whatsapp_opt_in").notNull().default(false),
     // Detailed reviews: granted by staff, or unlocked automatically after 10 reviews
     deepReview: boolean("deep_review").notNull().default(false),
+    // Staff: get new errors by mail. Off until the site is online
+    errorMails: boolean("error_mails").notNull().default(false),
     // Home billboard: time per slide in milliseconds, 0 keeps it still
     billboardMs: integer("billboard_ms").notNull().default(3000),
     // Language of the interface and of the mails

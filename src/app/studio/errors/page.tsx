@@ -26,8 +26,11 @@ export default async function Page(props: PageProps<"/studio/errors">) {
     .where(isNull(schema.errorLogs.resolvedAt))
     .groupBy(schema.errorLogs.source);
 
+  const [me] = await db.select({ mails: schema.users.errorMails }).from(schema.users).where(eq(schema.users.id, user.id));
+
   return (
     <Backlog
+      mails={Boolean(me?.mails)}
       view={view}
       source={source}
       counts={Object.fromEntries(counts.map((c) => [c.source, c.n]))}

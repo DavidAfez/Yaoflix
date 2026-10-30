@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check } from "lucide-react";
-import { purgeResolved, resolveError } from "../actions";
+import { Check, Mail, MailX } from "lucide-react";
+import { purgeResolved, resolveError, setErrorMails } from "../actions";
 import { useT } from "@/components/i18n";
 
 type Row = {
@@ -32,7 +32,7 @@ const ago = (iso: string) => {
   return m < 60 ? `${Math.floor(m)}m` : m < 2880 ? `${Math.floor(m / 60)}h` : `${Math.floor(m / 1440)}j`;
 };
 
-export function Backlog({ rows, view, source, counts, canResolve, canPurge }: { rows: Row[]; view: string; source: string; counts: Record<string, number>; canResolve: boolean; canPurge: boolean }) {
+export function Backlog({ rows, view, source, counts, canResolve, canPurge, mails }: { rows: Row[]; view: string; source: string; counts: Record<string, number>; canResolve: boolean; canPurge: boolean; mails: boolean }) {
   const t = useT();
   const [open, setOpen] = useState<number | null>(null);
   const [gone, setGone] = useState<Set<number>>(new Set());
@@ -45,7 +45,17 @@ export function Backlog({ rows, view, source, counts, canResolve, canPurge }: { 
       <div className="mb-6 flex flex-wrap items-baseline gap-4">
         <h1 className="font-display text-4xl font-extrabold tracking-tight md:text-6xl">{t("Erreurs")}</h1>
         <span className="font-mono text-coral">{total}</span>
-        <div className="ml-auto flex gap-6 text-sm">
+        <div className="ml-auto flex items-center gap-6 text-sm">
+          <button
+            onClick={() => start(() => setErrorMails(!mails))}
+            aria-pressed={mails}
+            title={t(mails ? "Mails d'erreur activés : désactiver" : "Recevoir les nouvelles erreurs par mail")}
+            aria-label={t(mails ? "Mails d'erreur activés : désactiver" : "Recevoir les nouvelles erreurs par mail")}
+            className={`flex h-9 items-center gap-2 border px-3 transition-colors ${mails ? "border-lime text-lime" : "border-line text-dim hover:text-bone"}`}
+          >
+            {mails ? <Mail size={15} /> : <MailX size={15} />}
+            <span className="font-mono text-[11px] uppercase">{t(mails ? "Mails : oui" : "Mails : non")}</span>
+          </button>
           <Link href={href("open", source)} className={view === "open" ? "text-bone" : "text-dim hover:text-bone"}>{t("Ouvertes")}</Link>
           <Link href={href("done", source)} className={view === "done" ? "text-bone" : "text-dim hover:text-bone"}>{t("Résolues")}</Link>
           {canPurge && view === "done" && (

@@ -99,6 +99,13 @@ export async function resolveError(id: number) {
   revalidatePath("/studio/errors");
 }
 
+/** New errors by mail, for the staff member who asks. */
+export async function setErrorMails(on: boolean) {
+  const user = await requireRole(can.viewErrors);
+  await db.update(schema.users).set({ errorMails: on }).where(eq(schema.users.id, user.id));
+  revalidatePath("/studio/errors");
+}
+
 export async function purgeResolved() {
   const user = await requireRole(can.purgeErrors);
   const { isNotNull } = await import("drizzle-orm");

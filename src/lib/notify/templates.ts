@@ -56,6 +56,12 @@ export function renderMail(template: string, d: Data, locale: Locale = "fr"): Ma
           href: String(d.link),
         }),
       };
+    case "error":
+      return {
+        subject: t("Erreur {source} : {message}", { source: String(d.source), message: String(d.message).split("\n")[0].slice(0, 80) }),
+        text: `${d.message}\n${d.where ? `${d.where}\n` : ""}${d.link}`,
+        html: frame(esc(t("Nouvelle erreur.")), `<code style="font-size:13px;color:#f4f1ea">${esc(d.message)}</code>${d.where ? `<br><br>${esc(d.where)}` : ""}`, { label: t("Voir"), href: String(d.link) }),
+      };
     case "new-title":
       return {
         subject: t("Nouveau sur GabaoFlix : {title}", { title: String(d.title) }),
