@@ -14,7 +14,9 @@ const NOISE = [/destination stream closed early/i, /^aborted$/i, /ECONNRESET/, /
  */
 function describe(e: Error) {
   let message = e.message.replace(/\nparams: [\s\S]*$/, "").replace(/ params: .*$/s, "");
-  const cause = e.cause instanceof Error ? e.cause : null;
+  // "localhost" tries IPv6 then IPv4: both refusals come wrapped in an AggregateError with no message
+  const outer = e.cause instanceof Error ? e.cause : null;
+  const cause = outer instanceof AggregateError && outer.errors[0] instanceof Error ? outer.errors[0] : outer;
   if (cause) {
     const code = (cause as Error & { code?: string }).code;
     message = `${message.split("\n")[0]} → ${code ? `${code} ` : ""}${cause.message}`;

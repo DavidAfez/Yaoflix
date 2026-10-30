@@ -17,6 +17,7 @@
     "db:posts": "tsx --env-file-if-exists=.env scripts/demo-posts.ts",
     "check:tmdb": "tsx --env-file-if-exists=.env scripts/check-tmdb.ts",
     "db:start": "tsx scripts/db-start.ts",
+    "db:setup": "tsx --env-file-if-exists=.env scripts/db-setup.ts",
     "db:export": "tsx --env-file-if-exists=.env scripts/db-export.ts",
     "db:import": "tsx --env-file-if-exists=.env scripts/db-import.ts",
     "maj": "git pull && npm install && npm run db:start --silent && npm run db:migrate",

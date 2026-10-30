@@ -13,7 +13,7 @@ const dataDir = process.env.PGDATA || path.join(homedir(), "gabao-db");
 
 // Never fail: "npm run go" chains on this script, and a machine may use the PostgreSQL service instead
 if (!existsSync(path.join(dataDir, "PG_VERSION"))) {
-  console.log(`Pas de base perso dans ${dataDir}, on utilise celle du .env.`);
+  console.log(`Pas de base perso dans ${dataDir}, on utilise celle du .env. Nouvel ordi ? Lance : npm run db:setup`);
   process.exit(0);
 }
 
