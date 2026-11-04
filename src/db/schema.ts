@@ -126,6 +126,9 @@ export const titles = pgTable(
     overviewEn: text("overview_en"),
     voteAverage: real("vote_average"),
     popularity: real("popularity"),
+    // Albums and books: the artist or the author, and what their page lists (tracks, pages...)
+    byline: text("byline"),
+    details: jsonb("details").$type<TitleDetails>(),
     // Creator projects: made by a member, not from TMDB (their tmdbId is negative, local only)
     creatorId: uuid("creator_id").references((): AnyPgColumn => users.id, { onDelete: "cascade" }),
     credits: jsonb("credits").$type<TitleCredits>(),
@@ -135,6 +138,14 @@ export const titles = pgTable(
 );
 
 export type Rendition = { height: number; bandwidth: number };
+/** kind: movie | tv (TMDB), album (Deezer), book (Open Library). tmdbId holds that source's id. */
+export type TitleDetails = {
+  tracks?: { n: number; title: string; sec: number | null }[];
+  label?: string | null;
+  pages?: number | null;
+  publisher?: string | null;
+  link?: string | null; // the source page, for "more"
+};
 export type TitleCredits = { crew: { job: string; names: string[] }[]; cast: { name: string; role: string | null }[] };
 /** Who hears about a title going online beyond the members who asked for it. */
 export type Announce = "none" | "notify" | "mail";

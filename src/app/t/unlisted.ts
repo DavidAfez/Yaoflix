@@ -8,7 +8,8 @@ import { rateLimit } from "@/lib/ratelimit";
 import { requestTitle } from "./actions";
 
 const input = z.object({
-  kind: z.enum(["movie", "tv"]),
+  kind: z.enum(["movie", "tv", "album", "book"]),
+  byline: z.string().trim().max(120).nullable().optional(),
   name: z.string().trim().min(1, "Donne le titre").max(120),
   year: z.number().int().min(1888).max(new Date().getFullYear() + 3).nullable(),
   posterId: z.uuid().nullable(),
@@ -46,9 +47,11 @@ export async function requestUnlisted(raw: z.input<typeof input>): Promise<{ ok:
     (
       await db
         .insert(schema.titles)
-        .values({ tmdbId: await nextLocalId(), kind: p.kind, name: p.name, year: p.year, releaseDate: null, posterPath: p.posterId ? `img:${p.posterId}` : null, genres: [] })
+        .values({ tmdbId: await nextLocalId(), kind: p.kind, name: p.name, byline: p.byline || null, year: p.year, releaseDate: null, posterPath: p.posterId ? `img:${p.posterId}` : null, genres: [] })
         .returning({ id: schema.titles.id, tmdbId: schema.titles.tmdbId, kind: schema.titles.kind })
     )[0];
+  // Albums and books are metadata only: added, nothing to upload, so no request
+  if (p.kind === "album" || p.kind === "book") return { ok: true, href: `/t/${title.kind}/${title.tmdbId}` };
   const r = await requestTitle(title.id, { quality: "auto", audio: "any", subs: "none" });
   if (!r.ok) return { ok: false, error: r.error };
   return { ok: true, href: `/t/${title.kind}/${title.tmdbId}` };

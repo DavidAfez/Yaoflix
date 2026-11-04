@@ -11,6 +11,9 @@ import { toPoster } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
 import { TitlePanel } from "./panel";
 import { TitleNotes } from "./notes";
+import { LibraryDetails } from "./library";
+import { getLibraryItem, isLibrary } from "@/lib/library";
+import { isKind } from "@/lib/kinds";
 import { mayUpload } from "@/lib/creators";
 import { can } from "@/lib/rbac";
 import { deepSummary, titleReviews } from "@/lib/reviews";
@@ -18,6 +21,7 @@ import { DeepSummary, ReviewList } from "@/components/reviews";
 
 export async function generateMetadata(props: PageProps<"/t/[kind]/[id]">) {
   const { kind, id } = await props.params;
+  if (isLibrary(kind)) return { title: (await getLibraryItem(kind, Number(id)))?.name };
   if (kind !== "movie" && kind !== "tv") return {};
   const t = await getTitle(kind, Number(id));
   return { title: t?.name };
@@ -26,8 +30,9 @@ export async function generateMetadata(props: PageProps<"/t/[kind]/[id]">) {
 export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
   const user = await requireUser();
   const { kind, id } = await props.params;
-  if ((kind !== "movie" && kind !== "tv") || !/^-?\d+$/.test(id)) notFound();
-  const title = await getTitle(kind, Number(id));
+  if (!isKind(kind) || !/^-?\d+$/.test(id)) notFound();
+  const library = isLibrary(kind);
+  const title = library ? await getLibraryItem(kind, Number(id)) : await getTitle(kind, Number(id));
   if (!title) notFound();
 
   const [[ready], [request], [listed], [like], [grant], more, reviews, deep, cred] = await Promise.all([
@@ -49,10 +54,10 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
         ),
       )
       .limit(1),
-    similar(kind, title.tmdbId),
+    library ? Promise.resolve([] as Awaited<ReturnType<typeof similar>>) : similar(kind, title.tmdbId),
     titleReviews(title.id),
     deepSummary(title.id),
-    credits(kind, title.tmdbId),
+    library ? Promise.resolve(null) : credits(kind, title.tmdbId),
   ]);
   const [notes, canEdit] = await Promise.all([
     db.select().from(schema.titleNotes).where(eq(schema.titleNotes.titleId, title.id)).orderBy(schema.titleNotes.createdAt),
@@ -63,7 +68,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
   const moreL = await localize(more);
   const [tr, locale] = await Promise.all([getT(), getLocale()]);
   // English speakers get the English name and synopsis, the cache stays in French
-  const en = locale === "en" ? await localized(kind, title.tmdbId, "en-US") : null;
+  const en = locale === "en" && !library ? await localized(kind, title.tmdbId, "en-US") : null;
 
   return (
     <main>
@@ -83,6 +88,7 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           kind: title.kind,
           release: title.releaseDate,
           creator: maker?.handle ?? null,
+          byline: title.byline,
         }}
         state={{
           ready: Boolean(ready),
@@ -93,7 +99,8 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           verified: Boolean(user.emailVerifiedAt),
         }}
       />
-      {can.upload(user.role) && title.tmdbId < 0 && !title.creatorId && (
+      {library && <LibraryDetails kind={kind} details={title.details} />}
+      {can.upload(user.role) && !library && title.tmdbId < 0 && !title.creatorId && (
         <p className="mx-4 mt-8 md:mx-10">
           <Link href={`/studio/titles/${title.id}`} className="text-sm text-lime underline-offset-4 hover:underline">
             {tr("Compléter la fiche")}

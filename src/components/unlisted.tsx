@@ -6,15 +6,18 @@ import { ImagePlus, X } from "lucide-react";
 import { requestUnlisted } from "@/app/t/unlisted";
 import { useT } from "./i18n";
 import { Choice, Dots, Field, FormError } from "./ui";
+import { kindLabel } from "@/lib/kinds";
 
 /**
  * Asking for a title the catalogue search can't find. The poster is what tells everyone
  * (and the uploader) which film it is: the member picks it from Google Images and adds it here.
  */
-export function UnlistedSheet({ initial, onClose }: { initial: string; onClose: () => void }) {
+export function UnlistedSheet({ initial, onClose, kind: start0 = "movie" }: { initial: string; onClose: () => void; kind?: "movie" | "tv" | "album" | "book" }) {
   const t = useT();
   const router = useRouter();
-  const [kind, setKind] = useState<"movie" | "tv">("movie");
+  const [kind, setKind] = useState<"movie" | "tv" | "album" | "book">(start0);
+  const [byline, setByline] = useState("");
+  const library = kind === "album" || kind === "book";
   const [name, setName] = useState(initial);
   const [year, setYear] = useState("");
   const [poster, setPoster] = useState<string | null>(null);
@@ -39,7 +42,7 @@ export function UnlistedSheet({ initial, onClose }: { initial: string; onClose: 
     start(async () => {
       setError(null);
       const y = year.trim() ? Number(year) : null;
-      const r = await requestUnlisted({ kind, name, year: y && Number.isInteger(y) ? y : null, posterId: poster });
+      const r = await requestUnlisted({ kind, name, byline: library ? byline : null, year: y && Number.isInteger(y) ? y : null, posterId: poster });
       if (!r.ok || !r.href) return setError(t(r.error ?? "Oups. Réessaie."));
       onClose();
       router.push(r.href);
@@ -56,16 +59,29 @@ export function UnlistedSheet({ initial, onClose }: { initial: string; onClose: 
         className="fixed inset-x-0 bottom-0 z-[115] max-h-[92dvh] overflow-y-auto border-t-2 border-lime bg-ink-2 px-5 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-6 md:left-auto md:top-0 md:max-h-none md:w-[440px] md:border-l-2 md:border-t-0 md:pt-10"
       >
         <div className="mb-2 flex items-center justify-between">
-          <p className="font-display text-xl font-semibold">{t("Demander un titre absent")}</p>
+          <p className="font-display text-xl font-semibold">{t(library ? (kind === "album" ? "Ajouter un album" : "Ajouter un livre") : "Demander un titre absent")}</p>
           <button onClick={onClose} aria-label={t("Fermer")} className="text-dim hover:text-bone">
             <X />
           </button>
         </div>
-        <p className="mb-6 text-sm text-dim">{t("Ajoute son affiche pour qu'on soit sûrs du film : sur Google Images, clic droit sur l'affiche, « Enregistrer l'image », puis ajoute-la ici.")}</p>
+        <p className="mb-6 text-sm text-dim">
+          {t(library ? "Ajoute sa couverture pour qu'on le reconnaisse : sur Google Images, clic droit sur la couverture, « Enregistrer l'image », puis ajoute-la ici." : "Ajoute son affiche pour qu'on soit sûrs du film : sur Google Images, clic droit sur l'affiche, « Enregistrer l'image », puis ajoute-la ici.")}
+        </p>
 
         <div className="space-y-6">
-          <Choice name="unlisted-kind" label="Format" value={kind} onChange={setKind} options={[{ value: "movie", label: "Film" }, { value: "tv", label: "Série" }]} />
+          <Choice
+            name="unlisted-kind"
+            label="Format"
+            value={kind}
+            onChange={setKind}
+            options={
+              library
+                ? [{ value: "album", label: "Album" }, { value: "book", label: "Livre" }]
+                : [{ value: "movie", label: "Film" }, { value: "tv", label: "Série" }]
+            }
+          />
           <Field label="Titre" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required />
+          {library && <Field label={kind === "album" ? "Artiste" : "Auteur"} value={byline} onChange={(e) => setByline(e.target.value)} maxLength={120} />}
           <Field label="Année (facultatif)" type="number" inputMode="numeric" min={1888} max={2100} value={year} onChange={(e) => setYear(e.target.value)} />
 
           {/* What the request will look like: the poster is the proof it's the right one */}
@@ -73,7 +89,7 @@ export function UnlistedSheet({ initial, onClose }: { initial: string; onClose: 
             <button
               type="button"
               onClick={() => input.current?.click()}
-              className="relative grid aspect-[2/3] w-32 shrink-0 place-items-center overflow-hidden border border-dashed border-line bg-ink text-dim transition-colors hover:border-lime hover:text-lime"
+              className={`relative grid ${kind === "album" ? "aspect-square" : "aspect-[2/3]"} w-32 shrink-0 place-items-center overflow-hidden border border-dashed border-line bg-ink text-dim transition-colors hover:border-lime hover:text-lime`}
             >
               {poster && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -81,14 +97,15 @@ export function UnlistedSheet({ initial, onClose }: { initial: string; onClose: 
               )}
               <span className={`relative flex flex-col items-center gap-1 text-xs ${poster ? "bg-ink/70 px-2 py-1" : ""}`}>
                 {uploading ? <Dots /> : <ImagePlus size={18} />}
-                {t(poster ? "Changer" : "Affiche")}
+                {t(poster ? "Changer" : library ? "Couverture" : "Affiche")}
               </span>
             </button>
             <input ref={input} type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0])} />
             <div className="min-w-0 self-end pb-1">
               <p className="font-display text-lg font-semibold leading-tight">{name.trim() || t("Titre")}</p>
+              {library && byline.trim() && <p className="text-sm text-bone/80">{byline}</p>}
               <p className="font-mono text-xs text-dim">
-                {year || "—"} · {t(kind === "movie" ? "Film" : "Série")}
+                {year || "—"} · {t(kindLabel[kind])}
               </p>
               {poster && <p className="mt-2 text-xs text-lime">{t("C'est bien lui ?")}</p>}
             </div>
@@ -96,7 +113,7 @@ export function UnlistedSheet({ initial, onClose }: { initial: string; onClose: 
 
           <FormError message={error} />
           <button onClick={send} disabled={pending || uploading || !name.trim()} className="notch flex h-12 w-full items-center justify-center bg-lime font-semibold text-ink disabled:opacity-40">
-            {pending ? <Dots /> : t("Demander")}
+            {pending ? <Dots /> : t(library ? "Ajouter" : "Demander")}
           </button>
         </div>
       </motion.div>

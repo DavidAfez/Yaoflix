@@ -1,4 +1,5 @@
 "use client";
+import { coverAspect, kindLabel, seenLabels, type Kind } from "@/lib/kinds";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { motion } from "motion/react";
@@ -32,7 +33,7 @@ export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: Poster
       className={`group relative shrink-0 snap-start ${size === "lg" ? "w-40 md:w-52" : size === "sm" ? "w-28 md:w-36" : "w-32 md:w-44"}`}
     >
       <Link href={`/t/${t.kind}/${t.tmdbId}`} className="block">
-        <div className="relative aspect-[2/3] overflow-hidden bg-ink-3">
+        <div className={`relative ${coverAspect(t.kind)} overflow-hidden bg-ink-3`}>
           {t.poster ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -49,8 +50,8 @@ export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: Poster
             </div>
           )}
           {t.ready && <span className={`absolute inset-y-0 left-0 w-1 ${seen ? "bg-lime/40" : "bg-lime"}`} aria-label={tr("Dispo")} />}
-          {t.kind === "tv" && (
-            <span className="absolute bottom-0 left-0 bg-ink/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-bone">{tr("Série")}</span>
+          {t.kind !== "movie" && (
+            <span className="absolute bottom-0 left-0 bg-ink/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-bone">{tr(kindLabel[t.kind as Kind] ?? "")}</span>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </div>
@@ -70,7 +71,7 @@ export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: Poster
           <QuickAction on={mark.liked} label={tr("J'aime")} onClick={mark.toggleLike} tone="coral">
             <Heart className="size-3 md:size-[15px]" fill={mark.liked ? "currentColor" : "none"} />
           </QuickAction>
-          <QuickAction on={seen} label={tr(seen ? "Vu" : "Déjà vu")} onClick={mark.toggleSeen}>
+          <QuickAction on={seen} label={tr(seen ? seenLabels(t.kind).done : seenLabels(t.kind).mark)} onClick={mark.toggleSeen}>
             {seen ? <EyeOff className="size-3 md:size-[15px]" /> : <Eye className="size-3 md:size-[15px]" />}
           </QuickAction>
           <QuickAction on={mark.reviewed} label={tr("Avis")} onClick={mark.review}>

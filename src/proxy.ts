@@ -8,7 +8,8 @@ export function proxy(request: NextRequest) {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https://image.tmdb.org https://media.tenor.com",
+    // Covers: TMDB, Tenor GIFs, Deezer albums, Open Library books (served from archive.org)
+    "img-src 'self' data: blob: https://image.tmdb.org https://media.tenor.com https://*.dzcdn.net https://covers.openlibrary.org https://archive.org https://*.archive.org",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
     "connect-src 'self'",

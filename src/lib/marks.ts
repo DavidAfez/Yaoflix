@@ -96,7 +96,7 @@ export async function hoursSeen(userId: string): Promise<number> {
   // Titles found through lists lack runtime and episode count: fetch details once, they stay in the cache
   const missing = await db.execute<{ kind: "movie" | "tv"; tmdb_id: number }>(sql`
     select t.kind, t.tmdb_id from seen s join titles t on t.id = s.title_id
-    where s.user_id = ${userId} and (t.runtime is null or (t.kind = 'tv' and t.episodes is null))
+    where s.user_id = ${userId} and t.kind in ('movie', 'tv') and t.tmdb_id > 0 and (t.runtime is null or (t.kind = 'tv' and t.episodes is null))
     limit 150
   `);
   if (missing.rows.length) {
@@ -112,7 +112,7 @@ export async function hoursSeen(userId: string): Promise<number> {
         coalesce((
           select sum(case when t.kind = 'tv' then coalesce(t.runtime, 0) * coalesce(t.episodes, 0) else coalesce(t.runtime, 0) end)
           from seen s join titles t on t.id = s.title_id
-          where s.user_id = ${userId}
+          where s.user_id = ${userId} and t.kind in ('movie', 'tv')
             and not exists (select 1 from watch_sessions w where w.user_id = s.user_id and w.title_id = s.title_id)
         ), 0) / 60.0
       )::float as h

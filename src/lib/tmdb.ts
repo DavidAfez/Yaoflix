@@ -520,7 +520,7 @@ export async function localized(kind: "movie" | "tv", tmdbId: number, language: 
 export async function localize<T extends TitleRow>(rows: T[]): Promise<T[]> {
   const { getLocale } = await import("./i18n/server");
   if ((await getLocale()) !== "en") return rows;
-  const missing = [...new Map(rows.filter((r) => r.nameEn == null && !isLocal(r.tmdbId)).map((r) => [r.id, r])).values()].slice(0, 120);
+  const missing = [...new Map(rows.filter((r) => r.nameEn == null && !isLocal(r.tmdbId) && (r.kind === "movie" || r.kind === "tv")).map((r) => [r.id, r])).values()].slice(0, 120);
   const found = new Map<number, { name: string | null; overview: string | null }>();
   if (hasTmdb() && missing.length) {
     for (let i = 0; i < missing.length; i += 20) {

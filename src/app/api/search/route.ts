@@ -3,6 +3,7 @@ import { and, asc, ilike, isNull, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { apiUser } from "@/lib/auth";
 import { localize, searchTitles } from "@/lib/tmdb";
+import { searchLibrary } from "@/lib/library";
 import { readyTitleIds } from "@/lib/recos";
 import { toPoster } from "@/lib/view";
 import { rateLimit } from "@/lib/ratelimit";
@@ -27,6 +28,13 @@ export async function GET(req: Request) {
       .orderBy(sql`position(${term} in ${schema.users.handle})`, asc(schema.users.handle))
       .limit(30);
     return NextResponse.json({ results: [], people });
+  }
+
+  // Music and books have their own sources
+  const type = new URL(req.url).searchParams.get("type");
+  if (type === "album" || type === "book") {
+    const items = await searchLibrary(type, q);
+    return NextResponse.json({ results: items.map((r) => toPoster(r)) });
   }
 
   const rows = await localize(await searchTitles(q));

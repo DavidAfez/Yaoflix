@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   let titleId: number | null = Number(form.get("titleId")) || null;
   const kind = String(form.get("kind") ?? "");
   const tmdbId = Number(form.get("tmdbId"));
-  if (!titleId && (kind === "movie" || kind === "tv") && Number.isInteger(tmdbId)) titleId = await titleIdFor(kind, tmdbId);
+  if (!titleId && ["movie", "tv", "album", "book"].includes(kind) && Number.isInteger(tmdbId)) titleId = await titleIdFor(kind, tmdbId);
 
   let file: string | null = null;
   let mime: string | null = null;

@@ -14,6 +14,7 @@ import { toPoster, daysLeft } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
 import { Landing } from "@/components/landing";
 import { StatusMark } from "@/components/status";
+import { LibraryHome } from "./library-home";
 
 export default async function Page(props: PageProps<"/">) {
   const user = await getUser();
@@ -27,6 +28,8 @@ export default async function Page(props: PageProps<"/">) {
   if (!user.approved) redirect("/pending");
 
   const sp = await props.searchParams;
+  // Music and books: their own shelf, metadata only
+  if (sp.k === "album" || sp.k === "book") return <LibraryHome kind={sp.k} />;
   const k: "all" | "movie" | "tv" = sp.k === "movie" || sp.k === "tv" ? sp.k : "all";
   const kindFilter = k === "all" ? undefined : k;
   // Genre rows: a handful of movie genres on "Tout", every genre of the chosen kind otherwise

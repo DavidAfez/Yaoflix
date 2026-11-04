@@ -1,4 +1,5 @@
 "use client";
+import { kindLabel, type Kind } from "@/lib/kinds";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -33,7 +34,7 @@ function TitleBlock({ t, rating }: { t: NonNullable<FeedPost["title"]>; rating: 
   const tr = useT();
   return (
     <Link href={`/t/${t.kind}/${t.tmdbId}`} className="inline-flex max-w-full items-center gap-2.5 border border-line bg-ink-2 py-1 pl-1 pr-3 transition-colors hover:border-lime">
-      <div className="grid h-10 w-7 shrink-0 place-items-center overflow-hidden bg-ink-3 font-display text-sm font-extrabold text-bone/15">
+      <div className={`grid h-10 ${t.kind === "album" ? "w-10" : "w-7"} shrink-0 place-items-center overflow-hidden bg-ink-3 font-display text-sm font-extrabold text-bone/15`}>
         {t.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={t.poster} alt="" className="size-full object-cover" />
@@ -45,7 +46,7 @@ function TitleBlock({ t, rating }: { t: NonNullable<FeedPost["title"]>; rating: 
         <p className="truncate text-[13px] font-semibold leading-tight">{t.name}</p>
         <p className="flex items-center gap-2.5 font-mono text-[10px] text-dim">
           {t.year}
-          {t.kind === "tv" && <span className="uppercase">{tr("Série")}</span>}
+          {t.kind !== "movie" && <span className="uppercase">{tr(kindLabel[t.kind as Kind] ?? "")}</span>}
           {rating ? (
             <span className="flex items-center gap-0.5" aria-label={tr("{n} sur 5", { n: fmtRating(rating) })}>
               {[1, 2, 3, 4, 5].map((n) => (
@@ -269,7 +270,7 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
             ? await createRichPost({ kind: "tier", body, data: tier })
             : mode === "poll"
               ? await createRichPost({ kind: "poll", body, data: { ...poll, options: poll.options.filter((o) => o.label.trim()) } })
-              : await createPost({ body, parentId, kind: title?.kind as "movie" | "tv" | undefined, tmdbId: title?.tmdbId, media, publishAt: publishAt ?? undefined });
+              : await createPost({ body, parentId, kind: title?.kind as "movie" | "tv" | "album" | "book" | undefined, tmdbId: title?.tmdbId, media, publishAt: publishAt ?? undefined });
       if (!res.ok) return setError(t(res.error ?? "Oups"));
       setBody("");
       setTitle(null);
@@ -443,9 +444,16 @@ function PickedTitle({ t, onClear }: { t: PosterData; onClear: () => void }) {
   );
 }
 
+const SHELVES = [
+  { k: "screen", label: "Films et séries" },
+  { k: "album", label: "Musique" },
+  { k: "book", label: "Livres" },
+] as const;
+
 export function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => void; onClose: () => void }) {
   const tr = useT();
   const [q, setQ] = useState("");
+  const [shelf, setShelf] = useState<(typeof SHELVES)[number]["k"]>("screen");
   const [items, setItems] = useState<PosterData[]>([]);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -455,7 +463,7 @@ export function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => vo
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}${shelf === "screen" ? "" : `&type=${shelf}`}`);
         const data = (await res.json()) as { results: PosterData[] };
         if (!stale) setItems(data.results?.slice(0, 8) ?? []);
       } catch {
@@ -467,10 +475,18 @@ export function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => vo
       stale = true;
       clearTimeout(t);
     };
-  }, [q]);
+  }, [q, shelf]);
   return (
     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
       <div className="mt-2 border border-line">
+        <div className="flex gap-4 border-b border-line px-3 pt-2">
+          {SHELVES.map((x) => (
+            <button key={x.k} type="button" onClick={() => setShelf(x.k)} className={`relative pb-2 text-xs ${shelf === x.k ? "text-bone" : "text-dim hover:text-bone"}`}>
+              {tr(x.label)}
+              {shelf === x.k && <span className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" />}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-3 border-b border-line px-3">
           <input
             autoFocus
@@ -486,14 +502,14 @@ export function TitlePicker({ onPick, onClose }: { onPick: (t: PosterData) => vo
           {items.map((t) => (
             <li key={`${t.kind}${t.tmdbId}`}>
               <button type="button" onClick={() => onPick(t)} className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-ink-2">
-                <div className="h-12 w-8 shrink-0 overflow-hidden bg-ink-3">
+                <div className={`h-12 ${t.kind === "album" ? "w-12" : "w-8"} shrink-0 overflow-hidden bg-ink-3`}>
                   {t.poster && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={t.poster} alt="" className="size-full object-cover" />
                   )}
                 </div>
                 <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                <span className="font-mono text-[11px] text-dim">{t.kind === "tv" ? tr("Série") : t.year}</span>
+                <span className="font-mono text-[11px] text-dim">{t.kind === "movie" ? t.year : tr(kindLabel[t.kind as Kind] ?? "")}</span>
               </button>
             </li>
           ))}

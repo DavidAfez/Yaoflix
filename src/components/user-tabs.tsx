@@ -16,7 +16,7 @@ export function UserTabs({ lists, reviews, library, projects }: { lists: { posts
     { k: "reposts", label: "Reposts", n: lists.reposts.length },
     { k: "media", label: "Médias", n: lists.media.length },
     { k: "reviews", label: "Avis", n: null },
-    { k: "library", label: "Films", n: null },
+    { k: "library", label: "Bibliothèque", n: null },
   ] as const;
   const [tab, setTab] = useState<(typeof tabs)[number]["k"]>(projects ? "projects" : "posts");
   const list = tab === "posts" || tab === "replies" || tab === "reposts" || tab === "media" ? lists[tab] : null;

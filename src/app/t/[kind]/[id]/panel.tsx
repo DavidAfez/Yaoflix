@@ -13,6 +13,7 @@ import { Button, Choice, Dots } from "@/components/ui";
 import { StatusMark } from "@/components/status";
 import { audioOptions, qualityOptions, subsOptions } from "@/lib/labels";
 import type { RejectReason, RequestPrefs } from "@/db/schema";
+import { kindLabel, seenLabels, type Kind } from "@/lib/kinds";
 
 type Props = {
   path: string;
@@ -31,6 +32,8 @@ type Props = {
     release: string | null;
     // Handle of the member who made it, for creator projects
     creator?: string | null;
+    // Artist or author, for albums and books
+    byline?: string | null;
   };
   state: {
     ready: boolean;
@@ -68,7 +71,13 @@ export function TitlePanel({ path, title, state }: Props) {
   const freshNote = fresh ? t(age! < 0 ? "Pas encore sorti." : "Sorti il y a moins d'un mois : peut-être pas encore dispo.") : null;
 
   const open = state.request && (state.request.status === "PENDING" || state.request.status === "IN_PROGRESS");
-  const meta = [title.year, fmtRuntime(title.runtime), title.kind === "tv" ? t("Série") : null, ...title.genres.slice(0, 3).map((g) => t(g))].filter(Boolean);
+  const library = title.kind === "album" || title.kind === "book";
+  const meta = [
+    title.year,
+    title.kind === "album" ? (title.runtime ? `${title.runtime} min` : null) : fmtRuntime(title.runtime),
+    title.kind !== "movie" ? t(kindLabel[title.kind as Kind] ?? "") : null,
+    ...title.genres.slice(0, 3).map((g) => t(g)),
+  ].filter(Boolean);
 
   const send = () =>
     start(async () => {
@@ -85,7 +94,10 @@ export function TitlePanel({ path, title, state }: Props) {
 
 
   let primary: React.ReactNode;
-  if (state.grant) {
+  if (library) {
+    // Metadata only for music and books: nothing to watch or to ask for
+    primary = null;
+  } else if (state.grant) {
     primary = (
       <Button onClick={() => router.push(`/w/${state.grant!.id}`)}>
         <Play size={15} fill="currentColor" /> {t("Regarder")}
@@ -116,7 +128,7 @@ export function TitlePanel({ path, title, state }: Props) {
 
   return (
     <>
-      <div ref={hero} className="relative min-h-[64svh] overflow-hidden md:min-h-[66vh]">
+      <div ref={hero} className={`relative overflow-hidden ${library ? "" : "min-h-[64svh] md:min-h-[66vh]"}`}>
         {title.backdrop && (
           <motion.div style={{ y: bgY, opacity: bgO }} className="absolute inset-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -133,7 +145,8 @@ export function TitlePanel({ path, title, state }: Props) {
           <ArrowLeft size={14} /> {t("Accueil")}
         </Link>
 
-        <div className="relative flex min-h-[64svh] flex-col justify-end gap-6 px-4 pb-8 pt-16 md:min-h-[66vh] md:flex-row md:items-end md:justify-start md:px-10 md:pb-10">
+        {/* Albums and books have no backdrop to show: no tall empty hero */}
+        <div className={`relative flex flex-col justify-end gap-6 px-4 pb-8 pt-16 md:flex-row md:items-end md:justify-start md:px-10 md:pb-10 ${library ? "md:pt-24" : "min-h-[64svh] md:min-h-[66vh]"}`}>
           {title.poster && (
             <motion.img
               initial={{ opacity: 0, y: 40, rotate: -3 }}
@@ -141,7 +154,8 @@ export function TitlePanel({ path, title, state }: Props) {
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               src={title.poster}
               alt=""
-              className="hidden w-40 shadow-2xl shadow-black/60 md:block lg:w-44"
+              // Albums and books have no backdrop: their cover shows on phones too
+              className={`${library ? "block w-32" : "hidden"} shadow-2xl shadow-black/60 md:block md:w-40 lg:w-44`}
             />
           )}
           <div className="max-w-2xl space-y-4">
@@ -153,6 +167,7 @@ export function TitlePanel({ path, title, state }: Props) {
             >
               {title.name}
             </motion.h1>
+            {title.byline && <p className="text-lg text-bone/80">{title.byline}</p>}
             {title.creator && (
               <Link href={`/u/${title.creator}`} className="inline-flex items-center gap-2 border border-lime/40 bg-lime/10 px-3 py-1 text-xs transition-colors hover:border-lime">
                 <Clapperboard size={13} className="text-lime" /> {t("Projet de @{h}", { h: title.creator })}
@@ -178,7 +193,7 @@ export function TitlePanel({ path, title, state }: Props) {
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex flex-wrap items-center gap-1.5 pt-1">
               {/* Phone: the main action takes its own line, the icons line up below */}
-              <div className="w-full sm:w-auto [&>*]:w-full sm:[&>*]:w-auto">{primary}</div>
+              {primary && <div className="w-full sm:w-auto [&>*]:w-full sm:[&>*]:w-auto">{primary}</div>}
               <IconToggle
                 on={listed}
                 label={t("Liste")}
@@ -197,7 +212,7 @@ export function TitlePanel({ path, title, state }: Props) {
                   <IconToggle on={mark.disliked} label={t("Bof")} onClick={mark.toggleDislike} tone="coral">
                     <ThumbsDown size={16} />
                   </IconToggle>
-                  <IconToggle on={mark.seen} label={t(mark.seen ? "Vu" : "Déjà vu")} onClick={mark.toggleSeen} >
+                  <IconToggle on={mark.seen} label={t(mark.seen ? seenLabels(title.kind).done : seenLabels(title.kind).mark)} onClick={mark.toggleSeen} >
                     {mark.seen ? <EyeOff size={16} /> : <Eye size={16} />}
                   </IconToggle>
                   <IconToggle on={mark.reviewed} label={t("Avis")} onClick={mark.review}>

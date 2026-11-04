@@ -111,7 +111,8 @@ async function profile(userId: string): Promise<Profile> {
     add(r.genres, 1);
     era(r.year, 1);
   }
-  const likedTmdb = likes.filter((l) => l.v > 0).slice(0, 3).map((l) => ({ kind: l.kind, tmdbId: l.tmdbId }));
+  // Only films and series seed TMDB suggestions: albums and books live elsewhere
+  const likedTmdb = likes.filter((l) => l.v > 0 && (l.kind === "movie" || l.kind === "tv") && l.tmdbId > 0).slice(0, 3).map((l) => ({ kind: l.kind, tmdbId: l.tmdbId }));
   return { genres, eras, excluded, likedTmdb };
 }
 
@@ -239,7 +240,7 @@ export async function topLiked(userId: string, n = 2) {
     .select({ kind: schema.titles.kind, tmdbId: schema.titles.tmdbId })
     .from(schema.likes)
     .innerJoin(schema.titles, eq(schema.titles.id, schema.likes.titleId))
-    .where(and(eq(schema.likes.userId, userId), eq(schema.likes.value, 1), ne(schema.likes.value, 0)))
+    .where(and(eq(schema.likes.userId, userId), eq(schema.likes.value, 1), ne(schema.likes.value, 0), inArray(schema.titles.kind, ["movie", "tv"]), gt(schema.titles.tmdbId, 0)))
     .orderBy(desc(schema.likes.createdAt))
     .limit(n);
 }

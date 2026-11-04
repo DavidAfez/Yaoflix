@@ -27,7 +27,7 @@ const postSchema = z.object({
   media: mediaSchema.optional(),
   // Scheduled post: shown to others from that moment, up to 30 days ahead
   publishAt: z.iso.datetime({ offset: true }).optional(),
-  kind: z.enum(["movie", "tv"]).optional(),
+  kind: z.enum(["movie", "tv", "album", "book"]).optional(),
   tmdbId: z.number().int().refine((n) => n !== 0).optional(),
   parentId: z.uuid().optional(),
 });
@@ -141,7 +141,7 @@ export async function setFollow(handle: string, on: boolean) {
 
 // A title as posts carry it. Posters must come from TMDB, nothing else is rendered as an image.
 const titleRef = z.object({
-  kind: z.enum(["movie", "tv"]),
+  kind: z.enum(["movie", "tv", "album", "book"]),
   tmdbId: z.number().int().refine((n) => n !== 0),
   name: z.string().trim().min(1).max(200),
   year: z.number().int().nullable(),

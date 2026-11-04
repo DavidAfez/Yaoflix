@@ -65,6 +65,8 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
   const split = (rows: typeof liked) => ({
     movie: rows.filter((r) => r.title.kind === "movie"),
     tv: rows.filter((r) => r.title.kind === "tv"),
+    album: rows.filter((r) => r.title.kind === "album"),
+    book: rows.filter((r) => r.title.kind === "book"),
   });
   const l = split(liked);
   const [t, locale] = await Promise.all([getT(), getLocale()]);
@@ -116,6 +118,10 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
             {l.tv.length > 0 && <Row title="Séries aimées">{l.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
             {s.movie.length > 0 && <Row title="Films vus">{s.movie.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
             {s.tv.length > 0 && <Row title="Séries vues">{s.tv.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+            {l.album.length > 0 && <Row title="Albums aimés">{l.album.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+            {l.book.length > 0 && <Row title="Livres aimés">{l.book.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+            {s.album.length > 0 && <Row title="Albums écoutés">{s.album.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
+            {s.book.length > 0 && <Row title="Livres lus">{s.book.map((r, i) => <Poster key={r.title.id} t={toPoster(L(r.title), ready.has(r.title.id))} i={i} />)}</Row>}
           </>
         }
       />

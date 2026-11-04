@@ -296,12 +296,14 @@ function Grid({ items }: { items: PosterData[] }) {
   );
 }
 
-/** Films first, then series, each with its own count. */
+/** Films, series, then albums and books, each with its own count. */
 function ByKind({ items }: { items: PosterData[] }) {
   const t = useT();
   const groups = [
     { label: "Films", items: items.filter((p) => p.kind === "movie") },
     { label: "Séries", items: items.filter((p) => p.kind === "tv") },
+    { label: "Albums", items: items.filter((p) => p.kind === "album") },
+    { label: "Livres", items: items.filter((p) => p.kind === "book") },
   ].filter((g) => g.items.length);
   return (
     <>
