@@ -215,7 +215,7 @@ function ImageSlot({ id, label, wide, onChange }: { id: string | null; label: st
   );
 }
 
-function Editor({ value, onClose, onSaved }: { value: Project; onClose: () => void; onSaved: (p: Project) => void }) {
+export function Editor({ value, onClose, onSaved }: { value: Project; onClose: () => void; onSaved: (p: Project) => void }) {
   const t = useT();
   const [p, setP] = useState(value);
   const [error, setError] = useState<string | null>(null);

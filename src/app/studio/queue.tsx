@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useTransition, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Upload, Hand } from "lucide-react";
+import { Upload, Hand, FilePen } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { rejectLabels } from "@/lib/labels";
 import { useT } from "@/components/i18n";
@@ -82,6 +82,12 @@ export function Queue({ items }: { items: QueueItem[] }) {
                   <button onClick={() => start(() => claimTitle(it.titleId))} aria-label={t("Prendre")} title={t("Prendre")} className="grid size-10 place-items-center border border-line hover:border-ice hover:text-ice">
                     <Hand size={17} />
                   </button>
+                )}
+                {/* Titles TMDB doesn't know: their sheet is ours to fill */}
+                {it.tmdbId < 0 && (
+                  <Link href={`/studio/titles/${it.titleId}`} aria-label={t("Compléter la fiche")} title={t("Compléter la fiche")} className="grid size-10 place-items-center border border-line hover:border-lime hover:text-lime">
+                    <FilePen size={17} />
+                  </Link>
                 )}
                 <Link href={`/studio/library?title=${it.titleId}`} className="notch flex h-10 items-center gap-2 bg-lime px-4 text-sm font-semibold text-ink">
                   <Upload size={16} /> {t("Mettre en ligne")}

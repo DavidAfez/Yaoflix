@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Search as Icon, X, History } from "lucide-react";
 import { Poster, type PosterData } from "./poster";
 import { Dots } from "./ui";
+import { UnlistedSheet } from "./unlisted";
 import { useT } from "./i18n";
 
 type Person = { handle: string; seen: number; reviews: number };
@@ -176,13 +177,17 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
 
 function Results({ s }: { s: S }) {
   const t = useT();
+  const [asking, setAsking] = useState(false);
   if (!s.results) return null;
   if (s.people) return <People people={s.people} q={s.q} />;
   return (
     <div className="px-4 py-8 md:px-10">
       {s.results.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-20 text-center">
+        <div className="flex flex-col items-center gap-6 py-20 text-center">
           <p className="font-display text-4xl font-extrabold text-bone/15 md:text-6xl">{t("Rien pour « {q} ».", { q: s.q.trim() })}</p>
+          <button onClick={() => setAsking(true)} className="notch h-12 bg-lime px-6 font-semibold text-ink">
+            {t("Le demander quand même")}
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 md:gap-x-5 xl:grid-cols-8 [&>*]:w-auto">
@@ -191,6 +196,15 @@ function Results({ s }: { s: S }) {
           ))}
         </div>
       )}
+      {s.results.length > 0 && (
+        <p className="mt-10 text-center text-sm text-dim">
+          {t("Pas le bon ?")}{" "}
+          <button onClick={() => setAsking(true)} className="text-lime underline-offset-4 hover:underline">
+            {t("Demander un titre absent")}
+          </button>
+        </p>
+      )}
+      <AnimatePresence>{asking && <UnlistedSheet initial={s.q.trim()} onClose={() => setAsking(false)} />}</AnimatePresence>
     </div>
   );
 }

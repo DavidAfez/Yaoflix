@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -92,6 +93,13 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           verified: Boolean(user.emailVerifiedAt),
         }}
       />
+      {can.upload(user.role) && title.tmdbId < 0 && !title.creatorId && (
+        <p className="mx-4 mt-8 md:mx-10">
+          <Link href={`/studio/titles/${title.id}`} className="text-sm text-lime underline-offset-4 hover:underline">
+            {tr("Compléter la fiche")}
+          </Link>
+        </p>
+      )}
       <TitleNotes
         titleId={title.id}
         canEdit={canEdit}

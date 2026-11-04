@@ -139,7 +139,7 @@ export async function creatorTitles(limit = 20, except?: number): Promise<TitleR
   return db
     .select()
     .from(schema.titles)
-    .where(and(sql`${schema.titles.tmdbId} < 0`, except ? sql`${schema.titles.tmdbId} <> ${except}` : undefined, sql`exists(select 1 from media m where m.title_id = ${schema.titles.id} and m.status = 'READY')`))
+    .where(and(sql`${schema.titles.tmdbId} < 0`, sql`${schema.titles.creatorId} is not null`, except ? sql`${schema.titles.tmdbId} <> ${except}` : undefined, sql`exists(select 1 from media m where m.title_id = ${schema.titles.id} and m.status = 'READY')`))
     .orderBy(desc(schema.titles.updatedAt))
     .limit(limit);
 }

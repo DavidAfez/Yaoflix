@@ -1,10 +1,11 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull, or } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { isCreator, nextLocalId, ownsImages } from "@/lib/creators";
+import { can } from "@/lib/rbac";
 
 const project = z.object({
   id: z.number().int().positive().optional(),
@@ -30,7 +31,10 @@ export async function saveProject(input: ProjectInput): Promise<{ ok: boolean; e
   const parsed = project.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalide" };
   const p = parsed.data;
-  const images = [p.posterId, p.backdropId].filter((x): x is string => Boolean(x));
+  // New pictures must be the editor's own; the ones already on the title (a member's poster) stay allowed
+  const [current] = p.id ? await db.select({ poster: schema.titles.posterPath, backdrop: schema.titles.backdropPath }).from(schema.titles).where(eq(schema.titles.id, p.id)) : [];
+  const kept = new Set([current?.poster, current?.backdrop].filter(Boolean).map((x) => String(x).replace(/^img:/, "")));
+  const images = [p.posterId, p.backdropId].filter((x): x is string => Boolean(x) && !kept.has(x!));
   if (!(await ownsImages(user.id, images))) return { ok: false, error: "Interdit" };
   const values = {
     kind: p.kind,
@@ -48,10 +52,11 @@ export async function saveProject(input: ProjectInput): Promise<{ ok: boolean; e
     updatedAt: new Date(),
   };
   if (p.id) {
+    // A creator edits their projects; staff edit any title that isn't from TMDB (requested by hand)
     const [t] = await db
       .update(schema.titles)
       .set(values)
-      .where(and(eq(schema.titles.id, p.id), eq(schema.titles.creatorId, user.id)))
+      .where(and(eq(schema.titles.id, p.id), can.upload(user.role) ? sql`${schema.titles.tmdbId} < 0` : eq(schema.titles.creatorId, user.id)))
       .returning({ id: schema.titles.id, tmdbId: schema.titles.tmdbId });
     if (!t) return { ok: false, error: "Introuvable" };
     revalidatePath("/me/projects");
