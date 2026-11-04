@@ -380,13 +380,6 @@ export function interleave(base: TitleRow[], extra: TitleRow[], every = 4, max =
   return out;
 }
 
-export type Credits = {
-  companies: string[];
-  networks: string[];
-  crew: { job: string; names: string[] }[];
-  cast: { name: string; role: string | null; photo: string | null }[];
-};
-
 type Person = { name: string; job?: string; character?: string; profile_path?: string | null; roles?: { character: string }[]; jobs?: { job: string }[] };
 
 const JOBS: [string, string][] = [
@@ -397,11 +390,73 @@ const JOBS: [string, string][] = [
   ["Producer", "Production"],
   ["Executive Producer", "Production exécutive"],
   ["Original Music Composer", "Musique"],
+  ["Music Supervisor", "Supervision musicale"],
   ["Director of Photography", "Image"],
   ["Editor", "Montage"],
+  ["Casting", "Casting"],
+  ["Production Design", "Décors"],
+  ["Costume Design", "Costumes"],
+  ["Makeup Department Head", "Maquillage"],
+  ["Sound Designer", "Son"],
+  ["Supervising Sound Editor", "Son"],
+  ["Visual Effects Supervisor", "Effets visuels"],
+  ["Stunt Coordinator", "Cascades"],
 ];
 
-/** Studios, crew and cast. Null when TMDB is out of reach: the section then stays hidden. */
+export type Credits = {
+  companies: string[];
+  networks: string[];
+  crew: { job: string; names: string[] }[];
+  cast: { name: string; role: string | null; photo: string | null }[];
+  // The film's sheet, like the details tab of streaming apps. Empty values are left out
+  sheet?: {
+    tagline: string | null;
+    keywords: string[];
+    budget: number | null;
+    revenue: number | null;
+    countries: string[];
+    language: string | null;
+    collection: string | null;
+    certification: string | null;
+    seasons: number | null;
+  };
+};
+
+type Details = {
+  tagline?: string;
+  budget?: number;
+  revenue?: number;
+  original_language?: string;
+  production_countries?: { iso_3166_1: string }[];
+  origin_country?: string[];
+  belongs_to_collection?: { name: string } | null;
+  number_of_seasons?: number;
+  production_companies?: { name: string }[];
+  networks?: { name: string }[];
+  created_by?: { name: string }[];
+  credits?: { cast: Person[]; crew: Person[] };
+  aggregate_credits?: { cast: Person[]; crew: Person[] };
+  keywords?: { keywords?: { name: string }[]; results?: { name: string }[] };
+  release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string }[] }[] };
+  content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
+};
+
+const regionName = (code: string) => {
+  try {
+    return new Intl.DisplayNames(["fr"], { type: "region" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+};
+const languageName = (code: string) => {
+  try {
+    return new Intl.DisplayNames(["fr"], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+};
+
+/** Studios, crew, cast and the film's sheet. Null when TMDB is out of reach: the section then stays hidden. */
 export async function credits(kind: "movie" | "tv", tmdbId: number): Promise<Credits | null> {
   if (isLocal(tmdbId)) {
     const [t] = await db.select({ c: schema.titles.credits }).from(schema.titles).where(and(eq(schema.titles.kind, kind), eq(schema.titles.tmdbId, tmdbId)));
@@ -409,14 +464,9 @@ export async function credits(kind: "movie" | "tv", tmdbId: number): Promise<Cre
   }
   if (!hasTmdb()) return null;
   try {
-    const extra = kind === "movie" ? "credits" : "aggregate_credits";
-    const d = await tmdb<{
-      production_companies?: { name: string }[];
-      networks?: { name: string }[];
-      created_by?: { name: string }[];
-      credits?: { cast: Person[]; crew: Person[] };
-      aggregate_credits?: { cast: Person[]; crew: Person[] };
-    }>(`/${kind}/${tmdbId}`, { append_to_response: extra });
+    // One request: details, credits, keywords and age ratings together
+    const extra = kind === "movie" ? "credits,keywords,release_dates" : "aggregate_credits,keywords,content_ratings";
+    const d = await tmdb<Details>(`/${kind}/${tmdbId}`, { append_to_response: extra });
     const c = d.credits ?? d.aggregate_credits ?? { cast: [], crew: [] };
     const byJob = new Map<string, string[]>();
     if (d.created_by?.length) byJob.set("Création", d.created_by.map((p) => p.name));
@@ -424,15 +474,28 @@ export async function credits(kind: "movie" | "tv", tmdbId: number): Promise<Cre
       const names = c.crew.filter((p) => p.job === job || p.jobs?.some((j) => j.job === job)).map((p) => p.name);
       if (names.length) byJob.set(label, [...new Set([...(byJob.get(label) ?? []), ...names])].slice(0, 6));
     }
+    const fr = (d.release_dates?.results.find((r) => r.iso_3166_1 === "FR")?.release_dates ?? []).map((r) => r.certification).find(Boolean) ?? d.content_ratings?.results.find((r) => r.iso_3166_1 === "FR")?.rating ?? null;
+    const countries = (d.production_countries?.map((x) => x.iso_3166_1) ?? d.origin_country ?? []).slice(0, 4).map(regionName);
     return {
       companies: (d.production_companies ?? []).map((x) => x.name).slice(0, 8),
       networks: (d.networks ?? []).map((x) => x.name),
       crew: [...byJob].map(([job, names]) => ({ job, names })),
-      cast: c.cast.slice(0, 20).map((p) => ({
+      cast: c.cast.slice(0, 24).map((p) => ({
         name: p.name,
         role: p.character ?? p.roles?.[0]?.character ?? null,
         photo: p.profile_path ? `https://image.tmdb.org/t/p/w185${p.profile_path}` : null,
       })),
+      sheet: {
+        tagline: d.tagline || null,
+        keywords: (d.keywords?.keywords ?? d.keywords?.results ?? []).map((k) => k.name).slice(0, 10),
+        budget: d.budget || null,
+        revenue: d.revenue || null,
+        countries,
+        language: d.original_language ? languageName(d.original_language) : null,
+        collection: d.belongs_to_collection?.name ?? null,
+        certification: fr ? (/^\d+$/.test(fr) ? `-${fr}` : fr) : null,
+        seasons: d.number_of_seasons ?? null,
+      },
     };
   } catch {
     return null;

@@ -140,6 +140,25 @@ export type TitleCredits = { crew: { job: string; names: string[] }[]; cast: { n
 export type Announce = "none" | "notify" | "mail";
 export type Track = { lang: string; label: string; file?: string };
 
+/**
+ * What staff (or the creator) add at upload: fun facts and the songs heard in the film, with an
+ * optional timecode. Shown on the title page.
+ */
+export const titleNotes = pgTable(
+  "title_notes",
+  {
+    id: serial("id").primaryKey(),
+    titleId: integer("title_id").notNull().references(() => titles.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<"fact" | "song">().notNull(),
+    body: text("body").notNull(), // the fact, or the song's title
+    artist: text("artist"),
+    atSec: integer("at_sec"),
+    authorId: uuid("author_id").references((): AnyPgColumn => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("title_notes_title_idx").on(t.titleId, t.kind)],
+);
+
 export const media = pgTable(
   "media",
   {

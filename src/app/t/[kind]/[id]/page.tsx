@@ -9,6 +9,9 @@ import { readyTitleIds } from "@/lib/recos";
 import { toPoster } from "@/lib/view";
 import { Poster, Row } from "@/components/poster";
 import { TitlePanel } from "./panel";
+import { TitleNotes } from "./notes";
+import { mayUpload } from "@/lib/creators";
+import { can } from "@/lib/rbac";
 import { deepSummary, titleReviews } from "@/lib/reviews";
 import { DeepSummary, ReviewList } from "@/components/reviews";
 
@@ -50,6 +53,10 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
     deepSummary(title.id),
     credits(kind, title.tmdbId),
   ]);
+  const [notes, canEdit] = await Promise.all([
+    db.select().from(schema.titleNotes).where(eq(schema.titleNotes.titleId, title.id)).orderBy(schema.titleNotes.createdAt),
+    mayUpload(user, title.id),
+  ]);
   const [maker] = title.creatorId ? await db.select({ handle: schema.users.handle }).from(schema.users).where(eq(schema.users.id, title.creatorId)) : [];
   const moreReady = await readyTitleIds(more.map((m) => m.id));
   const moreL = await localize(more);
@@ -84,6 +91,12 @@ export default async function Page(props: PageProps<"/t/[kind]/[id]">) {
           like: (like?.value ?? 0) as 1 | -1 | 0,
           verified: Boolean(user.emailVerifiedAt),
         }}
+      />
+      <TitleNotes
+        titleId={title.id}
+        canEdit={canEdit}
+        staff={can.upload(user.role)}
+        notes={notes.map((n) => ({ id: n.id, kind: n.kind, body: n.body, artist: n.artist, atSec: n.atSec, mine: n.authorId === user.id }))}
       />
       {cred && (cred.crew.length > 0 || cred.cast.length > 0) && <CreditsPanel data={cred} />}
       {reviews.length > 0 && (

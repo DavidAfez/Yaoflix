@@ -18,7 +18,7 @@ export function LoginForm({ next }: { next: string }) {
         <Submit size="lg">{t("Entrer")}</Submit>
         <div className="flex flex-col items-end gap-1 text-sm text-dim">
           <Link href="/join" className="hover:text-bone">{t("Créer un compte")}</Link>
-          <Link href="/forgot" className="hover:text-bone">{t("Oublié ?")}</Link>
+          <Link href="/forgot" className="hover:text-bone">{t("Mot de passe oublié ?")}</Link>
         </div>
       </div>
     </form>

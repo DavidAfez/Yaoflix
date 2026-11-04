@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { Bell, BellOff, FileVideo, Mail, Pause, Play, RotateCcw, Search, Trash2, X, Captions } from "lucide-react";
 import type { Announce } from "@/db/schema";
+import { addNotes } from "@/app/t/notes";
+import { parseSong } from "@/lib/notes";
 import type { PosterData } from "@/components/poster";
 import { Button, Dots } from "@/components/ui";
 import { deleteMedia, retryMedia } from "../actions";
@@ -127,6 +129,8 @@ function TitlePicker({ onPick }: { onPick: (p: Picked) => void }) {
 export function Uploader({ title, onClose, onDone, canAnnounce = false }: { title: Picked; onClose: () => void; onDone: () => void; canAnnounce?: boolean }) {
   const t = useT();
   const [announce, setAnnounce] = useState<Announce>("none");
+  const [facts, setFacts] = useState("");
+  const [songs, setSongs] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [subs, setSubs] = useState<{ file: File; lang: string }[]>([]);
   const [sent, setSent] = useState(0);
@@ -140,6 +144,16 @@ export function Uploader({ title, onClose, onDone, canAnnounce = false }: { titl
     if (!file) return;
     paused.current = false;
     setState("up");
+    // Fun facts and songs typed with the upload go on the title page at once (only the first time)
+    const notes = [
+      ...facts.split("\n").map((l) => l.trim()).filter(Boolean).map((body) => ({ kind: "fact" as const, body })),
+      ...songs.split("\n").map((l) => parseSong(l.trim())).filter((x) => x !== null),
+    ];
+    if (notes.length) {
+      void addNotes(title.id, notes);
+      setFacts("");
+      setSongs("");
+    }
     try {
       const init = await fetch("/api/upload/init", {
         method: "POST",
@@ -276,6 +290,19 @@ export function Uploader({ title, onClose, onDone, canAnnounce = false }: { titl
               </label>
             )}
           </div>
+
+          {state === "idle" && (
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-dim">{t("Anecdotes (facultatif, une par ligne)")}</span>
+                <textarea value={facts} onChange={(e) => setFacts(e.target.value)} rows={3} className="w-full resize-y border border-line bg-transparent p-3 text-sm outline-none focus:border-lime" />
+              </label>
+              <label className="block">
+                <span className="mb-2 block font-mono text-[10px] uppercase tracking-widest text-dim">{t("Musiques (facultatif) : Titre – Artiste – 1:02:03")}</span>
+                <textarea value={songs} onChange={(e) => setSongs(e.target.value)} rows={3} className="w-full resize-y border border-line bg-transparent p-3 text-sm outline-none focus:border-lime" />
+              </label>
+            </div>
+          )}
 
           {canAnnounce && state === "idle" && (
             <div>
