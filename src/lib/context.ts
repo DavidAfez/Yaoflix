@@ -26,11 +26,26 @@ export async function requestContext() {
 }
 
 /**
+ * The visitor's IP, from a header only a trusted proxy can set. A visitor can send any
+ * x-forwarded-for or cf-connecting-ip they like, and Next passes them on untouched: trusting
+ * them would let anyone dodge rate limits and IP bans by changing the header on each request.
+ * - Online behind Cloudflare (APP_URL in https, or TRUST_PROXY=cloudflare): cf-connecting-ip,
+ *   which Cloudflare overwrites. Keep the site reachable only through the tunnel.
+ * - TRUST_PROXY=proxy: the address your own reverse proxy appends last to x-forwarded-for.
+ * - Local http: x-forwarded-for as Next fills it from the connection.
+ */
+export function clientIp(h: Headers): string | null {
+  const mode = process.env.TRUST_PROXY || (process.env.APP_URL?.startsWith("https://") ? "cloudflare" : "local");
+  if (mode === "cloudflare") return h.get("cf-connecting-ip")?.trim() || null;
+  const xff = (h.get("x-forwarded-for") ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  return (mode === "proxy" ? xff.at(-1) : xff[0]) ?? null;
+}
+
+/**
  * Keyed hash of the client IP (HMAC with the server pepper). The IP itself is never stored;
  * the hash only serves to keep banned members from coming back with a new account.
  */
 export function ipHashFrom(h: Headers): string | null {
-  const ip = h.get("cf-connecting-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip");
-  if (!ip) return null;
-  return blindIndex(ip, "ip");
+  const ip = clientIp(h);
+  return ip ? blindIndex(ip, "ip") : null;
 }

@@ -18,7 +18,7 @@ const MAX = 8 * 1024 * 1024;
 export async function POST(req: Request) {
   const user = await apiUser();
   if (!user) return NextResponse.json({ error: "auth" }, { status: 401 });
-  if (!rateLimit(`img:${user.id}`, 20, 120)) return NextResponse.json({ error: "Doucement, réessaie dans une minute." }, { status: 429 });
+  if (!rateLimit(`img:${user.id}`, 20, 120) || !rateLimit(`img-day:${user.id}`, 150, 86400)) return NextResponse.json({ error: "Doucement, réessaie dans une minute." }, { status: 429 });
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File) || file.size > MAX || file.size < 16) return NextResponse.json({ error: "Image trop lourde (8 Mo max)" }, { status: 400 });

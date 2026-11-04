@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { blindIndex, encrypt, normalizeEmail, randomToken, sha256 } from "@/lib/crypto";
 import { createSession, destroySession, hashPassword, ipBanned, verifyPassword } from "@/lib/auth";
-import { countryFrom } from "@/lib/context";
+import { countryFrom, clientIp } from "@/lib/context";
 import { queueMail } from "@/lib/jobs";
 import { rateLimit } from "@/lib/ratelimit";
 import { ageBrackets } from "@/lib/labels";
@@ -20,8 +20,12 @@ const APP = () => process.env.APP_URL ?? "http://localhost:3000";
 /** The IP is only used in memory to throttle abuse. It is hashed and never written anywhere. */
 async function throttle(scope: string, capacity: number, perSec: number) {
   const h = await headers();
-  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "local";
-  return rateLimit(`${scope}:${sha256(ip)}`, capacity, perSec);
+  return rateLimit(`${scope}:${sha256(clientIp(h) ?? "unknown")}`, capacity, perSec);
+}
+
+/** Only paths of this site: "//x", "/\\x" and anything with a scheme or a control character are refused. */
+function safeNext(next: string) {
+  return /^\/(?![\/\\])[^\\\s]*$/.test(next) && !/[\x00-\x1f]/.test(next) ? next : "/";
 }
 
 async function issueToken(userId: string, kind: "verify" | "reset", ttlMin: number) {
@@ -98,6 +102,8 @@ export async function login(_: AuthState, form: FormData): Promise<AuthState> {
   if (!(await throttle("login", 8, 300))) return { error: "Trop d'essais. Reviens dans quelques minutes." };
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
+  // Per account too: guessing one member's password from many addresses stays slow
+  if (!rateLimit(`login-acct:${blindIndex(normalizeEmail(email), "email")}`, 10, 900)) return { error: "Trop d'essais. Reviens dans quelques minutes." };
   const [user] = await db
     .select()
     .from(schema.users)
@@ -112,8 +118,7 @@ export async function login(_: AuthState, form: FormData): Promise<AuthState> {
     return { error: "Confirme ton adresse, on vient de te renvoyer le lien." };
   }
   await createSession(user.id);
-  const next = String(form.get("next") ?? "/");
-  redirect(next.startsWith("/") && !next.startsWith("//") ? next : "/");
+  redirect(safeNext(String(form.get("next") ?? "/")));
 }
 
 export async function logout() {
@@ -128,7 +133,8 @@ export async function forgot(_: AuthState, form: FormData): Promise<AuthState> {
     .select({ id: schema.users.id })
     .from(schema.users)
     .where(eq(schema.users.emailHash, blindIndex(normalizeEmail(email), "email")));
-  if (user) await queueMail(user.id, "reset", { link: `${APP()}/reset/${await issueToken(user.id, "reset", 60)}` });
+  // At most 3 reset mails an hour per account, whoever asks
+  if (user && rateLimit(`forgot-acct:${user.id}`, 3, 3600)) await queueMail(user.id, "reset", { link: `${APP()}/reset/${await issueToken(user.id, "reset", 60)}` });
   return { sent: true };
 }
 
@@ -166,8 +172,9 @@ export async function resetPassword(_: AuthState, form: FormData): Promise<AuthS
     .update(schema.users)
     .set({ passwordHash: await hashPassword(password), emailVerifiedAt: new Date() })
     .where(eq(schema.users.id, userId));
-  // Kill every other session
+  // Kill every other session, and any other reset link still lying in a mailbox
   await db.delete(schema.sessions).where(eq(schema.sessions.userId, userId));
+  await db.update(schema.authTokens).set({ usedAt: new Date() }).where(and(eq(schema.authTokens.userId, userId), eq(schema.authTokens.kind, "reset"), isNull(schema.authTokens.usedAt)));
   await createSession(userId);
   redirect("/");
 }

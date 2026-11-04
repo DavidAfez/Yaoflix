@@ -132,6 +132,7 @@ export async function setLike(titleId: number, value: 1 | -1 | 0, path?: string)
 
 /** Poster shortcuts: they only know kind + tmdbId. */
 export async function likeByRef(kind: string, tmdbId: number, value: 1 | -1 | 0) {
+  await requireUser();
   const titleId = await titleIdFor(kind, tmdbId);
   if (titleId) await setLike(titleId, value);
   // Refresh whatever page is open (profile lists, home rows) without a reload

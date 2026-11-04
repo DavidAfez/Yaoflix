@@ -11,7 +11,7 @@ import { rateLimit } from "@/lib/ratelimit";
 export async function POST(req: Request) {
   const user = await apiUser();
   if (!user) return NextResponse.json({}, { status: 401 });
-  if (!rateLimit(`chatfile:${user.id}`, 20, 120)) return NextResponse.json({ error: "Doucement, réessaie dans une minute." }, { status: 429 });
+  if (!rateLimit(`chatfile:${user.id}`, 20, 120) || !rateLimit(`chatfile-day:${user.id}`, 300, 86400)) return NextResponse.json({ error: "Doucement, réessaie dans une minute." }, { status: 429 });
   const t = await threadFor(user.id, new URL(req.url).searchParams.get("thread") ?? "");
   if (!t) return NextResponse.json({ error: "Introuvable" }, { status: 404 });
   const buf = Buffer.from(await req.arrayBuffer());

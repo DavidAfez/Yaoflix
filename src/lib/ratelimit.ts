@@ -14,6 +14,13 @@ export function rateLimit(key: string, capacity: number, perSeconds: number): bo
   }
   b.tokens -= 1;
   buckets.set(key, b);
-  if (buckets.size > 50_000) buckets.clear();
+  if (buckets.size > 50_000) {
+    // Maps keep insertion order: the first keys are the oldest
+    let n = 5_000;
+    for (const k of buckets.keys()) {
+      if (n-- <= 0) break;
+      buckets.delete(k);
+    }
+  }
   return true;
 }
