@@ -20,7 +20,7 @@ export default async function Page() {
     <AuthShell word={t("Patience.")}>
       <div className="space-y-8">
         <p className="font-display text-3xl font-extrabold leading-tight">@{user.handle}</p>
-        <p className="text-lg text-bone/80">{t("Compte en cours de validation. Un mail arrive dès que c'est bon.")}</p>
+        <p className="text-lg text-bone/80">{t("Ton compte est en cours de validation. Tu recevras un mail dès que ce sera bon.")}</p>
         <form action={logout}>
           <button className="flex h-11 items-center gap-2 border border-line px-4 text-sm transition-colors hover:border-coral hover:text-coral">
             <LogOut size={15} /> {t("Déconnexion")}

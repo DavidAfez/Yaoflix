@@ -59,10 +59,10 @@ export function AskCreator({ status }: { status: "requested" | "approved" | "ref
   return (
     <div className="space-y-6">
       <p className="text-bone/80">
-        {t("Pour les vidéastes : tu mets en ligne tes courts, films ou séries, avec affiche, synopsis et générique, et les membres les regardent comme le reste du catalogue. L'équipe valide la demande.")}
+        {t("Pour les vidéastes : tu pourras mettre en ligne tes courts, films ou séries, avec affiche, synopsis et générique, et les membres les regarderont comme le reste du catalogue. L'équipe validera ta demande.")}
       </p>
       {status === "requested" ? (
-        <p className="border-l-2 border-lime pl-3 text-sm">{t("Demande envoyée. L'équipe te répond vite.")}</p>
+        <p className="border-l-2 border-lime pl-3 text-sm">{t("Demande envoyée. L'équipe te répondra vite.")}</p>
       ) : (
         <>
           {status === "refused" && <p className="text-sm text-coral">{t("Ta dernière demande n'a pas été retenue.")}</p>}

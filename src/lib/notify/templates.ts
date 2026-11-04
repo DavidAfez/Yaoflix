@@ -52,19 +52,19 @@ export function renderMail(template: string, d: Data, locale: Locale = "fr"): Ma
     case "verify":
       return {
         subject: t("Bienvenue sur GabaoFlix"),
-        text: `${t("Bienvenue sur GabaoFlix.")}\n\n${t("Confirme ton adresse pour finir ton inscription : {link}", { link: String(d.link) })}\n\n${t("Ensuite, l'équipe valide ton compte et c'est parti. Le lien est valable 24 heures.")}`,
+        text: `${t("Bienvenue sur GabaoFlix.")}\n\n${t("Confirme ton adresse pour finir ton inscription : {link}", { link: String(d.link) })}\n\n${t("Ensuite, l'équipe validera ton compte et tu pourras entrer. Le lien restera valable 24 heures.")}`,
         html: frame(
           esc(t("Bienvenue.")),
-          esc(t("Il reste une étape : confirme ton adresse. Ensuite, l'équipe valide ton compte et c'est parti.")),
+          esc(t("Plus qu'une étape : confirme ton adresse. Ensuite, l'équipe validera ton compte et tu pourras entrer.")),
           { label: t("Confirmer mon adresse"), href: String(d.link) },
-          { pre: t("Confirme ton adresse pour finir ton inscription."), showLink: true, note: esc(t("Le lien est valable 24 heures. Tu n'as rien demandé ? Ignore ce mail, rien ne sera créé.")) },
+          { pre: t("Confirme ton adresse pour finir ton inscription."), showLink: true, note: esc(t("Le lien restera valable 24 heures. Si tu n'avais rien demandé, ignore ce mail : aucun compte ne sera créé.")) },
         ),
       };
     case "reset":
       return {
         subject: t("Nouveau mot de passe"),
         text: `${t("Nouveau mot de passe")} : ${d.link}`,
-        html: frame(esc(t("Nouveau mot de passe.")), esc(t("Choisis-en un nouveau avec le bouton ci-dessous.")), { label: t("Changer"), href: String(d.link) }, { showLink: true, note: esc(t("Lien valable 1 heure. Tu n'as rien demandé ? Ignore ce mail, ton mot de passe ne change pas.")) }),
+        html: frame(esc(t("Nouveau mot de passe.")), esc(t("Choisis-en un nouveau avec le bouton ci-dessous.")), { label: t("Changer"), href: String(d.link) }, { showLink: true, note: esc(t("Le lien expirera dans une heure. Si tu n'avais rien demandé, ignore ce mail : ton mot de passe restera le même.")) }),
       };
     case "ready":
       return {
@@ -115,7 +115,7 @@ export function renderMail(template: string, d: Data, locale: Locale = "fr"): Ma
       return {
         subject: t("Ton compte est validé"),
         text: `${t("Ton compte est validé")} : ${process.env.APP_URL ?? ""}`,
-        html: frame(esc(t("Tu es dedans.")), esc(t("Ton compte est validé. Demande un film, regarde-le, dis ce que t'en as pensé.")), { label: t("Entrer"), href: process.env.APP_URL ?? "/" }, { pre: t("Ton compte GabaoFlix est validé.") }),
+        html: frame(esc(t("Tu es dedans.")), esc(t("Ton compte vient d'être validé. Tu pourras demander un film, le regarder, puis dire ce que t'en as pensé.")), { label: t("Entrer"), href: process.env.APP_URL ?? "/" }, { pre: t("Ton compte GabaoFlix est validé.") }),
       };
     default:
       throw new Error(`Unknown mail template ${template}`);

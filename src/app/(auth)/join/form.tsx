@@ -65,7 +65,7 @@ export function JoinForm() {
               exit={{ opacity: 0, height: 0 }}
               className="mt-3 overflow-hidden border-l-2 border-lime pl-3 text-sm text-bone/80"
             >
-              {t("Pour les vidéastes : tu mets en ligne tes courts, films ou séries, avec affiche, synopsis et générique, et les membres les regardent comme le reste du catalogue. L'équipe valide la demande.")}
+              {t("Pour les vidéastes : tu pourras mettre en ligne tes courts, films ou séries, avec affiche, synopsis et générique, et les membres les regarderont comme le reste du catalogue. L'équipe validera ta demande.")}
             </motion.p>
           )}
         </AnimatePresence>
