@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Archivo_Narrow, Instrument_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import { getUser } from "@/lib/auth";
 import { Nav } from "@/components/nav";
 import { Presence } from "@/components/presence";
@@ -10,10 +10,18 @@ import { I18nProvider } from "@/components/i18n";
 import { getLocale } from "@/lib/i18n/server";
 import "./globals.css";
 
-// Archivo for titles, Instrument Sans for text, Archivo Narrow for labels and figures
-const display = Archivo({ subsets: ["latin"], variable: "--font-title", axes: ["wdth"] });
-const body = Instrument_Sans({ subsets: ["latin"], variable: "--font-body" });
-const label = Archivo_Narrow({ subsets: ["latin"], variable: "--font-label" });
+// Archivo for titles, Instrument Sans for text, Archivo Narrow for labels and figures.
+// Served from the repo (OFL, see fonts/OFL.txt): no Google Fonts download at build or start,
+// so the site looks the same offline or behind a company proxy.
+const display = localFont({
+  src: "./fonts/archivo.woff2",
+  variable: "--font-title",
+  weight: "100 900",
+  display: "swap",
+  declarations: [{ prop: "font-stretch", value: "62% 125%" }],
+});
+const body = localFont({ src: "./fonts/instrument.woff2", variable: "--font-body", weight: "400 700", display: "swap", declarations: [{ prop: "font-stretch", value: "75% 100%" }] });
+const label = localFont({ src: "./fonts/narrow.woff2", variable: "--font-label", weight: "400 700", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "GabaoFlix", template: "%s · GabaoFlix" },
