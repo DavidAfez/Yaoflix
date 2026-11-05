@@ -8,16 +8,26 @@ import { Search as Icon, X, History } from "lucide-react";
 import { Poster, type PosterData } from "./poster";
 import { Dots } from "./ui";
 import { UnlistedSheet } from "./unlisted";
+import { KindIcon } from "./kind-icon";
 import { useT } from "./i18n";
 
 type Person = { handle: string; seen: number; reviews: number };
-type Filter = "all" | "movie" | "tv" | "ready";
+type Filter = "all" | "movie" | "tv" | "album" | "book" | "ready";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "Tout" },
   { key: "movie", label: "Films" },
   { key: "tv", label: "Séries" },
+  { key: "album", label: "Musique" },
+  { key: "book", label: "Livres" },
   { key: "ready", label: "Dispo" },
 ];
+// Shelves in the order of the "Tout" view
+const GROUPS = [
+  { kind: "movie", label: "Films" },
+  { kind: "tv", label: "Séries" },
+  { kind: "album", label: "Musique" },
+  { kind: "book", label: "Livres" },
+] as const;
 const RECENT_KEY = "gf_recent";
 
 function readRecent(): string[] {
@@ -60,7 +70,7 @@ function useTitleSearch() {
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+        const res = await fetch(`/api/search?type=all&q=${encodeURIComponent(term)}`);
         const data = (await res.json()) as { results: PosterData[]; people?: Person[] };
         if (stale) return;
         setResults(data.results ?? []);
@@ -85,6 +95,8 @@ function useTitleSearch() {
       all: sorted.length,
       movie: sorted.filter((r) => r.kind === "movie").length,
       tv: sorted.filter((r) => r.kind === "tv").length,
+      album: sorted.filter((r) => r.kind === "album").length,
+      book: sorted.filter((r) => r.kind === "book").length,
       ready: sorted.filter((r) => r.ready).length,
     }),
     [sorted],
@@ -114,7 +126,7 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
           onChange={(e) => s.setQ(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
-          placeholder={t("Un film, une série, @membre")}
+          placeholder={t("Un film, une série, un album, un livre, @membre")}
           className={`w-full bg-transparent font-medium outline-none placeholder:text-bone/25 focus-visible:outline-none text-base`}
           enterKeyHint="search"
           autoComplete="off"
@@ -160,8 +172,10 @@ function SearchBar({ s, input, focused, setFocused, onClose, big = true }: { s: 
                     onClick={() => s.setFilter(f.key)}
                     className={`relative shrink-0 py-3 text-sm transition-colors disabled:opacity-30 ${on ? "text-bone" : "text-dim hover:text-bone"}`}
                   >
-                    {f.key === "ready" && <span className="mr-1.5 inline-block h-2.5 w-1 bg-lime align-middle" />}
-                    {t(f.label)}
+                    <span className="inline-flex items-center gap-1.5">
+                      {f.key === "ready" ? <span className="inline-block h-2.5 w-1 bg-lime" /> : f.key !== "all" && <KindIcon kind={f.key} size={14} />}
+                      {t(f.label)}
+                    </span>
                     <span className="ml-1.5 font-mono text-[11px] tabular-nums text-lime">{n}</span>
                     {on && <motion.span layoutId={big ? "search-filter" : "search-filter-o"} className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" />}
                   </button>
@@ -189,6 +203,32 @@ function Results({ s }: { s: S }) {
             {t("Le demander quand même")}
           </button>
         </div>
+      ) : s.filter === "all" && new Set(s.shown.map((r) => r.kind)).size > 1 ? (
+        // "Tout" with several shelves: one section each, with its icon
+        <div className="space-y-12">
+          {GROUPS.map((g) => {
+            const items = s.shown.filter((r) => r.kind === g.kind);
+            if (!items.length) return null;
+            return (
+              <section key={g.kind}>
+                <h3 className="mb-5 flex items-center gap-2 font-display text-xl font-semibold tracking-tight">
+                  <KindIcon kind={g.kind} size={18} className="text-lime" /> {t(g.label)}
+                  <span className="font-mono text-xs text-lime">{items.length}</span>
+                  {items.length > 8 && (
+                    <button onClick={() => s.setFilter(g.kind)} className="ml-auto text-sm font-normal text-dim hover:text-lime">
+                      {t("Tout voir")}
+                    </button>
+                  )}
+                </h3>
+                <div className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 md:gap-x-5 xl:grid-cols-8 [&>*]:w-auto">
+                  {items.slice(0, 8).map((r, i) => (
+                    <Poster key={`${r.kind}${r.tmdbId}`} t={r} i={i} />
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       ) : (
         <div className="grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 md:gap-x-5 xl:grid-cols-8 [&>*]:w-auto">
           {s.shown.map((r, i) => (
@@ -204,7 +244,9 @@ function Results({ s }: { s: S }) {
           </button>
         </p>
       )}
-      <AnimatePresence>{asking && <UnlistedSheet initial={s.q.trim()} onClose={() => setAsking(false)} />}</AnimatePresence>
+      <AnimatePresence>
+        {asking && <UnlistedSheet initial={s.q.trim()} kind={s.filter === "tv" || s.filter === "album" || s.filter === "book" ? s.filter : "movie"} onClose={() => setAsking(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

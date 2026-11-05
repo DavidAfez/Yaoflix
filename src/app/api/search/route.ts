@@ -37,7 +37,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ results: items.map((r) => toPoster(r)) });
   }
 
-  const rows = await localize(await searchTitles(q));
-  const ready = await readyTitleIds(rows.map((r) => r.id));
+  // Global search: every shelf at once, each one failing on its own without taking the others down
+  const all = type === "all";
+  const [screen, albums, books] = await Promise.all([
+    searchTitles(q).then(localize),
+    all ? searchLibrary("album", q).catch(() => []) : Promise.resolve([]),
+    all ? searchLibrary("book", q).catch(() => []) : Promise.resolve([]),
+  ]);
+  const rows = [...screen, ...albums.slice(0, 12), ...books.slice(0, 12)];
+  const ready = await readyTitleIds(screen.map((r) => r.id));
   return NextResponse.json({ results: rows.map((r) => toPoster(r, ready.has(r.id))) });
 }

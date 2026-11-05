@@ -1,5 +1,6 @@
 "use client";
 import { coverAspect, kindLabel, seenLabels, type Kind } from "@/lib/kinds";
+import { KindIcon } from "./kind-icon";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { motion } from "motion/react";
@@ -51,7 +52,9 @@ export function Poster({ t, i = 0, size = "md", hideNever = false }: { t: Poster
           )}
           {t.ready && <span className={`absolute inset-y-0 left-0 w-1 ${seen ? "bg-lime/40" : "bg-lime"}`} aria-label={tr("Dispo")} />}
           {t.kind !== "movie" && (
-            <span className="absolute bottom-0 left-0 bg-ink/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-bone">{tr(kindLabel[t.kind as Kind] ?? "")}</span>
+            <span className="absolute bottom-0 left-0 flex items-center gap-1 bg-ink/85 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-bone">
+              <KindIcon kind={t.kind} size={11} /> {tr(kindLabel[t.kind as Kind] ?? "")}
+            </span>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
         </div>
