@@ -3,7 +3,7 @@
  * Tests the TMDB key and the network path step by step, and says in plain words what is wrong.
  */
 import { lookup } from "node:dns/promises";
-import { useEnvProxy } from "@/lib/net";
+import { useNetwork } from "@/lib/net";
 
 const ok = (m: string) => console.log(`  OK   ${m}`);
 const ko = (m: string) => console.log(`  KO   ${m}`);
@@ -17,7 +17,7 @@ const errText = (e: unknown) => {
 async function main() {
   console.log("\nDiagnostic TMDB\n");
 
-  const proxy = useEnvProxy();
+  const proxy = await useNetwork();
   if (proxy) ok(`Proxy utilisé : ${proxy}`);
   else info("Aucun proxy configuré (HTTPS_PROXY vide).");
 

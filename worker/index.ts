@@ -7,9 +7,10 @@ import { mailRoute, sendMail } from "@/lib/notify/mailer";
 import { sendWhatsApp, whatsappEnabled } from "@/lib/notify/whatsapp";
 import { backfillThumbnails, transcode } from "./transcode";
 import { renderClip } from "./clip";
-import { useEnvProxy } from "@/lib/net";
+import { useNetwork } from "@/lib/net";
 
-useEnvProxy();
+const proxy = await useNetwork();
+if (proxy) console.log(`[net] sortie par ${proxy}`);
 import { transcribe } from "./transcribe";
 
 type Job = typeof schema.jobs.$inferSelect;

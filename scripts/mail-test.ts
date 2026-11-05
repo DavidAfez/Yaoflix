@@ -6,7 +6,7 @@
 import { lookup } from "node:dns/promises";
 import { connect } from "node:net";
 import { mailRoute, sendMail } from "@/lib/notify/mailer";
-import { useEnvProxy, windowsProxy } from "@/lib/net";
+import { pacProxy, useNetwork, windowsProxy } from "@/lib/net";
 
 const to = process.argv[2];
 if (!to?.includes("@")) {
@@ -26,7 +26,7 @@ const port = (host: string, p: number) =>
 
 const envProxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "";
 const sys = windowsProxy();
-const proxy = useEnvProxy();
+const proxy = await useNetwork();
 const smtpHost = (() => {
   try {
     return process.env.SMTP_URL ? new URL(process.env.SMTP_URL).hostname : "smtp.gmail.com";
@@ -39,7 +39,10 @@ console.log("\nRéseau");
 envProxy ? ok(`HTTPS_PROXY dans .env : ${envProxy.replace(/\/\/[^@/]*@/, "//***@")}`) : ko("pas de HTTPS_PROXY dans .env");
 if (process.platform === "win32") {
   sys.server ? ok(`proxy Windows : ${sys.server}${envProxy ? "" : " (utilisé)"}`) : ko("pas de proxy manuel dans Windows");
-  if (sys.pac) console.log(`  INFO script de configuration automatique : ${sys.pac} (ouvre-le dans le navigateur : l'adresse du proxy y est écrite)`);
+  if (sys.pac) {
+    const fromPac = await pacProxy(sys.pac);
+    fromPac ? ok(`script de configuration automatique ${sys.pac} : proxy ${fromPac}`) : ko(`script de configuration automatique ${sys.pac} illisible : ouvre-le dans le navigateur, l'adresse du proxy y est écrite`);
+  }
 }
 if (proxy) ok(`les requêtes sortent par ${proxy}`);
 const ip = await lookup(smtpHost).then((r) => r.address, () => null);

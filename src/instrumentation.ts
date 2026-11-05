@@ -2,8 +2,8 @@ import type { Instrumentation } from "next";
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  const { useEnvProxy } = await import("./lib/net");
-  const proxy = useEnvProxy();
+  const { useNetwork } = await import("./lib/net");
+  const proxy = await useNetwork();
   if (proxy) console.log(`[net] outbound requests through ${proxy}`);
 }
 
