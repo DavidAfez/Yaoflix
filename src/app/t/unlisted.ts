@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { nextLocalId, ownsImages } from "@/lib/creators";
 import { rateLimit } from "@/lib/ratelimit";
+import { allowedImage } from "@/lib/candidates";
 import { requestTitle } from "./actions";
 
 const input = z.object({
@@ -13,6 +14,8 @@ const input = z.object({
   name: z.string().trim().min(1, "Donne le titre").max(120),
   year: z.number().int().min(1888).max(new Date().getFullYear() + 3).nullable(),
   posterId: z.uuid().nullable(),
+  // A picked suggestion: its picture stays where it is, on an allowed host
+  posterUrl: z.string().max(500).refine(allowedImage).nullable().optional(),
 });
 
 /**
@@ -47,7 +50,7 @@ export async function requestUnlisted(raw: z.input<typeof input>): Promise<{ ok:
     (
       await db
         .insert(schema.titles)
-        .values({ tmdbId: await nextLocalId(), kind: p.kind, name: p.name, byline: p.byline || null, year: p.year, releaseDate: null, posterPath: p.posterId ? `img:${p.posterId}` : null, genres: [] })
+        .values({ tmdbId: await nextLocalId(), kind: p.kind, name: p.name, byline: p.byline || null, year: p.year, releaseDate: null, posterPath: p.posterId ? `img:${p.posterId}` : (p.posterUrl ?? null), genres: [] })
         .returning({ id: schema.titles.id, tmdbId: schema.titles.tmdbId, kind: schema.titles.kind })
     )[0];
   // Albums and books are metadata only: added, nothing to upload, so no request

@@ -9,7 +9,7 @@ export function proxy(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     // Covers: TMDB, Tenor GIFs, Deezer albums, Open Library books (served from archive.org)
-    "img-src 'self' data: blob: https://image.tmdb.org https://media.tenor.com https://*.dzcdn.net https://covers.openlibrary.org https://archive.org https://*.archive.org",
+    "img-src 'self' data: blob: https://image.tmdb.org https://media.tenor.com https://*.dzcdn.net https://covers.openlibrary.org https://archive.org https://*.archive.org https://upload.wikimedia.org https://*.mzstatic.com https://books.google.com https://books.googleusercontent.com",
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
     "connect-src 'self'",
