@@ -14,6 +14,7 @@ export async function LibraryHome({ kind }: { kind: LibraryKind }) {
   const p = (x: (typeof trend)[number]) => toPoster(x, ready.has(x.id));
   return (
     <main className="pb-24">
+      <h1 className="sr-only">{t(kind === "album" ? "Musique" : "Livres")}</h1>
       <KindTabs current={kind} />
       <LibrarySearch kind={kind} />
       {top.length > 0 && (

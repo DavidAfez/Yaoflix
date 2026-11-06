@@ -53,7 +53,7 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
         <Link href="/" className="font-display text-lg font-extrabold tracking-tight">
           GABAOFLIX<span className="text-lime">.</span>
         </Link>
-        <nav className="ml-auto flex gap-8">
+        <nav aria-label={t("Navigation principale")} className="ml-auto flex gap-8">
           {items.map((it) => (
             <Link key={it.href} href={it.href} className="relative py-3.5 text-sm tracking-wide">
               <span className={active(it.href) ? "text-bone" : "text-dim transition-colors hover:text-bone"}>{it.label}</span>
@@ -105,6 +105,7 @@ export function Nav({ role, handle }: { role: Role; handle: string }) {
       </header>
 
       <nav
+        aria-label={t("Navigation principale")}
         className="fixed inset-x-0 bottom-0 z-50 grid border-t border-line bg-ink/90 backdrop-blur-xl md:hidden"
         style={{ gridTemplateColumns: `repeat(${items.length}, 1fr)`, paddingBottom: "env(safe-area-inset-bottom)" }}
       >

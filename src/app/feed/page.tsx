@@ -23,7 +23,8 @@ export default async function Page(props: PageProps<"/feed">) {
 
   return (
     <main className="mx-auto max-w-2xl md:border-x md:border-line">
-      <nav className="sticky top-11 z-20 grid grid-cols-2 border-b border-line bg-ink/90 backdrop-blur-xl md:top-12">
+      <h1 className="sr-only">{t("Feed")}</h1>
+      <nav aria-label={t("Fils")} className="sticky top-11 z-20 grid grid-cols-2 border-b border-line bg-ink/90 backdrop-blur-xl md:top-12">
         {tabs.map((x) => (
           <Link key={x.key} href={x.href} className={`relative py-4 text-center text-sm ${tab === x.key ? "text-bone" : "text-dim hover:text-bone"}`}>
             {x.label}

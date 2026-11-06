@@ -22,7 +22,7 @@ export function KindTabs({ current }: { current: "all" | "movie" | "tv" | "album
             key={t.k}
             href={t.k === "all" ? "/" : `/?k=${t.k}`}
             scroll={false}
-            className={`relative shrink-0 pb-2 font-display text-2xl font-extrabold tracking-tight transition-colors md:text-3xl ${on ? "text-bone" : "text-bone/25 hover:text-bone/60"}`}
+            className={`relative shrink-0 pb-2 font-display text-2xl font-extrabold tracking-tight transition-colors md:text-3xl ${on ? "text-bone" : "text-bone/45 hover:text-bone/70"}`}
           >
             {tr(t.label)}
             {on && <motion.span layoutId="kind-tab" className="absolute inset-x-0 -bottom-px h-1 bg-lime" transition={{ type: "spring", stiffness: 500, damping: 40 }} />}

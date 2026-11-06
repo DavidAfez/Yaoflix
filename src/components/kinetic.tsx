@@ -6,10 +6,11 @@ export function Kinetic({ text, className = "", delay = 0 }: { text: string; cla
   // Letters rise one by one; lines break between words only, so long phrases wrap instead of overflowing
   let n = 0;
   return (
-    <span className={`inline-flex flex-wrap gap-x-[0.25em] ${className}`} aria-label={text}>
+    <span className={`inline-flex flex-wrap gap-x-[0.25em] ${className}`}>
+      <span className="sr-only">{text}</span>
       {text.split(" ").map((word, w) => (
         // The extra bottom room keeps descenders (g, p, y) out of the reveal mask
-        <span key={w} className="-mb-[0.14em] inline-flex overflow-hidden pb-[0.14em]">
+        <span key={w} aria-hidden className="-mb-[0.14em] inline-flex overflow-hidden pb-[0.14em]">
           {word.split("").map((ch) => {
             const i = n++;
             return (

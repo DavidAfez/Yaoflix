@@ -10,5 +10,9 @@ export async function generateMetadata() {
 export default async function Page(props: PageProps<"/chat">) {
   await requireUser();
   const sp = await props.searchParams;
-  return <ChatApp to={typeof sp.to === "string" ? sp.to : null} />;
+  return (
+    <main>
+      <ChatApp to={typeof sp.to === "string" ? sp.to : null} />
+    </main>
+  );
 }

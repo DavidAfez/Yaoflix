@@ -16,10 +16,19 @@ import { Landing } from "@/components/landing";
 import { StatusMark } from "@/components/status";
 import { LibraryHome } from "./library-home";
 
+export async function generateMetadata(props: PageProps<"/">) {
+  const k = (await props.searchParams).k;
+  const label: Record<string, string> = { movie: "Films", tv: "Séries", album: "Musique", book: "Livres" };
+  if (typeof k !== "string" || !label[k]) return {};
+  const t = await getT();
+  return { title: t(label[k]) };
+}
+
 export default async function Page(props: PageProps<"/">) {
   const user = await getUser();
   if (!user) {
-    let rows = await trending().catch(() => []);
+    // Visitors only see TMDB posters: pictures uploaded on the site are for members
+    let rows = (await trending().catch(() => [])).filter((t) => t.tmdbId > 0 && !t.posterPath?.startsWith("img:"));
     if (rows.length < 8) rows = [...rows, ...(await topRated("movie").catch(() => []))];
     rows = await localize(rows);
     const tiles = rows.slice(0, 16).map((t) => ({ name: t.name, poster: img(t.posterPath, "w342") }));
@@ -132,6 +141,7 @@ export default async function Page(props: PageProps<"/">) {
 
   return (
     <main>
+      <h1 className="sr-only">{t("Accueil")}</h1>
       <Billboard slides={slides} delay={pref?.ms ?? 3000} />
       <KindTabs current={k} />
 

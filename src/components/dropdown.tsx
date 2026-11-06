@@ -31,6 +31,7 @@ export function Dropdown<T extends string>({
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-haspopup="menu"
         className={`flex h-10 items-center gap-2 border px-4 text-sm transition-colors ${
           tone === "coral" ? "border-coral/40 text-coral hover:border-coral" : "border-line hover:border-bone/40"
         }`}
@@ -43,6 +44,7 @@ export function Dropdown<T extends string>({
       <AnimatePresence>
         {open && (
           <motion.ul
+            role="menu"
             initial={{ opacity: 0, y: -6, clipPath: "inset(0 0 100% 0)" }}
             animate={{ opacity: 1, y: 0, clipPath: "inset(0 0 0% 0)" }}
             exit={{ opacity: 0, y: -6, clipPath: "inset(0 0 100% 0)" }}
@@ -50,8 +52,9 @@ export function Dropdown<T extends string>({
             className={`absolute top-12 z-40 min-w-52 border-l-2 ${tone === "coral" ? "border-coral" : "border-lime"} bg-ink-3 py-1 shadow-2xl shadow-black/50 ${align === "right" ? "right-0" : "left-0"}`}
           >
             {options.map((o, i) => (
-              <motion.li key={o.value} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
+              <motion.li role="none" key={o.value} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}>
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setOpen(false);
                     onPick(o.value);

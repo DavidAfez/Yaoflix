@@ -22,7 +22,7 @@ export function UserTabs({ lists, reviews, library, projects }: { lists: { posts
   const list = tab === "posts" || tab === "replies" || tab === "reposts" || tab === "media" ? lists[tab] : null;
   return (
     <>
-      <nav className="scrollbar-none sticky top-11 z-20 mt-10 flex gap-8 overflow-x-auto border-b border-line bg-ink/90 px-4 backdrop-blur md:top-12 md:px-10">
+      <nav aria-label={t("Sections du profil")} className="scrollbar-none sticky top-11 z-20 mt-10 flex gap-8 overflow-x-auto border-b border-line bg-ink/90 px-4 backdrop-blur md:top-12 md:px-10">
         {tabs.map((x) => (
           <button key={x.k} onClick={() => setTab(x.k)} className={`relative shrink-0 py-4 text-sm ${tab === x.k ? "text-bone" : "text-dim hover:text-bone"}`}>
             {t(x.label)}

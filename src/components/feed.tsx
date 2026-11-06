@@ -67,6 +67,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
   const [liked, setLiked] = useState(p.liked);
   const [reposted, setReposted] = useState(p.reposted);
   const [gone, setGone] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [, start] = useTransition();
@@ -193,22 +194,28 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
             <Flag size={14} />
           </button>
         )}
-        {p.mine && (
-          <button
-            onClick={() => {
-              setGone(true);
-              start(async () => {
-                await deletePost(p.id);
-                if (big) router.push("/feed");
-              });
-            }}
-            aria-label={t("Supprimer")}
-            title={t("Supprimer")}
-            className="ml-auto transition-colors hover:text-coral"
-          >
-            <Trash2 size={15} />
-          </button>
-        )}
+        {p.mine &&
+          (confirmDelete ? (
+            // Second tap deletes: one stray tap on the bin no longer loses a post
+            <button
+              autoFocus
+              onBlur={() => setConfirmDelete(false)}
+              onClick={() => {
+                setGone(true);
+                start(async () => {
+                  await deletePost(p.id);
+                  if (big) router.push("/feed");
+                });
+              }}
+              className="ml-auto flex items-center gap-1.5 bg-coral px-2 py-1 text-xs font-semibold text-ink"
+            >
+              <Trash2 size={13} /> {t("Supprimer")}
+            </button>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)} aria-label={t("Supprimer")} title={t("Supprimer")} className="ml-auto transition-colors hover:text-coral">
+              <Trash2 size={15} />
+            </button>
+          ))}
       </footer>
       <AnimatePresence>{reporting && <ReportSheet target={{ type: "post", id: p.id, label: `@${p.handle}` }} onClose={() => setReporting(false)} />}</AnimatePresence>
       <AnimatePresence>{sharing && <ShareToChat postId={p.id} onClose={() => setSharing(false)} />}</AnimatePresence>

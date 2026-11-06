@@ -20,7 +20,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return (
     <div>
       <StudioNav links={links} />
-      <div className="px-4 py-8 md:px-10">{children}</div>
+      <main className="px-4 py-8 md:px-10">{children}</main>
     </div>
   );
 }
