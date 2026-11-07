@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { img } from "./tmdb";
 import { getLocale } from "./i18n/server";
 import type { PostData, PostMedia } from "@/db/schema";
+import { normTag, TAG_CHARS, tagsOf } from "./hashtags";
 
 export type FeedPost = {
   id: string;
@@ -240,4 +241,37 @@ export async function profileFeed(me: string, userId: string) {
     reposts,
     media: own.filter((p) => p.media.length || p.clip),
   };
+}
+
+/** Posts carrying a hashtag, newest first. LIKE narrows it down, the exact tag test is done here. */
+export async function byTag(me: string, tag: string, limit = 60): Promise<FeedPost[]> {
+  const t = normTag(tag);
+  if (!TAG_CHARS.test(t)) return [];
+  const like = `%#${t.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const rows = await select(me, sql`lower(p.body) like ${like}`, 200);
+  const hits = rows
+    .map(toPost(me))
+    .filter((p) => tagsOf(p.body).includes(t))
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, limit);
+  return withPolls(me, hits);
+}
+
+/** The hashtags most used lately (posts already published, not the scheduled ones). */
+export async function trendingTags(days = 14, limit = 8): Promise<{ tag: string; n: number }[]> {
+  // Letters with accents spelled out: the database may run without a locale (C), where [[:alpha:]] is ASCII only
+  const rows = await db.execute<{ body: string }>(sql`
+    select body from posts
+    where body like '%#%' and created_at > now() - make_interval(days => ${days}) and created_at <= now()
+    order by created_at desc limit 2000`);
+  const count = new Map<string, number>();
+  for (const r of rows.rows) for (const t of tagsOf(r.body)) count.set(t, (count.get(t) ?? 0) + 1);
+  return [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit).map(([tag, n]) => ({ tag, n }));
+}
+
+/** Known hashtags starting like this, for the composer's suggestions. */
+export async function suggestTags(prefix: string, limit = 6): Promise<string[]> {
+  const p = normTag(prefix);
+  const all = await trendingTags(90, 200);
+  return all.filter((x) => x.tag.startsWith(p) && x.tag !== p).slice(0, limit).map((x) => x.tag);
 }

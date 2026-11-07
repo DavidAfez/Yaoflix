@@ -1,8 +1,9 @@
 "use client";
+import { splitTags, tagAtCaret } from "@/lib/hashtags";
 import { kindLabel, type Kind } from "@/lib/kinds";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BarChart3, CalendarClock, Clapperboard, Flag, Heart, ImageIcon, ListOrdered, MessageCircle, Mic, Plus, Repeat2, Rows3, Send, Trash2, X } from "lucide-react";
 import { createPost, createRichPost, deletePost, setFollow, toggleFav, toggleRepost } from "@/app/feed/actions";
@@ -118,20 +119,34 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
         </div>
       )}
 
-      <Link href={`/p/${p.id}`} className="block">
-        {p.body ? (
-          <p className={`whitespace-pre-line leading-relaxed ${big ? "text-lg md:text-xl" : ""}`}>
-            {p.voice && <Mic size={14} className="mr-2 inline align-[-2px] text-lime" aria-label={t("Vocal")} />}
-            {p.body}
-          </p>
-        ) : (
-          p.voice && (
+      {p.body ? (
+        // The text opens the post (its date stays the keyboard link), its hashtags open their feed
+        <p
+          onClick={(e) => {
+            if (!(e.target as HTMLElement).closest("a") && !window.getSelection()?.toString()) router.push(`/p/${p.id}`);
+          }}
+          className={`cursor-pointer whitespace-pre-line break-words leading-relaxed ${big ? "text-lg md:text-xl" : ""}`}
+        >
+          {p.voice && <Mic size={14} className="mr-2 inline align-[-2px] text-lime" aria-label={t("Vocal")} />}
+          {splitTags(p.body).map((x, i) =>
+            "tag" in x ? (
+              <Link key={i} href={`/feed?tag=${encodeURIComponent(x.tag)}`} className="text-lime hover:underline">
+                {x.raw}
+              </Link>
+            ) : (
+              <Fragment key={i}>{x.text}</Fragment>
+            ),
+          )}
+        </p>
+      ) : (
+        p.voice && (
+          <Link href={`/p/${p.id}`} className="block">
             <p className="flex items-center gap-2 font-mono text-xs text-dim">
               <Mic size={14} className="text-lime" /> {t("Vocal")}
             </p>
-          )
-        )}
-      </Link>
+          </Link>
+        )
+      )}
 
       <PostMediaView media={p.media} />
       {p.kind === "clip" && p.clip && (
@@ -247,6 +262,8 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
   const [tier, setTier] = useState(emptyTier);
   const [poll, setPoll] = useState<PollDraft>(emptyPoll);
   const [body, setBody] = useState("");
+  const [caret, setCaret] = useState(0);
+  const [tagHints, setTagHints] = useState<string[]>([]);
   const [title, setTitle] = useState<PosterData | null>(null);
   const [picking, setPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -262,6 +279,34 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
 
   // Every new post is about a film or a series: no title yet, ask for one first
   const needsTitle = !parentId && ((mode === "text" && !title && !media.some((m) => m.type === "frame")) || (mode === "poll" && !poll.ref && !poll.frameId));
+  // Hashtag being typed: suggest the ones already in use
+  const typingTag = tagAtCaret(body, caret);
+  useEffect(() => {
+    if (!typingTag) return setTagHints([]);
+    let stale = false;
+    const h = setTimeout(async () => {
+      const r = (await fetch(`/api/tags?q=${encodeURIComponent(typingTag)}`).then((x) => x.json()).catch(() => ({ tags: [] }))) as { tags: string[] };
+      if (!stale) setTagHints(r.tags ?? []);
+    }, 200);
+    return () => {
+      stale = true;
+      clearTimeout(h);
+    };
+  }, [typingTag]);
+  const completeTag = (tag: string) => {
+    if (typingTag === null) return;
+    const start0 = caret - typingTag.length;
+    const next = `${body.slice(0, start0)}${tag} ${body.slice(caret)}`;
+    setBody(next);
+    setTagHints([]);
+    requestAnimationFrame(() => {
+      const at = start0 + tag.length + 1;
+      area.current?.focus();
+      area.current?.setSelectionRange(at, at);
+      setCaret(at);
+    });
+  };
+
   const send = () =>
     start(async () => {
       setError(null);
@@ -322,12 +367,25 @@ export function Composer({ parentId, placeholder, canCapture = false }: { parent
       <textarea
         ref={area}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => {
+          setBody(e.target.value);
+          setCaret(e.target.selectionStart ?? e.target.value.length);
+        }}
+        onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
         maxLength={1000}
         rows={2}
         placeholder={mode === "text" ? (placeholder ?? t("Un film, une série : ton avis, ta théorie, ta reco")) : t("Un mot pour accompagner (facultatif)")}
         className="w-full resize-none bg-transparent text-lg outline-none placeholder:text-bone/30"
       />
+      {tagHints.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5" aria-label={t("Hashtags déjà utilisés")}>
+          {tagHints.map((x) => (
+            <button key={x} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => completeTag(x)} className="border border-line px-2 py-0.5 text-sm text-lime transition-colors hover:border-lime">
+              #{x}
+            </button>
+          ))}
+        </div>
+      )}
       {!parentId && (
         <MentionHint
           text={body}
