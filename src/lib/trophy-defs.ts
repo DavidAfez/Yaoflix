@@ -20,6 +20,7 @@ export type TrophyStats = {
   watchlist: number;
   watchlistSeen: number;
   nightWatches: number;
+  activeDays: number;
   catalogue: number;
   seenAll: number;
 };
@@ -62,12 +63,29 @@ export const TROPHIES: TrophyDef[] = [
   { id: "watchlist-done", tier: "medium", name: "Liste bouclée", hint: "Tout voir dans sa liste (5 titres au moins)", icon: "check", progress: (s) => [s.watchlistSeen, Math.max(5, s.watchlist)] },
   { id: "posts-20", tier: "medium", name: "Bavard", hint: "20 posts", icon: "messages", progress: (s) => [s.posts, 20] },
   { id: "night-owl", tier: "medium", name: "Oiseau de nuit", hint: "Lancer un film entre minuit et 5 h", icon: "moon", progress: (s) => [s.nightWatches, 1] },
+  { id: "tv-10", tier: "medium", name: "Accro aux séries", hint: "10 séries vues", icon: "tv", progress: (s) => [s.seen.tv, 10] },
+  { id: "albums-10", tier: "medium", name: "Mélomane", hint: "10 albums écoutés", icon: "headphones", progress: (s) => [s.seen.album, 10] },
+  { id: "books-10", tier: "medium", name: "Rat de bibliothèque", hint: "10 livres lus", icon: "library", progress: (s) => [s.seen.book, 10] },
+  { id: "ratings-20", tier: "medium", name: "Exigeant", hint: "20 titres notés", icon: "star", progress: (s) => [s.ratings, 20] },
+  { id: "voice-5", tier: "medium", name: "De vive voix", hint: "5 avis vocaux", icon: "mic", progress: (s) => [s.voice, 5] },
+  { id: "requests-5", tier: "medium", name: "Chercheur", hint: "5 titres demandés", icon: "send", progress: (s) => [s.requests, 5] },
+  { id: "likes-10", tier: "medium", name: "Remarqué", hint: "10 cœurs reçus sur ses posts", icon: "heart", progress: (s) => [s.likesReceived, 10] },
+  { id: "days-7", tier: "medium", name: "Habitué des lieux", hint: "Venir 7 jours différents", icon: "calendar", progress: (s) => [s.activeDays, 7] },
 
   // Hard
   { id: "screens-100", tier: "hard", name: "Centurion", hint: "100 films ou séries vus", icon: "medal", progress: (s) => [screens(s), 100] },
   { id: "decades-6", tier: "hard", name: "Voyageur du temps", hint: "Des films de 6 décennies différentes", icon: "hourglass", progress: (s) => [s.decades, 6] },
   { id: "ratings-50", tier: "hard", name: "Critique", hint: "50 titres notés", icon: "stars", progress: (s) => [s.ratings, 50] },
   { id: "likes-100", tier: "hard", name: "Populaire", hint: "100 cœurs reçus sur ses posts", icon: "flame", progress: (s) => [s.likesReceived, 100] },
+
+  { id: "tv-50", tier: "hard", name: "Marathonien", hint: "50 séries vues", icon: "tv", progress: (s) => [s.seen.tv, 50] },
+  { id: "albums-50", tier: "hard", name: "Discothèque", hint: "50 albums écoutés", icon: "disc", progress: (s) => [s.seen.album, 50] },
+  { id: "books-50", tier: "hard", name: "Bibliothèque vivante", hint: "50 livres lus", icon: "library", progress: (s) => [s.seen.book, 50] },
+  { id: "voice-25", tier: "hard", name: "Conteur", hint: "25 avis vocaux", icon: "mic", progress: (s) => [s.voice, 25] },
+  { id: "posts-100", tier: "hard", name: "Plume", hint: "100 posts", icon: "pen", progress: (s) => [s.posts, 100] },
+  { id: "night-10", tier: "hard", name: "Insomniaque", hint: "10 films lancés entre minuit et 5 h", icon: "moon", progress: (s) => [s.nightWatches, 10] },
+  { id: "watchlist-20", tier: "hard", name: "Liste interminable", hint: "Tout voir dans sa liste (20 titres au moins)", icon: "list", progress: (s) => [s.watchlistSeen, Math.max(20, s.watchlist)] },
+  { id: "days-50", tier: "hard", name: "Pilier", hint: "Venir 50 jours différents", icon: "calendar", progress: (s) => [s.activeDays, 50] },
 
   // Brutal
   { id: "screens-500", tier: "brutal", name: "Le gaaazz du ciné", hint: "500 films ou séries vus", icon: "crown", progress: (s) => [screens(s), 500] },

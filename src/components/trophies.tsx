@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   BookOpen, Check, Clapperboard, Crown, Disc3, Eye, Film, Flame, Ghost, Globe, Heart, Hourglass, Infinity as InfinityIcon, Landmark, Laugh,
-  Lock, Medal, MessageCircle, MessagesSquare, Mic, Moon, Palette, Rocket, Send, Shapes, Shuffle, Sparkles, Star, Tv, X,
+  CalendarCheck, Headphones, Library, ListChecks, PenLine, Lock, Medal, MessageCircle, MessagesSquare, Mic, Moon, Palette, Rocket, Send, Shapes, Shuffle, Sparkles, Star, Tv, X,
 } from "lucide-react";
 import { TIERS, tierLabel, trophyById, type Tier } from "@/lib/trophy-defs";
 import type { TrophyView } from "@/lib/trophies";
@@ -17,7 +17,7 @@ const ICONS: Record<string, typeof Film> = {
   film: Film, tv: Tv, disc: Disc3, book: BookOpen, message: MessageCircle, star: Star, mic: Mic, send: Send, ghost: Ghost, laugh: Laugh,
   palette: Palette, eye: Eye, heart: Heart, rocket: Rocket, shapes: Shapes, clapper: Clapperboard, shuffle: Shuffle, check: Check,
   messages: MessagesSquare, moon: Moon, medal: Medal, hourglass: Hourglass, stars: Sparkles, flame: Flame, crown: Crown, landmark: Landmark,
-  globe: Globe, infinity: InfinityIcon,
+  globe: Globe, infinity: InfinityIcon, headphones: Headphones, library: Library, calendar: CalendarCheck, pen: PenLine, list: ListChecks,
 };
 
 /** Bronze, silver, gold, ice, then the site's accent for the one nobody gets. */

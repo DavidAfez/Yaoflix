@@ -84,7 +84,7 @@ En production : mettre l'app derrière Cloudflare (ou nginx + GeoIP2) pour le pa
 - **Feed** : posts rattachés à un titre (top 5, tier list, sondage, GIF, images, note vocale), hashtags, posts programmés, signalements.
 - **Chat** chiffré de bout en bout (P-256, clés propres à chaque appareil, aucun mot de passe).
 - **Fiches** : casting et équipe étendus, anecdotes et musiques ajoutées par les membres.
-- **Trophées** : 27 trophées en cinq niveaux (facile, moyen, dur, très dur, et un impossible), calculés à partir de ce que le membre fait déjà. Onglet Trophées du profil, vitrine sur le profil public, célébration quand un trophée tombe.
+- **Trophées** : 44 trophées en cinq niveaux (facile, moyen, dur, très dur, et un impossible), calculés à partir de ce que le membre fait déjà. Onglet Trophées du profil, vitrine sur le profil public, célébration quand un trophée tombe.
 - **Accueil** : retour après absence (ce qui s'est passé après 5 jours sans venir), choix du jour, trophée à portée.
 
 ## Mesurer l'engagement

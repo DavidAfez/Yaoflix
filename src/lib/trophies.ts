@@ -10,7 +10,7 @@ export async function trophyStats(userId: string): Promise<TrophyStats> {
   const { rows } = await db.execute<{
     movie: number; tv: number; album: number; book: number;
     genres: string[] | null; decades: number; ratings: number; voice: number; posts: number;
-    likes: number; requests: number; watchlist: number; watchlist_seen: number; night: number; catalogue: number;
+    likes: number; requests: number; watchlist: number; watchlist_seen: number; night: number; days: number; catalogue: number;
   }>(sql`
     with s as (select t.kind, t.genres, t.year from seen x join titles t on t.id = x.title_id where x.user_id = ${userId})
     select
@@ -28,6 +28,7 @@ export async function trophyStats(userId: string): Promise<TrophyStats> {
       (select count(*)::int from watchlist where user_id = ${userId}) as watchlist,
       (select count(*)::int from watchlist w join seen x on x.title_id = w.title_id and x.user_id = w.user_id where w.user_id = ${userId}) as watchlist_seen,
       (select count(*)::int from watch_sessions where user_id = ${userId} and extract(hour from started_at at time zone 'Europe/Paris') < 5) as night,
+      (select count(distinct (started_at at time zone 'Europe/Paris')::date)::int from platform_sessions where user_id = ${userId}) as days,
       (select count(*)::int from titles) as catalogue
   `);
   const r = rows[0];
@@ -43,6 +44,7 @@ export async function trophyStats(userId: string): Promise<TrophyStats> {
     watchlist: r.watchlist,
     watchlistSeen: r.watchlist_seen,
     nightWatches: r.night,
+    activeDays: r.days,
     catalogue: r.catalogue,
     seenAll: r.movie + r.tv + r.album + r.book,
   };

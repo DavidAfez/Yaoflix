@@ -5,7 +5,7 @@ import { en } from "@/lib/i18n/en";
 
 const base: TrophyStats = {
   seen: { movie: 0, tv: 0, album: 0, book: 0 }, genres: [], decades: 0, ratings: 0, voice: 0, posts: 0,
-  likesReceived: 0, requests: 0, watchlist: 0, watchlistSeen: 0, nightWatches: 0, catalogue: 1000, seenAll: 0,
+  likesReceived: 0, requests: 0, watchlist: 0, watchlistSeen: 0, nightWatches: 0, activeDays: 0, catalogue: 1000, seenAll: 0,
 };
 const ids = (s: TrophyStats) => TROPHIES.filter((t) => won(t, s)).map((t) => t.id);
 
