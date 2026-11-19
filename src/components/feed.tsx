@@ -93,7 +93,7 @@ export function PostCard({ p, i = 0, big = false }: { p: FeedPost; i?: number; b
         </p>
       )}
       <header className="mb-3 flex items-center gap-3">
-        <Link href={`/u/${p.handle}`} className="shrink-0">
+        <Link href={`/u/${p.handle}`} aria-label={`@${p.handle}`} className="shrink-0">
           <Avatar id={p.avatarId} handle={p.handle} size={36} />
         </Link>
         <div className="min-w-0 flex-1">

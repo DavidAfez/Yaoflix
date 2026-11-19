@@ -38,12 +38,13 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [user, locale] = await Promise.all([getUser(), getLocale()]);
+  const [marks, deep] = user?.approved ? await Promise.all([getMarks(user.id), deepState(user.id)]) : [null, null];
   return (
     <html lang={locale} className={`${display.variable} ${body.variable} ${label.variable}`}>
       <body className="min-h-dvh">
         <I18nProvider locale={locale}>
         {user?.approved ? (
-          <MarksProvider initial={await getMarks(user.id)} deep={await deepState(user.id)}>
+          <MarksProvider initial={marks!} deep={deep!}>
             <Nav role={user.role} handle={user.handle} />
             <div className="pb-20 pt-11 md:pb-0 md:pt-12">{children}</div>
           </MarksProvider>

@@ -1,5 +1,6 @@
 "use server";
 import { redirect } from "next/navigation";
+import { safeNext } from "@/lib/safe-next";
 import { headers } from "next/headers";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -21,11 +22,6 @@ const APP = () => process.env.APP_URL ?? "http://localhost:3000";
 async function throttle(scope: string, capacity: number, perSec: number) {
   const h = await headers();
   return rateLimit(`${scope}:${sha256(clientIp(h) ?? "unknown")}`, capacity, perSec);
-}
-
-/** Only paths of this site: "//x", "/\\x" and anything with a scheme or a control character are refused. */
-function safeNext(next: string) {
-  return /^\/(?![\/\\])[^\\\s]*$/.test(next) && !/[\x00-\x1f]/.test(next) ? next : "/";
 }
 
 async function issueToken(userId: string, kind: "verify" | "reset", ttlMin: number) {

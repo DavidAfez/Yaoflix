@@ -26,6 +26,19 @@ npm run dev                     # app
 npm run worker                  # encodage, mails, WhatsApp (autre terminal)
 ```
 
+Au quotidien : `npm run maj` (récupère le code, installe, migre) puis `npm run go` (site + worker).
+
+## Vérifier avant de pousser
+
+```bash
+npm run check                   # types, lint et tests unitaires (une trentaine de secondes)
+npx next build                  # le build de prod
+```
+
+- **Tests** (`tests/`, runner intégré de Node) : chiffrement E2E du chat (scellé, appareils approuvés, historique re-chiffré), chiffrement des emails et index aveugle, redirections après connexion, IP de confiance, rôles, limiteur, hashtags, et une vérification que chaque texte de l'interface a sa version anglaise.
+- **CI** : `.github/workflows/check.yml` relance tout ça à chaque push, avec une base Postgres jetable et le build.
+- **Santé** : `GET /api/health` répond `{"ok":true}` quand l'app et la base répondent (503 sinon), pour un moniteur de disponibilité.
+
 `ffmpeg` et `ffprobe` doivent être installés sur la machine du worker. Sans `SMTP_URL`, les mails s'affichent dans la console du worker, adresse masquée.
 
 ## Rôles
@@ -63,6 +76,15 @@ En production : mettre l'app derrière Cloudflare (ou nginx + GeoIP2) pour le pa
 - La qualité demandée sert de plafond par défaut, et la piste audio et les sous-titres demandés sont présélectionnés. Reprise là où on s'était arrêté.
 - Mobile : double-tap à gauche ou à droite pour ±10 s, plein écran avec verrouillage paysage, PiP.
 
+## Ce que fait le site
+
+- **Catalogue** : films et séries (TMDB), albums (Deezer), livres (Open Library), avec une recherche globale filtrée par type. Un titre absent se demande en touchant la bonne affiche parmi des suggestions.
+- **Demandes et upload** : le staff uploade ou refuse avec une raison. Upload volontaire possible, avec annonce au choix (personne, notification, notification + mail).
+- **Créateurs** : un membre peut demander un profil créateur à l'inscription et publier ses projets, validés par le staff.
+- **Feed** : posts rattachés à un titre (top 5, tier list, sondage, GIF, images, note vocale), hashtags, posts programmés, signalements.
+- **Chat** chiffré de bout en bout (P-256, clés propres à chaque appareil, aucun mot de passe).
+- **Fiches** : casting et équipe étendus, anecdotes et musiques ajoutées par les membres.
+
 ## Données récoltées (Insights)
 
 - **Préférences** par tranche d'âge × genre de film, par sexe, et par récence du titre (moins d'un an, 1 à 5 ans, 5 à 15 ans, classiques). Calculées sur les demandes et les lectures, avec un instantané démographique pris à chaque événement.
@@ -76,4 +98,4 @@ En production : mettre l'app derrière Cloudflare (ou nginx + GeoIP2) pour le pa
 1. Créer une app Meta avec le produit WhatsApp, puis renseigner `WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`, `WA_APP_SECRET` et `WA_VERIFY_TOKEN`.
 2. Webhook : `https://<domaine>/api/whatsapp`, abonnement `messages`.
 3. Les messages à l'initiative de l'entreprise exigent un template approuvé : `WA_TEMPLATE_READY` (paramètres titre, lien) et `WA_TEMPLATE_FEEDBACK` (paramètre titre). Sans template, le texte n'est remis que dans la fenêtre de 24 h.
-4. Le membre ajoute son numéro dans Moi → Réglages.
+4. Le membre ajoute son numéro dans Profil → Réglages.

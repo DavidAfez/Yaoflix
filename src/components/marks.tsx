@@ -242,9 +242,11 @@ function ReviewSheet({
   const chunks = useRef<Blob[]>([]);
   const blob = useRef<Blob | null>(null);
   const timer = useRef<ReturnType<typeof setInterval>>(undefined);
-  const url = useRef<string | null>(null);
+  const [audio, setAudio] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
+  // The previous take is freed when a new one replaces it, and when the sheet goes away
+  useEffect(() => () => void (audio && URL.revokeObjectURL(audio)), [audio]);
   useEffect(() => {
     if (!target) return;
     setText("");
@@ -252,6 +254,7 @@ function ReviewSheet({
     setSec(0);
     setError(null);
     blob.current = null;
+    setAudio(null);
   }, [target]);
 
   const stopStream = () => {
@@ -268,8 +271,7 @@ function ReviewSheet({
       r.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
       r.onstop = () => {
         blob.current = new Blob(chunks.current, { type: r.mimeType || mime || "audio/webm" });
-        if (url.current) URL.revokeObjectURL(url.current);
-        url.current = URL.createObjectURL(blob.current);
+        setAudio(URL.createObjectURL(blob.current));
         stopStream();
         setPhase("ready");
       };
@@ -355,7 +357,7 @@ function ReviewSheet({
                   )}
                   <div className="min-w-0 flex-1">
                     {phase === "rec" && <span className="font-mono tabular-nums text-coral">● {Math.floor(sec / 60)}:{String(Math.floor(sec % 60)).padStart(2, "0")}</span>}
-                    {phase === "ready" && url.current && <audio src={url.current} controls className="h-10 w-full" />}
+                    {phase === "ready" && audio && <audio src={audio} controls className="h-10 w-full" />}
                   </div>
                 </div>
 
@@ -379,7 +381,7 @@ function ReviewSheet({
                 )}
                 <button
                   onClick={send}
-                  disabled={phase === "rec" || phase === "sending" || (!blob.current && !text.trim())}
+                  disabled={phase === "rec" || phase === "sending" || (!audio && !text.trim())}
                   className="notch flex h-12 w-full items-center justify-center bg-lime font-semibold text-ink disabled:opacity-40"
                 >
                   {phase === "sending" ? <Dots /> : t("Envoyer")}

@@ -160,11 +160,19 @@ export function ImageTool({ onAdd, disabled }: { onAdd: (m: PostMedia) => void; 
 export function ScheduleTool({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const min = new Date(Date.now() + 5 * 60_000);
+  const [now, setNow] = useState(() => Date.now());
+  const min = new Date(now + 5 * 60_000);
   const local = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
   return (
     <div className="relative">
-      <ToolBtn label={t("Programmer")} on={open || Boolean(value)} onClick={() => setOpen(!open)}>
+      <ToolBtn
+        label={t("Programmer")}
+        on={open || Boolean(value)}
+        onClick={() => {
+          setNow(Date.now());
+          setOpen(!open);
+        }}
+      >
         <CalendarClock size={18} />
       </ToolBtn>
       <Pop open={open} onClose={() => setOpen(false)} className="w-64 space-y-2">
@@ -172,7 +180,7 @@ export function ScheduleTool({ value, onChange }: { value: string | null; onChan
         <input
           type="datetime-local"
           min={local(min)}
-          max={local(new Date(Date.now() + 30 * 86400_000))}
+          max={local(new Date(now + 30 * 86400_000))}
           value={value ? local(new Date(value)) : ""}
           onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : null)}
           className="h-10 w-full border border-line bg-transparent px-2 text-sm outline-none [color-scheme:dark] focus:border-lime"

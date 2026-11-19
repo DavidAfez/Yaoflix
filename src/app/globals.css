@@ -21,10 +21,19 @@
 
   --animate-marquee: marquee 60s linear infinite;
   --animate-drift: drift 18s ease-in-out infinite alternate;
+  --animate-sheen: sheen 1.4s ease-in-out infinite;
 
   @keyframes marquee {
     to {
       transform: translateX(-50%);
+    }
+  }
+  @keyframes sheen {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
     }
   }
   @keyframes drift {
@@ -140,4 +149,23 @@ input::-ms-clear {
 .font-mono {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+
+/* Placeholder blocks while a page loads: a light sweeps across, still when motion is reduced */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-ink-2);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(243 240 232 / 0.05), transparent);
+  animation: var(--animate-sheen);
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
 }

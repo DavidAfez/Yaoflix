@@ -7,9 +7,9 @@ import { mailRoute, sendMail } from "@/lib/notify/mailer";
 import { sendWhatsApp, whatsappEnabled } from "@/lib/notify/whatsapp";
 import { backfillThumbnails, transcode } from "./transcode";
 import { renderClip } from "./clip";
-import { useNetwork } from "@/lib/net";
+import { setupNetwork } from "@/lib/net";
 
-const proxy = await useNetwork();
+const proxy = await setupNetwork();
 if (proxy) console.log(`[net] sortie par ${proxy}`);
 import { transcribe } from "./transcribe";
 

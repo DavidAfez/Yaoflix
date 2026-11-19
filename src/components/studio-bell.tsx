@@ -75,6 +75,7 @@ export function NotificationBell({ n, className = "", align = "right" }: { n: Re
   const t = useT();
   const locale = useLocale();
   const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -83,7 +84,7 @@ export function NotificationBell({ n, className = "", align = "right" }: { n: Re
     return () => document.removeEventListener("pointerdown", close);
   }, [open]);
   const ago = (iso: string) => {
-    const m = (Date.now() - new Date(iso).getTime()) / 60_000;
+    const m = (now - new Date(iso).getTime()) / 60_000;
     if (m < 60) return `${Math.max(1, Math.floor(m))} min`;
     if (m < 1440) return `${Math.floor(m / 60)} h`;
     return new Date(iso).toLocaleDateString(locale === "en" ? "en-GB" : "fr-FR", { day: "2-digit", month: "short" });
@@ -93,6 +94,7 @@ export function NotificationBell({ n, className = "", align = "right" }: { n: Re
     <div ref={ref} className={`relative ${className}`}>
       <button
         onClick={() => {
+          setNow(Date.now());
           setOpen(!open);
           if (!open) setTimeout(n.markRead, 1200);
         }}

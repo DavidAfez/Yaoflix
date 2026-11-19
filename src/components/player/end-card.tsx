@@ -27,7 +27,7 @@ export function EndCard({ titleId, title, onReplay, onClose }: { titleId: number
   const rec = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const blob = useRef<Blob | null>(null);
-  const url = useRef<string | null>(null);
+  const [audio, setAudio] = useState<string | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const raf = useRef<number>(0);
   const started = useRef(0);
@@ -37,10 +37,8 @@ export function EndCard({ titleId, title, onReplay, onClose }: { titleId: number
     stream.current?.getTracks().forEach((t) => t.stop());
     stream.current = null;
   };
-  useEffect(() => () => {
-    cleanup();
-    if (url.current) URL.revokeObjectURL(url.current);
-  }, []);
+  useEffect(() => () => cleanup(), []);
+  useEffect(() => () => void (audio && URL.revokeObjectURL(audio)), [audio]);
 
   const start = async () => {
     try {
@@ -52,13 +50,13 @@ export function EndCard({ titleId, title, onReplay, onClose }: { titleId: number
       r.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
       r.onstop = () => {
         blob.current = new Blob(chunks.current, { type: r.mimeType || mime || "audio/webm" });
-        if (url.current) URL.revokeObjectURL(url.current);
-        url.current = URL.createObjectURL(blob.current);
+        setAudio(URL.createObjectURL(blob.current));
         cleanup();
         setPhase("review");
       };
       r.start(250);
       rec.current = r;
+      // eslint-disable-next-line react-hooks/purity -- runs in the click handler, not during render
       started.current = Date.now();
       setPhase("rec");
 
@@ -153,7 +151,7 @@ export function EndCard({ titleId, title, onReplay, onClose }: { titleId: number
           )}
           {(phase === "review" || phase === "sending") && (
             <motion.div key="review" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-5">
-              {url.current && <audio src={url.current} controls className="w-72" />}
+              {audio && <audio src={audio} controls className="w-72" />}
               <div className="flex gap-3">
                 <button onClick={() => setPhase("idle")} aria-label={t("Refaire")} className="grid size-14 place-items-center border border-line hover:border-bone/40">
                   <RotateCcw size={20} />

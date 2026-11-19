@@ -26,7 +26,7 @@ export function useChatDevice({ create = true }: { create?: boolean } = {}) {
   const [state, setState] = useState<DeviceState>({ status: "loading" });
   const alive = useRef(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async function run(): Promise<void> {
     const { userId, devices } = await list();
     let me = await loadMe(userId);
     const mineOnServer = me ? devices.find((d) => d.id === me!.id) : undefined;
@@ -41,7 +41,7 @@ export function useChatDevice({ create = true }: { create?: boolean } = {}) {
       const made = await createDevice(userId);
       const { approved } = await register(made.me, made.pub);
       if (!approved) return setState({ status: "pending", userId, me: made.me, code: await shortCode(made.pub) });
-      return load();
+      return run();
     }
     if (!mineOnServer!.approved) return setState({ status: "pending", userId, me, code: await shortCode(mineOnServer!) });
     const { root, devices: ok } = await trusted(userId, devices);

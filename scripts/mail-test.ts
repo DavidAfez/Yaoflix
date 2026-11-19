@@ -6,7 +6,7 @@
 import { lookup } from "node:dns/promises";
 import { connect } from "node:net";
 import { mailRoute, sendMail } from "@/lib/notify/mailer";
-import { pacProxy, useNetwork, windowsProxy } from "@/lib/net";
+import { pacProxy, setupNetwork, windowsProxy } from "@/lib/net";
 
 const to = process.argv[2];
 if (!to?.includes("@")) {
@@ -26,7 +26,7 @@ const port = (host: string, p: number) =>
 
 const envProxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY || "";
 const sys = windowsProxy();
-const proxy = await useNetwork();
+const proxy = await setupNetwork();
 const smtpHost = (() => {
   try {
     return process.env.SMTP_URL ? new URL(process.env.SMTP_URL).hostname : "smtp.gmail.com";

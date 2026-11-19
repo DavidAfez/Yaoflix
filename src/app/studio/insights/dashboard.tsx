@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { animate, motion, useInView } from "motion/react";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Insights } from "@/lib/insights";
@@ -49,7 +49,6 @@ function Panel({ title, children, className = "", i = 0 }: { title: string; chil
 }
 
 function Tip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
-  const t = useT();
   if (!active || !payload?.length) return null;
   return (
     <div className="border-l-2 border-lime bg-ink-3 px-3 py-2 text-xs shadow-xl">

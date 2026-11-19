@@ -55,6 +55,7 @@ export function ClipSheet({
   const preview = () => {
     const el = video.current;
     if (!el) return;
+    // eslint-disable-next-line react-hooks/immutability -- seeking the <video> is the point of the preview
     el.currentTime = start;
     stopAt.current = start + len;
     void el.play().catch(() => {});
@@ -115,6 +116,7 @@ export function ClipSheet({
             {l} s
           </button>
         ))}
+        {/* eslint-disable-next-line react-hooks/immutability -- seeking the <video> is the point of the preview */}
         <button onClick={preview} className="ml-auto flex h-9 items-center gap-2 border border-line px-3 text-sm hover:border-lime hover:text-lime">
           <Play size={14} fill="currentColor" /> {t("Aperçu")}
         </button>

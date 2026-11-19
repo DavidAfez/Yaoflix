@@ -306,6 +306,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
   useEffect(() => {
     const tracks = video.current?.textTracks;
     if (!tracks) return;
+    // eslint-disable-next-line react-hooks/immutability -- text tracks are DOM state, set on purpose
     for (let i = 0; i < tracks.length; i++) tracks[i].mode = i === sub ? "showing" : "disabled";
   }, [sub]);
 

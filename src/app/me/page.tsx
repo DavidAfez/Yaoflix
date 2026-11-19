@@ -159,6 +159,7 @@ export default async function Page() {
             name: L(w.title).name,
             backdrop: img(w.title.backdropPath, "w780"),
             progress: w.dur ? Math.min(1, w.pos / w.dur) : 0,
+            // eslint-disable-next-line react-hooks/purity -- server component, rendered once per request
             daysLeft: Math.max(0, Math.ceil((w.exp.getTime() - Date.now()) / 86400_000)),
           })),
           taste,

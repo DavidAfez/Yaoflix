@@ -66,7 +66,8 @@ export function TitlePanel({ path, title, state }: Props) {
   const bgO = useTransform(scrollYProgress, [0, 1], [1, 0.2]);
 
   // Brand new titles rarely have a source yet: say it before the member asks
-  const age = title.release ? (Date.now() - new Date(title.release).getTime()) / 86400_000 : null;
+  const [now] = useState(() => Date.now());
+  const age = title.release ? (now - new Date(title.release).getTime()) / 86400_000 : null;
   const fresh = !state.ready && !state.grant && age !== null && age < 31;
   const freshNote = fresh ? t(age! < 0 ? "Pas encore sorti." : "Sorti il y a moins d'un mois : peut-être pas encore dispo.") : null;
 

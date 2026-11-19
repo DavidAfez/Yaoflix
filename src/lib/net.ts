@@ -29,7 +29,7 @@ export function windowsProxy(): SystemProxy {
  * Node's fetch ignores the proxy settings that browsers use. HTTPS_PROXY in .env wins; without it,
  * the proxy set in Windows is picked up. TMDB, mails and transcription then go out through it.
  */
-export function useEnvProxy(): string | null {
+export function applyEnvProxy(): string | null {
   if (done) return null;
   done = true;
   let proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
@@ -63,10 +63,10 @@ export async function pacProxy(url: string): Promise<string | null> {
 let started: Promise<string | null> | null = null;
 
 /**
- * Same as useEnvProxy, and when nothing is set: the Windows proxy, then its automatic
+ * Same as applyEnvProxy, and when nothing is set: the Windows proxy, then its automatic
  * configuration script, then the network's own (WPAD). Call once at start, before any request.
  */
-export function useNetwork(): Promise<string | null> {
+export function setupNetwork(): Promise<string | null> {
   started ??= (async () => {
     const env = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
     if (!env && process.platform === "win32") {
@@ -74,7 +74,7 @@ export function useNetwork(): Promise<string | null> {
       const found = sys.server ?? (sys.pac ? await pacProxy(sys.pac) : null) ?? (await pacProxy("http://wpad/wpad.dat"));
       if (found) process.env.HTTPS_PROXY = found;
     }
-    return useEnvProxy();
+    return applyEnvProxy();
   })();
   return started;
 }

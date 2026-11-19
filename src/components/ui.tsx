@@ -131,7 +131,6 @@ export function Choice<T extends string>({
 }
 
 export function FormError({ message }: { message?: string | null }) {
-  const t = useT();
   if (!message) return null;
   return (
     <motion.p initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: [0, -4, 4, 0] }} className="text-sm text-coral">

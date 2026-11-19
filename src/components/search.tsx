@@ -277,8 +277,6 @@ function People({ people, q }: { people: Person[]; q: string }) {
   );
 }
 
-const typing = () => ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName ?? "");
-
 /** Full-screen search reachable from every page through the nav, "/" or Ctrl+K. */
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
