@@ -1,8 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import type Hls from "hls.js";
-import type { ErrorData } from "hls.js";
 import { ArrowLeft, Maximize, Minimize, Pause, Play, PictureInPicture2, RotateCcw, RotateCw, Volume2, VolumeX, Volume1, Settings2, Captions, Scissors, Camera, Check, Cast, Airplay, Palette, Square } from "lucide-react";
 import { ClipSheet } from "./clip-sheet";
 import { PaletteSheet } from "./palette";
@@ -13,6 +11,9 @@ import { useTelemetry } from "./telemetry";
 import { EndCard } from "./end-card";
 import type { RequestPrefs, Track } from "@/db/schema";
 import { useT } from "../i18n";
+import { useHlsEngine } from "./use-hls";
+import { CtrlBtn, Preview, Watermark, fmt, type Thumbs } from "./controls";
+import { PlayerMenu } from "./menu";
 
 type Props = {
   grantId: string;
@@ -30,27 +31,10 @@ type Props = {
   poster: string | null;
 };
 
-type Thumbs = { every: number; w: number; h: number; grid: number; count: number };
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
-
-type Level = { index: number; height: number };
-type AudioOpt = { index: number; label: string; lang: string };
-
-const fmt = (s: number) => {
-  if (!Number.isFinite(s)) return "0:00";
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = Math.floor(s % 60);
-  return h ? `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}` : `${m}:${String(sec).padStart(2, "0")}`;
-};
-
-const qLabel = (h: number) => (h >= 2000 ? "4K" : `${h}p`);
-
 export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, prefs, subtitles, canCapture = false, kind, tmdbId, handle, poster }: Props) {
   const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<Hls | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastTap = useRef<{ t: number; x: number }>({ t: 0, x: 0 });
 
@@ -71,14 +55,9 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
   const [clipping, setClipping] = useState(false);
   const [painting, setPainting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [levels, setLevels] = useState<Level[]>([]);
   const [level, setLevel] = useState(-1);
-  const [autoHeight, setAutoHeight] = useState<number | null>(null);
-  const [audios, setAudios] = useState<AudioOpt[]>([]);
-  const [audio, setAudio] = useState(0);
   const [sub, setSub] = useState(-1);
   const [ripple, setRipple] = useState<null | { side: "l" | "r"; k: number }>(null);
-  const [fatal, setFatal] = useState(false);
   const [ended, setEnded] = useState(false);
   const counted = useRef(false);
 
@@ -98,118 +77,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
     }, 2800);
   }, []);
 
-  // ---- Engine -------------------------------------------------------------
-  useEffect(() => {
-    const v = video.current!;
-    let destroyed = false;
-    let netRetries = 0;
-    let mediaRecoveries = 0;
-    let lastMediaRecovery = 0;
-
-    const startAt = resumeAt > 30 ? resumeAt : 0;
-
-    async function boot(position: number) {
-      const { default: HlsCtor } = await import("hls.js");
-      if (destroyed) return;
-
-      if (!HlsCtor.isSupported()) {
-        // iOS Safari before Managed Media Source: native HLS is the most reliable path.
-        // The signed URL needs no cookie, so AirPlay can hand it to the TV as is.
-        const url = await signed(grantId).then((u) => new URL(u).pathname, () => src);
-        if (destroyed) return;
-        v.src = url;
-        v.addEventListener("loadedmetadata", () => position && (v.currentTime = position), { once: true });
-        return;
-      }
-
-      const hls = new HlsCtor({
-        enableWorker: true,
-        startLevel: -1,
-        capLevelToPlayerSize: true,
-        maxBufferLength: 40,
-        maxMaxBufferLength: 120,
-        backBufferLength: 30,
-        maxBufferHole: 0.5,
-        nudgeMaxRetry: 8,
-        abrEwmaDefaultEstimate: 2_000_000,
-        abrBandWidthUpFactor: 0.6,
-        startFragPrefetch: true,
-        startPosition: position || -1,
-        fragLoadPolicy: {
-          default: {
-            maxTimeToFirstByteMs: 10_000,
-            maxLoadTimeMs: 60_000,
-            timeoutRetry: { maxNumRetry: 4, retryDelayMs: 0, maxRetryDelayMs: 0 },
-            errorRetry: { maxNumRetry: 6, retryDelayMs: 1000, maxRetryDelayMs: 8000, backoff: "exponential" },
-          },
-        },
-      });
-      hlsRef.current = hls;
-      hls.attachMedia(v);
-      hls.loadSource(src);
-
-      hls.on(HlsCtor.Events.MANIFEST_PARSED, (_, data) => {
-        const lv = data.levels.map((l, index) => ({ index, height: l.height })).sort((a, b) => b.height - a.height);
-        setLevels(lv);
-        // The quality asked at request time becomes the ceiling, the user can still switch
-        if (prefs && prefs.quality !== "auto") {
-          const cap = Number(prefs.quality);
-          const allowed = data.levels.map((l, i) => ({ i, h: l.height })).filter((l) => l.h <= cap + 16);
-          if (allowed.length) hls.autoLevelCapping = allowed.sort((a, b) => b.h - a.h)[0].i;
-        }
-      });
-      hls.on(HlsCtor.Events.LEVEL_SWITCHED, (_, d) => setAutoHeight(hls.levels[d.level]?.height ?? null));
-      hls.on(HlsCtor.Events.AUDIO_TRACKS_UPDATED, (_, d) => {
-        const opts = d.audioTracks.map((t, index) => ({ index, label: t.name || t.lang || `Piste ${index + 1}`, lang: t.lang ?? "" }));
-        setAudios(opts);
-        if (prefs?.audio === "vf") {
-          const fr = opts.find((o) => /^(fr|fre|fra)/i.test(o.lang) || o.label === "VF");
-          if (fr) hls.audioTrack = fr.index;
-        } else if (prefs?.audio === "vo") {
-          const vo = opts.find((o) => !/^(fr|fre|fra)/i.test(o.lang) && o.label !== "VF");
-          if (vo) hls.audioTrack = vo.index;
-        }
-        setAudio(hls.audioTrack);
-      });
-      hls.on(HlsCtor.Events.FRAG_LOADED, () => {
-        netRetries = 0;
-      });
-
-      hls.on(HlsCtor.Events.ERROR, (_, data: ErrorData) => {
-        if (!data.fatal) return;
-        report("player", `${data.type}:${data.details}`, { grant: grantId, level: hls.currentLevel, t: v.currentTime });
-        if (data.type === HlsCtor.ErrorTypes.NETWORK_ERROR && netRetries < 6) {
-          netRetries++;
-          setTimeout(() => hls.startLoad(v.currentTime), Math.min(8000, 500 * 2 ** netRetries));
-          return;
-        }
-        if (data.type === HlsCtor.ErrorTypes.MEDIA_ERROR && mediaRecoveries < 3) {
-          const now = Date.now();
-          if (now - lastMediaRecovery < 3000) hls.swapAudioCodec();
-          lastMediaRecovery = now;
-          mediaRecoveries++;
-          hls.recoverMediaError();
-          return;
-        }
-        // Last resort: rebuild the whole pipeline where we were
-        const at = v.currentTime;
-        hls.destroy();
-        hlsRef.current = null;
-        if (!destroyed && mediaRecoveries < 5) {
-          mediaRecoveries++;
-          void boot(at);
-        } else setFatal(true);
-      });
-    }
-
-    void boot(startAt);
-    return () => {
-      destroyed = true;
-      hlsRef.current?.destroy();
-      hlsRef.current = null;
-    };
-  }, [src, grantId, resumeAt, prefs, signed]);
-
+  const { hlsRef, levels, autoHeight, audios, audio, setAudio, fatal } = useHlsEngine({ video, src, grantId, resumeAt, prefs, signed });
   // Stall watchdog: if we sit in "waiting" with data around, nudge the playhead
   useEffect(() => {
     if (!waiting || !playing) return;
@@ -222,7 +90,7 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
       report("player", "stall-nudge", { grant: grantId, t: v.currentTime });
     }, 7000);
     return () => clearTimeout(t);
-  }, [waiting, playing, grantId]);
+  }, [waiting, playing, grantId, hlsRef]);
 
   // ---- Video events -------------------------------------------------------
   useEffect(() => {
@@ -661,53 +529,21 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
                   exit={{ opacity: 0, y: 16 }}
                   className="pointer-events-auto absolute bottom-24 right-4 w-56 border-l-2 border-lime bg-ink/95 py-2 backdrop-blur md:right-8"
                 >
-                  {menu === "quality" ? (
-                    <>
-                      <p className="px-4 pb-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-dim">{t("Vitesse")}</p>
-                      <div className="flex flex-wrap gap-1 px-3 pb-2">
-                        {SPEEDS.map((x) => (
-                          <button
-                            key={x}
-                            onClick={() => setSpeed(x)}
-                            className={`px-2 py-1 font-mono text-xs transition-colors ${speed === x ? "bg-lime text-ink" : "text-bone hover:bg-bone/10"}`}
-                          >
-                            {x}×
-                          </button>
-                        ))}
-                      </div>
-                      {levels.length > 1 && <p className="px-4 pb-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-dim">{t("Qualité")}</p>}
-                      {levels.length > 1 && <MenuItem on={level === -1} onClick={() => pickLevel(-1)}>
-                        Auto {level === -1 && autoHeight ? <span className="font-mono text-xs text-dim">{qLabel(autoHeight)}</span> : null}
-                      </MenuItem>}
-                      {levels.length > 1 && levels.map((l) => (
-                        <MenuItem key={l.index} on={level === l.index} onClick={() => pickLevel(l.index)}>
-                          {qLabel(l.height)}
-                        </MenuItem>
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      {audios.length > 1 &&
-                        audios.map((a) => (
-                          <MenuItem key={`a${a.index}`} on={audio === a.index} onClick={() => pickAudio(a.index)}>
-                            {a.label}
-                          </MenuItem>
-                        ))}
-                      {subtitles.length > 0 && (
-                        <>
-                          {audios.length > 1 && <div className="my-2 h-px bg-line" />}
-                          <MenuItem on={sub === -1} onClick={() => setSub(-1)}>
-                            {t("Sans ST")}
-                          </MenuItem>
-                          {subtitles.map((s, i) => (
-                            <MenuItem key={`s${i}`} on={sub === i} onClick={() => setSub(i)}>
-                              ST {s.label}
-                            </MenuItem>
-                          ))}
-                        </>
-                      )}
-                    </>
-                  )}
+                  <PlayerMenu
+                    menu={menu}
+                    speed={speed}
+                    onSpeed={setSpeed}
+                    levels={levels}
+                    level={level}
+                    autoHeight={autoHeight}
+                    onLevel={pickLevel}
+                    audios={audios}
+                    audio={audio}
+                    onAudio={pickAudio}
+                    subtitles={subtitles}
+                    sub={sub}
+                    onSub={setSub}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -758,68 +594,6 @@ export function Player({ grantId, grantKey, titleId, title, backdrop, resumeAt, 
               void video.current!.play();
             }}
           />}</AnimatePresence>
-    </div>
-  );
-}
-
-/** A faint @handle that drifts across the frame: a screen recording names who made it. */
-function Watermark({ handle }: { handle: string }) {
-  const [pos, setPos] = useState({ x: 12, y: 18 });
-  useEffect(() => {
-    const id = setInterval(() => setPos({ x: 6 + Math.random() * 70, y: 10 + Math.random() * 70 }), 45_000);
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <motion.span
-      aria-hidden
-      animate={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-      transition={{ duration: 6, ease: "easeInOut" }}
-      className="pointer-events-none absolute select-none font-mono text-[11px] tracking-widest text-bone/[0.12]"
-    >
-      @{handle}
-    </motion.span>
-  );
-}
-
-function CtrlBtn({ children, label, onClick, on, className = "" }: { children: React.ReactNode; label: string; onClick: () => void; on?: boolean; className?: string }) {
-  const t = useT();
-  label = t(label);
-  return (
-    <motion.button whileTap={{ scale: 0.85 }} onClick={onClick} aria-label={label} title={label} className={`grid size-11 place-items-center transition-colors ${on ? "text-lime" : "text-bone hover:text-lime"} ${className}`}>
-      {children}
-    </motion.button>
-  );
-}
-
-function MenuItem({ children, on, onClick }: { children: React.ReactNode; on: boolean; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition-colors hover:bg-bone/5 ${on ? "text-lime" : "text-bone"}`}>
-      {children}
-    </button>
-  );
-}
-
-/** Hover card above the seek bar: the frame at that moment (when previews exist) and the time. */
-function Preview({ ratio, duration, thumbs, grantId }: { ratio: number; duration: number; thumbs: Thumbs | null; grantId: string }) {
-  const at = ratio * duration;
-  const per = thumbs ? thumbs.grid * thumbs.grid : 1;
-  const n = thumbs ? Math.min(thumbs.count - 1, Math.floor(at / thumbs.every)) : 0;
-  const sheet = Math.floor(n / per) + 1;
-  const cell = n % per;
-  return (
-    <div className="pointer-events-none absolute bottom-7 -translate-x-1/2" style={{ left: `clamp(${thumbs ? thumbs.w / 2 : 30}px, ${ratio * 100}%, calc(100% - ${thumbs ? thumbs.w / 2 : 30}px))` }}>
-      {thumbs && (
-        <div
-          className="border border-bone/20 bg-black shadow-2xl"
-          style={{
-            width: thumbs.w,
-            height: thumbs.h,
-            backgroundImage: `url(/api/stream/${grantId}/thumbs/${String(sheet).padStart(3, "0")}.jpg)`,
-            backgroundPosition: `-${(cell % thumbs.grid) * thumbs.w}px -${Math.floor(cell / thumbs.grid) * thumbs.h}px`,
-          }}
-        />
-      )}
-      <p className="mt-1 text-center font-mono text-xs tabular-nums">{fmt(at)}</p>
     </div>
   );
 }

@@ -675,3 +675,34 @@ export const chatFiles = pgTable("chat_files", {
   bytes: integer("bytes").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Trophies a member won. Kept for good once won; seenAt = the celebration was shown. */
+export const userTrophies = pgTable(
+  "user_trophies",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    trophy: text("trophy").notNull(),
+    unlockedAt: timestamp("unlocked_at", { withTimezone: true }).notNull().defaultNow(),
+    seenAt: timestamp("seen_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.trophy] }), index("user_trophies_trophy_idx").on(t.trophy)],
+);
+
+/**
+ * What the engagement features showed and what members did with them, to see whether they help.
+ * feature: welcome | pick | near | trophy ; action: shown | click | unlock ; grp: test | holdout.
+ * Deleted with the account.
+ */
+export const engagementEvents = pgTable(
+  "engagement_events",
+  {
+    id: serial("id").primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    feature: text("feature").notNull(),
+    action: text("action").notNull(),
+    key: text("key"),
+    grp: text("grp").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("engagement_feature_idx").on(t.feature, t.at), index("engagement_user_idx").on(t.userId, t.at)],
+);

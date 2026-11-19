@@ -1,4 +1,5 @@
 "use client";
+import { pickMime } from "@/lib/audio";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Mic, RotateCcw, Square, ThumbsDown, ThumbsUp, Send, X } from "lucide-react";
@@ -9,11 +10,6 @@ import { useT } from "../i18n";
 
 const MAX_SEC = 120;
 const BARS = 28;
-
-function pickMime() {
-  const types = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm", "audio/ogg;codecs=opus"];
-  return types.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ?? "";
-}
 
 type Phase = "idle" | "rec" | "review" | "sending" | "sent";
 

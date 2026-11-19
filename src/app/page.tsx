@@ -15,6 +15,8 @@ import { Poster, Row } from "@/components/poster";
 import { Landing } from "@/components/landing";
 import { StatusMark } from "@/components/status";
 import { LibraryHome } from "./library-home";
+import { getNudges } from "@/lib/nudges";
+import { HomeNudges } from "@/components/nudges";
 
 export async function generateMetadata(props: PageProps<"/">) {
   const k = (await props.searchParams).k;
@@ -96,6 +98,7 @@ export default async function Page(props: PageProps<"/">) {
     db.select({ id: schema.watchlist.titleId }).from(schema.watchlist).where(eq(schema.watchlist.userId, user.id)),
   ]);
   const listedIds = new Set(listed.map((l) => l.id));
+  const nudges = k === "all" ? await getNudges(user.id) : null;
   // Projects of the site's own creators, online
   const made = (await creatorTitles(20)).filter((t) => !kindFilter || t.kind === kindFilter);
   const t = await getT();
@@ -144,6 +147,7 @@ export default async function Page(props: PageProps<"/">) {
       <h1 className="sr-only">{t("Accueil")}</h1>
       <Billboard slides={slides} delay={pref?.ms ?? 3000} />
       <KindTabs current={k} />
+      {nudges && <HomeNudges n={nudges} />}
 
       {grants.length > 0 && (
         <section className="mx-4 mt-10 md:mx-10">

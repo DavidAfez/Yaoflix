@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AtSign, Bell, TriangleAlert, Check, Clapperboard, Sparkles, Heart, MessageCircle, MonitorSmartphone, Repeat2, UserPlus, X } from "lucide-react";
+import { AtSign, Bell, TriangleAlert, Check, Clapperboard, Sparkles, Heart, MessageCircle, MonitorSmartphone, Repeat2, Trophy, UserPlus, X } from "lucide-react";
 import { useLocale, useT } from "./i18n";
 import { rejectLabels } from "@/lib/labels";
 import type { RejectReason } from "@/db/schema";
@@ -45,6 +45,7 @@ const ICON: Record<string, React.ReactNode> = {
   follow: <UserPlus size={15} className="text-ice" />,
   fav: <Heart size={15} className="text-coral" fill="currentColor" />,
   repost: <Repeat2 size={15} className="text-lime" />,
+  trophy: <Trophy size={15} className="text-lime" />,
 };
 
 function line(it: Item, t: T) {
@@ -66,6 +67,8 @@ function line(it: Item, t: T) {
       return t("@{h} a aimé ton post", { h: d.handle ?? "" });
     case "repost":
       return t("@{h} a reposté ton post", { h: d.handle ?? "" });
+    case "trophy":
+      return Number(d.reason) > 1 ? t("{n} trophées débloqués", { n: d.reason ?? "" }) : t("Trophée : {title}", { title: t(d.title ?? "") });
     default:
       return "";
   }

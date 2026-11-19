@@ -84,6 +84,14 @@ En production : mettre l'app derrière Cloudflare (ou nginx + GeoIP2) pour le pa
 - **Feed** : posts rattachés à un titre (top 5, tier list, sondage, GIF, images, note vocale), hashtags, posts programmés, signalements.
 - **Chat** chiffré de bout en bout (P-256, clés propres à chaque appareil, aucun mot de passe).
 - **Fiches** : casting et équipe étendus, anecdotes et musiques ajoutées par les membres.
+- **Trophées** : 27 trophées en cinq niveaux (facile, moyen, dur, très dur, et un impossible), calculés à partir de ce que le membre fait déjà. Onglet Trophées du profil, vitrine sur le profil public, célébration quand un trophée tombe.
+- **Accueil** : retour après absence (ce qui s'est passé après 5 jours sans venir), choix du jour, trophée à portée.
+
+## Mesurer l'engagement
+
+Studio → Engagement (Modo et Dev) : actifs du jour, de la semaine et du mois, rétention par semaine d'arrivée, ce que donne chaque mécanisme (affichages, clics, taux) et la comparaison avec un groupe témoin.
+
+Le groupe témoin est tiré au hasard à partir de l'identifiant du membre (rien n'est stocké) et ne voit pas les mécanismes de l'accueil. Sa taille se règle avec `RETENTION_HOLDOUT` (en %, 10 par défaut, 0 pour le couper). Les événements sont effacés avec le compte.
 
 ## Données récoltées (Insights)
 

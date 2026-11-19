@@ -4,6 +4,7 @@ import { getUser } from "@/lib/auth";
 import { Nav } from "@/components/nav";
 import { Presence } from "@/components/presence";
 import { ErrorReporter } from "@/components/error-reporter";
+import { TrophyWatcher } from "@/components/trophies";
 import { MarksProvider } from "@/components/marks";
 import { deepState, getMarks } from "@/lib/marks";
 import { I18nProvider } from "@/components/i18n";
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           children
         )}
         {user?.approved && <Presence />}
+        {user?.approved && <TrophyWatcher />}
         <ErrorReporter />
         </I18nProvider>
       </body>

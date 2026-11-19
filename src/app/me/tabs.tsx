@@ -13,6 +13,8 @@ import { StatusMark } from "@/components/status";
 import { ageBrackets, sexes } from "@/lib/labels";
 import { saveProfile, saveWhatsApp, deleteAccount, saveBillboard } from "./actions";
 import type { RejectReason, RequestPrefs } from "@/db/schema";
+import { TrophyBoard } from "@/components/trophies";
+import type { TrophyView } from "@/lib/trophies";
 
 type Status = "PENDING" | "IN_PROGRESS" | "FULFILLED" | "REJECTED";
 type Req = { id: string; status: Status; reason: RejectReason | null; at: string; prefs: RequestPrefs; poster: PosterData };
@@ -20,9 +22,11 @@ type Watching = { grantId: string; name: string; backdrop: string | null; progre
 type Share = { label: string; share: number };
 type Overview = { watching: Watching[]; taste: Share[]; recency: Share[]; recos: PosterData[]; listed: PosterData[]; toAsk: PosterData[] };
 
-const TABS = ["Moi", "Bobines", "Aimés", "Vus", "Demandes", "Réglages"] as const;
+const TABS = ["Moi", "Bobines", "Aimés", "Vus", "Trophées", "Demandes", "Réglages"] as const;
 
 export function MeTabs(props: {
+  trophies: TrophyView[];
+  initialTab?: (typeof TABS)[number];
   overview: Overview;
   posts: FeedPost[];
   pinned: FeedPost | null;
@@ -32,7 +36,7 @@ export function MeTabs(props: {
   requests: Req[];
   profile: { handle: string; age: string; sex: string; hasPhone: boolean; optIn: boolean; billboardMs: number };
 }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Moi");
+  const [tab, setTab] = useState<(typeof TABS)[number]>(props.initialTab ?? "Moi");
   // Every poster the page knows about, so a like or a seen mark shows up in its tab right away
   const marks = useMarkSets();
   const pool = useMemo(() => {
@@ -51,6 +55,7 @@ export function MeTabs(props: {
             {t === "Aimés" && liked.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{liked.length}</span>}
             {t === "Bobines" && props.posts.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.posts.length}</span>}
             {t === "Vus" && seen.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{seen.length}</span>}
+            {t === "Trophées" && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.trophies.filter((x) => x.won).length}</span>}
             {t === "Demandes" && props.requests.length > 0 && <span className="ml-1.5 font-mono text-[11px] text-lime">{props.requests.length}</span>}
             {tab === t && <motion.span layoutId="me-tab" className="absolute inset-x-0 -bottom-px h-0.5 bg-lime" />}
           </button>
@@ -71,6 +76,7 @@ export function MeTabs(props: {
           {tab === "Bobines" && <Reels posts={props.posts} pinned={props.pinned} canCapture={props.canCapture} />}
           {tab === "Aimés" && (liked.length ? <ByKind items={liked} /> : <Empty word="Aucun coup de cœur." />)}
           {tab === "Vus" && (seen.length ? <ByKind items={seen} /> : <Empty word="Rien de vu encore." />)}
+          {tab === "Trophées" && <TrophyBoard items={props.trophies} />}
           {tab === "Demandes" && <Requests items={props.requests} />}
           {tab === "Réglages" && <Settings {...props.profile} />}
         </motion.section>

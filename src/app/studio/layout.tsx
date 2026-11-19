@@ -13,7 +13,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   const links = [
     { href: "/studio", label: "File" },
     { href: "/studio/library", label: "Upload" },
-    ...(can.viewInsights(user.role) ? [{ href: "/studio/insights", label: "Insights" }] : []),
+    ...(can.viewInsights(user.role) ? [{ href: "/studio/insights", label: "Insights" }, { href: "/studio/engagement", label: "Engagement" }] : []),
     ...(can.manageUsers(user.role) ? [{ href: "/studio/members", label: "Membres" }, { href: "/studio/reports", label: "Signalements" }] : []),
     { href: "/studio/errors", label: "Erreurs" },
   ];

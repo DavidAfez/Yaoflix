@@ -2,7 +2,7 @@
 import { and, eq, gt } from "drizzle-orm";
 import { db, schema } from "@/db";
 
-type Kind = "ready" | "rejected" | "reply" | "follow" | "fav" | "repost" | "new" | "creator";
+type Kind = "ready" | "rejected" | "reply" | "follow" | "fav" | "repost" | "new" | "creator" | "trophy";
 
 /**
  * Adds a line to someone's notification centre. Social pings (fav, repost, follow) from the same

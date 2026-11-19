@@ -152,12 +152,16 @@ input::-ms-clear {
 }
 
 /* Placeholder blocks while a page loads: a light sweeps across, still when motion is reduced */
+.sheen {
+  overflow: hidden;
+}
 .skeleton {
   position: relative;
   overflow: hidden;
   background: var(--color-ink-2);
 }
-.skeleton::after {
+.skeleton::after,
+.sheen::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -165,7 +169,8 @@ input::-ms-clear {
   animation: var(--animate-sheen);
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton::after {
+  .skeleton::after,
+  .sheen::after {
     animation: none;
   }
 }

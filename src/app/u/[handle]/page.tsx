@@ -13,6 +13,8 @@ import { profileFeed } from "@/lib/feed";
 import { profileHead, topLists } from "@/lib/profile";
 import { ProfileHeader, Top5Shelf } from "@/components/profile";
 import { UserTabs } from "@/components/user-tabs";
+import { TrophyShelf } from "@/components/trophies";
+import { wonTrophies } from "@/lib/trophies";
 import { Stat } from "@/app/me/stat";
 import { getLocale, getT } from "@/lib/i18n/server";
 
@@ -59,6 +61,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
     hoursSeen(member.id),
     topLists(member.id),
   ]);
+  const trophies = await wonTrophies(member.id);
   const made = await db.select().from(schema.titles).where(eq(schema.titles.creatorId, member.id)).orderBy(desc(schema.titles.updatedAt));
   const ready = await readyTitleIds([...liked, ...seen, ...made.map((title) => ({ title }))].map((r) => r.title.id));
   const L = await localizer([...liked, ...seen].map((r) => r.title));
@@ -83,6 +86,7 @@ export default async function Page(props: PageProps<"/u/[handle]">) {
           <Stat label="Avis" value={counts.reviews} />
         </dl>
         <Top5Shelf tops={tops} mine={false} />
+        <TrophyShelf ids={trophies} />
       </div>
 
       <UserTabs

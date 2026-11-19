@@ -8,6 +8,7 @@ import { roleLabel } from "@/lib/rbac";
 import { hoursSeen } from "@/lib/marks";
 import { recencyBucket, recencyOrder } from "@/lib/labels";
 import { MeTabs } from "./tabs";
+import { trophyBoard } from "@/lib/trophies";
 import { logout } from "../(auth)/actions";
 import { Bug, Clapperboard, LogOut } from "lucide-react";
 import Link from "next/link";
@@ -23,8 +24,10 @@ export async function generateMetadata() {
   return { title: t("Profil") };
 }
 
-export default async function Page() {
+export default async function Page(props: PageProps<"/me">) {
   const user = await requireUser();
+  const tab = (await props.searchParams).tab === "trophees" ? "Trophées" : undefined;
+  const trophies = await trophyBoard(user.id);
   const uid = user.id;
 
   const [recos, liked, reqs, seeds, listed, watching, [stats], tasteRows, seenRows, recencyRows] = await Promise.all([
@@ -153,6 +156,7 @@ export default async function Page() {
       </div>
 
       <MeTabs
+        key={tab ?? "Moi"}
         overview={{
           watching: watching.map((w) => ({
             grantId: w.grantId,
@@ -168,6 +172,8 @@ export default async function Page() {
           listed: listed.map((l) => toPoster(L(l.title), listReady.has(l.title.id))),
           toAsk: uniqueAsk.map((t) => toPoster(L(t))),
         }}
+        trophies={trophies}
+        initialTab={tab}
         posts={posts}
         pinned={pinned}
         canCapture={can.capture(user.role)}

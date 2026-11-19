@@ -9,15 +9,15 @@ import type { RejectReason } from "@/db/schema";
 import { useT } from "@/components/i18n";
 
 /** Categorical slots validated against the #131316 surface (CVD + normal vision + contrast). */
-const S = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9"];
+export const S = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#9085e9"];
 const LIME = "#e2626b";
-const GRID = "rgb(243 240 232 / 0.06)";
-const AXIS = { fill: "#8c8a84", fontSize: 11, fontFamily: "var(--font-geist-mono)" };
+export const GRID = "rgb(243 240 232 / 0.06)";
+export const AXIS = { fill: "#8c8a84", fontSize: 11, fontFamily: "var(--font-geist-mono)" };
 
 const sexLabel: Record<string, string> = { F: "Femmes", M: "Hommes", X: "Autres", "?": "N/C" };
 const deviceLabel: Record<string, string> = { mobile: "Mobile", tablet: "Tablette", desktop: "Ordi", tv: "TV", "?": "N/C" };
 
-function Count({ to, decimals = 0, suffix = "" }: { to: number; decimals?: number; suffix?: string }) {
+export function Count({ to, decimals = 0, suffix = "" }: { to: number; decimals?: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   useEffect(() => {
@@ -32,7 +32,7 @@ function Count({ to, decimals = 0, suffix = "" }: { to: number; decimals?: numbe
   return <span ref={ref}>0{suffix}</span>;
 }
 
-function Panel({ title, children, className = "", i = 0 }: { title: string; children: React.ReactNode; className?: string; i?: number }) {
+export function Panel({ title, children, className = "", i = 0 }: { title: string; children: React.ReactNode; className?: string; i?: number }) {
   const t = useT();
   return (
     <motion.section
@@ -48,7 +48,7 @@ function Panel({ title, children, className = "", i = 0 }: { title: string; chil
   );
 }
 
-function Tip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
+export function Tip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="border-l-2 border-lime bg-ink-3 px-3 py-2 text-xs shadow-xl">
